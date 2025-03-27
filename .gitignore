@@ -48,13 +48,8 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-INPUT/*
-!INPUT/DEPTH/
-!INPUT/DEPTH/.gitkeep
-!INPUT/RESULT/
-!INPUT/RESULT/.gitkeep
-!INPUT/SOURCE/
-!INPUT/SOURCE/.gitkeep
+INPUT/
+!INPUT/.gitkeep
 
 # Keep template directory structure but not content
 TEMPLATE/*
