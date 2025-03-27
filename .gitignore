@@ -1,0 +1,96 @@
+# VideoCutter .gitignore
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+INPUT/*
+!INPUT/DEPTH/
+!INPUT/DEPTH/.gitkeep
+!INPUT/RESULT/
+!INPUT/RESULT/.gitkeep
+!INPUT/SOURCE/
+!INPUT/SOURCE/.gitkeep
+
+# Keep template directory structure but not content
+TEMPLATE/*
+!TEMPLATE/.gitkeep
+
+# Keep config directory structure but not content
+config/*
+!config/.gitkeep
+
+# Log files
+*.log
+log.txt
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# FFmpeg output
+ffprobe_output.json
+ffmpeg_chromakey_experiments.txt
+
+# CSV and data files
+*.csv
+*.txt
+!requirements.txt
+
+# Media files (to avoid large binary files in git)
+*.mp4
+*.mp3
+*.wav
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# Exception for sample/test files
+!TEMPLATE/README.md
