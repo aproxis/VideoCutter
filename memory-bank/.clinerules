@@ -1,0 +1,208 @@
+# VideoCutter Project Intelligence
+
+This file captures important patterns, preferences, and project intelligence for the VideoCutter project. These insights help maintain consistency and follow established patterns when working with the codebase.
+
+## Critical Implementation Paths
+
+### Processing Pipeline
+
+The processing pipeline follows a strict sequence that should be maintained:
+
+1. **Input Processing** (`cutter.py`)
+   - Videos are split into segments
+   - Images are resized and formatted
+   - Files are backed up to SOURCE folder
+
+2. **Cleaning** (`cleaner.py`)
+   - Short videos are removed
+   - Quality control is applied
+
+3. **Organization** (`sorter.py`)
+   - Files are moved to date-time folders
+   - Files are renamed for consistency
+
+4. **Depth Processing** (optional, `depth.py`)
+   - 3D effects are applied to images
+   - Depth-enhanced videos are created
+
+5. **Slideshow Creation** (`slideshow.py`)
+   - Media is combined into slideshow
+   - Transitions and effects are applied
+
+6. **Audio Processing** (`audio.py`)
+   - Soundtrack and voiceover are mixed
+   - Audio effects are applied
+
+7. **Overlay Addition** (`subscribe.py`)
+   - Branding and subscription overlays are added
+   - Final video is created
+
+This sequence is critical and changing it will break the pipeline. Each script expects the output of the previous script in a specific format and location.
+
+## File Organization Patterns
+
+### Directory Structure
+
+- `INPUT/`: Raw input files
+- `INPUT/SOURCE/`: Backup of original files (date-time folders)
+- `INPUT/RESULT/`: Processed output (date-time folders)
+- `INPUT/DEPTH/`: Images for depth processing
+- `TEMPLATE/`: Template files for overlays and audio
+- `config/`: Configuration presets
+
+### Naming Conventions
+
+- Date-time folders: `YYYY-MM-DD_HH-MM-SS`
+- Processed images: `001.jpg`, `002.jpg`, etc.
+- Processed videos: `001.mp4`, `002.mp4`, etc.
+- Depth-enhanced videos: `001_df.mp4`, `002_df.mp4`, etc.
+- Slideshow: `slideshow.mp4`
+- Audio slideshow: `slideshow_with_audio.mp4`
+- Final video: `Model_Name.mp4` (spaces replaced with underscores)
+
+## Code Patterns
+
+### Command-Line Arguments
+
+All scripts use `argparse` with consistent parameter naming:
+
+- `--d`: Duration-related parameters
+- `--i`: Input-related parameters
+- `--o`: Output-related parameters
+- `--n`: Name-related parameters
+- `--f`: Font-related parameters
+- `--w`: Watermark-related parameters
+- `--z`: DepthFlow-related parameters (0/1)
+- `--b`: Blur-related parameters (0/1)
+- `--t`: Time-related parameters
+- `--tl`: Time limit parameters
+
+### FFmpeg Commands
+
+FFmpeg commands follow a consistent pattern:
+
+```python
+command = [
+    'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
+    '-i', input_file,
+    # ... additional inputs ...
+    '-filter_complex', filter_arg,
+    # ... output options ...
+    output_file
+]
+subprocess.run(command, check=True)
+```
+
+### Error Handling
+
+Error handling follows a try-except pattern with specific error messages:
+
+```python
+try:
+    subprocess.run(command, check=True)
+    print(f"+++++ Success message")
+except subprocess.CalledProcessError as error:
+    print(f"***** Error message: {error}")
+```
+
+## User Preferences
+
+### GUI Layout
+
+- Parameters are organized in logical groups
+- Font size is automatically calculated based on model name length
+- Configuration presets are available at the top of the interface
+- Save/load/delete buttons are clearly labeled
+- START button is prominently displayed at the bottom
+
+### Configuration Presets
+
+- Default configuration is created if none exists
+- Presets are saved as JSON files in the `config/` directory
+- Presets include all parameters needed for processing
+- Presets can be saved, loaded, and deleted from the GUI
+
+## Known Challenges
+
+### Font Paths
+
+Font paths are hardcoded for macOS:
+
+```python
+fontfile='/Users/a/Library/Fonts/Nexa.otf'
+```
+
+This will need to be adjusted for different platforms or made configurable.
+
+### Template File Requirements
+
+The following template files are required:
+
+- `soundtrack.mp3`: Background music
+- `transition.mp3`: Transition sound effect
+- `transition_long.mp3`: Extended transition sound
+- `voiceover_end.mp3`: Ending voiceover
+- `outro_vertical.mp4`: Vertical outro video
+- `outro_horizontal.mp4`: Horizontal outro video
+- `name_subscribe_like.mp4`: Vertical subscription overlay
+- `name_subscribe_like_horizontal.mp4`: Horizontal subscription overlay
+
+Missing template files will cause the pipeline to fail.
+
+### Memory Usage
+
+DepthFlow processing is memory-intensive and may cause issues on systems with limited RAM. The number of concurrent workers is controlled by:
+
+```python
+concurrency: int = int(os.getenv("WORKERS", 1))
+```
+
+This can be adjusted based on available system resources.
+
+## Evolution of Project Decisions
+
+### Video Orientation Support
+
+The project initially supported only vertical (9:16) videos but was expanded to support horizontal (16:9) videos as well. This required:
+
+1. Adding orientation parameter to GUI and scripts
+2. Creating horizontal template files
+3. Implementing different processing logic based on orientation
+4. Adding blur option for horizontal videos
+
+### Configuration Management
+
+The configuration system evolved from command-line only to a GUI with preset management. This improved usability for non-technical users and enabled quick switching between different configurations.
+
+### Depth Effects
+
+DepthFlow integration was added to enhance static images with 3D parallax effects. This significantly improved the visual quality of slideshows but increased processing time and resource requirements.
+
+## Tool Usage Patterns
+
+### FFmpeg
+
+FFmpeg is used extensively for video and audio processing. Key operations include:
+
+- Video splitting: `ffmpeg -i input.mp4 -segment_time X -f segment output%d.mp4`
+- Slideshow creation: Complex filter chains with xfade transitions
+- Audio mixing: Using amix, sidechaincompress, and volume filters
+- Overlay application: Using overlay filter with chromakey
+
+### PIL/Pillow
+
+PIL is used for image processing operations:
+
+- Resizing: `image.resize((width, height), Image.LANCZOS)`
+- Cropping: `image.crop((left, top, right, bottom))`
+- Blur effects: `image.filter(ImageFilter.GaussianBlur(radius))`
+- Gradient masks: Created with `ImageDraw` for smooth edges
+
+### DepthFlow
+
+DepthFlow is used for creating 3D parallax effects:
+
+- Multiple animation types are randomly selected
+- Parameters like isometric view, height, and zoom are randomized
+- Parallel processing is used for performance
+- Results are logged to `_depth_log.txt` for reference
