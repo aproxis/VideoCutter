@@ -55,6 +55,7 @@ VideoCutter/
 │   ├── RESULT/              # Processed output (date-time folders)
 │   └── SOURCE/              # Original files backup
 ├── TEMPLATE/                # Template files for overlays and audio
+├── memory-bank/             # Project documentation and context
 ├── *.py                     # Python scripts
 └── README.md                # This documentation
 ```
@@ -72,18 +73,18 @@ VideoCutter/
 ### Python Packages
 
 ```
-pillow
-numpy
-click
-attr
-dotmap
+pillow>=9.0.0
+numpy>=1.20.0
+click>=8.0.0
+attr>=21.2.0
+dotmap>=1.3.0
 ```
 
 ## Installation
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/VideoCutter.git
+   git clone https://github.com/aproxis/VideoCutter.git
    cd VideoCutter
    ```
 
@@ -101,6 +102,66 @@ dotmap
    ```
    pip install DepthFlow
    ```
+
+5. Set up directory structure:
+   ```
+   mkdir -p config INPUT/DEPTH TEMPLATE
+   ```
+
+6. Add required template files to the TEMPLATE directory (see TEMPLATE/README.md for details)
+
+## Core Components
+
+### 1. GUI Interface (`gui.py`)
+The graphical user interface for configuring and starting the processing pipeline. Features include:
+- Configuration preset management (save, load, delete)
+- Model name and watermark text input
+- Font size calculation and customization
+- Segment duration and time limit settings
+- Video orientation selection (vertical/horizontal)
+- DepthFlow and blur effect toggles
+
+### 2. Video Processing (`cutter.py`)
+The main entry point that orchestrates the entire workflow:
+- Splits videos into segments of specified duration
+- Processes images for the target aspect ratio
+- Organizes files into date-time folders
+- Calls subsequent scripts in the pipeline
+
+### 3. Quality Control (`cleaner.py`)
+Ensures quality by removing videos that don't meet requirements:
+- Removes videos shorter than specified duration
+- Validates video formats and properties
+
+### 4. File Organization (`sorter.py`)
+Manages file organization and naming:
+- Creates date-time stamped folders
+- Renames files for consistent processing
+- Backs up original files
+
+### 5. Depth Effects (`depth.py`)
+Applies 3D parallax effects to static images:
+- Creates depth maps from 2D images
+- Applies various animation patterns
+- Processes in parallel for performance
+
+### 6. Slideshow Creation (`slideshow.py`)
+Combines processed media into a cohesive slideshow:
+- Adds transitions between segments
+- Applies watermark and text overlays
+- Creates the base slideshow structure
+
+### 7. Audio Processing (`audio.py`)
+Handles all audio-related processing:
+- Mixes soundtrack with voiceover
+- Adds transition sound effects
+- Applies audio effects and normalization
+
+### 8. Branding (`subscribe.py`)
+Adds final branding and subscription overlays:
+- Integrates model name overlay
+- Adds subscribe/like animations
+- Finalizes the video for distribution
 
 ## Usage
 
@@ -190,6 +251,15 @@ When enabled, DepthFlow creates 3D parallax effects from static images with rand
 
 Parameters like isometric view, height, and zoom are randomized for variety.
 
+### Image Processing
+
+The image processing pipeline includes:
+
+1. Aspect ratio detection and appropriate resizing
+2. Gradient edge effects for smooth transitions
+3. Blur effects for background enhancement
+4. Orientation-specific processing for vertical/horizontal output
+
 ### Audio Processing
 
 The audio pipeline includes:
@@ -219,7 +289,24 @@ The subscribe overlay adds:
 
 ### Logs
 
-Check the terminal output for detailed processing logs and error messages.
+Check the terminal output for detailed processing logs and error messages. The depth processing also creates a `_depth_log.txt` file in the output directory.
+
+## Performance Considerations
+
+- **Memory Usage**: DepthFlow processing requires significant RAM (8GB+ recommended)
+- **Processing Time**: Typical processing takes 2-5 minutes per minute of output video
+- **Storage**: Ensure at least 10GB of free space for temporary files and outputs
+- **GPU Acceleration**: DepthFlow benefits from GPU acceleration if available
+
+## Future Development
+
+Planned enhancements include:
+
+- Comprehensive error handling throughout the pipeline
+- Progress indicators during processing
+- Additional transition types and effects
+- Direct social media publishing integration
+- Batch processing capabilities
 
 ## License
 
