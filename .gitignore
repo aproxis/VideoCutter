@@ -58,6 +58,7 @@ TEMPLATE/*
 # Keep config directory structure but not content
 config/*
 !config/.gitkeep
+!config/README.md
 
 # Log files
 *.log
