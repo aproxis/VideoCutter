@@ -8,36 +8,36 @@ This file captures important patterns, preferences, and project intelligence for
 
 The processing pipeline follows a strict sequence that should be maintained:
 
-1. **Input Processing** (`cutter.py`)
+1. **Input Processing** (`video_processing/video.py`)
    - Videos are split into segments
    - Images are resized and formatted
    - Files are backed up to SOURCE folder
 
-2. **Cleaning** (`cleaner.py`)
+2. **Cleaning** (`video_processing/video.py` - run_cleaner method)
    - Short videos are removed
    - Quality control is applied
 
-3. **Organization** (`sorter.py`)
+3. **Organization** (`video_processing/video.py` - run_sorter method)
    - Files are moved to date-time folders
    - Files are renamed for consistency
 
-4. **Depth Processing** (optional, `depth.py`)
+4. **Depth Processing** (optional, `video_processing/video.py` - run_depth_processor method)
    - 3D effects are applied to images
    - Depth-enhanced videos are created
 
-5. **Slideshow Creation** (`slideshow.py`)
+5. **Slideshow Creation** (`video_processing/slideshow.py`)
    - Media is combined into slideshow
    - Transitions and effects are applied
 
-6. **Audio Processing** (`audio.py`)
+6. **Audio Processing** (`video_processing/audio.py`)
    - Soundtrack and voiceover are mixed
    - Audio effects are applied
 
-7. **Overlay Addition** (`subscribe.py`)
+7. **Overlay Addition** (`video_processing/slideshow.py` - add_subscribe method)
    - Branding and subscription overlays are added
    - Final video is created
 
-This sequence is critical and changing it will break the pipeline. Each script expects the output of the previous script in a specific format and location.
+This sequence is critical and changing it will break the pipeline. Each module expects the output of the previous module in a specific format and location.
 
 ## File Organization Patterns
 
@@ -49,6 +49,8 @@ This sequence is critical and changing it will break the pipeline. Each script e
 - `INPUT/DEPTH/`: Images for depth processing
 - `TEMPLATE/`: Template files for overlays and audio
 - `config/`: Configuration presets
+- `video_processing/`: Core processing modules
+- `tests/`: Test suite
 
 ### Naming Conventions
 
@@ -105,6 +107,88 @@ except subprocess.CalledProcessError as error:
     print(f"***** Error message: {error}")
 ```
 
+## Documentation Standards
+
+### Module Docstrings
+
+Module docstrings should follow this pattern:
+
+```python
+"""
+Module name and brief description.
+
+Detailed description of the module's purpose and functionality.
+This should include information about what the module does,
+its role in the larger system, and any key concepts.
+
+Key features or components:
+- Feature 1: Description
+- Feature 2: Description
+- Feature 3: Description
+"""
+```
+
+### Class Docstrings
+
+Class docstrings should follow this pattern:
+
+```python
+class ClassName:
+    """
+    Brief description of the class.
+    
+    Detailed description of the class's purpose and functionality.
+    This should include information about what the class does,
+    its role in the larger system, and any key concepts.
+    
+    Attributes:
+        attribute1 (type): Description of attribute1.
+        attribute2 (type): Description of attribute2.
+    """
+```
+
+### Function Docstrings
+
+Function docstrings should follow this pattern:
+
+```python
+def function_name(param1, param2):
+    """
+    Brief description of the function.
+    
+    Detailed description of the function's purpose and functionality.
+    This should include information about what the function does,
+    its role in the larger system, and any key concepts.
+    
+    Args:
+        param1 (type): Description of param1.
+        param2 (type): Description of param2.
+        
+    Returns:
+        type: Description of the return value.
+        
+    Raises:
+        ExceptionType: Description of when this exception is raised.
+        
+    Example:
+        ```python
+        result = function_name(value1, value2)
+        print(result)
+        ```
+    """
+```
+
+### README Files
+
+README files should be included in each major directory and follow this structure:
+
+1. Title and brief description
+2. Purpose of the directory/module
+3. Key components or files
+4. Usage examples
+5. Dependencies or requirements
+6. Additional notes or considerations
+
 ## User Preferences
 
 ### GUI Layout
@@ -121,6 +205,7 @@ except subprocess.CalledProcessError as error:
 - Presets are saved as JSON files in the `config/` directory
 - Presets include all parameters needed for processing
 - Presets can be saved, loaded, and deleted from the GUI
+- Vertical and horizontal presets are provided by default
 
 ## Known Challenges
 
@@ -160,6 +245,17 @@ concurrency: int = int(os.getenv("WORKERS", 1))
 This can be adjusted based on available system resources.
 
 ## Evolution of Project Decisions
+
+### Modular Package Structure
+
+The project was refactored from individual scripts to a modular package structure:
+
+1. Created a `video_processing` package with specialized modules
+2. Implemented proper class-based design with clear separation of concerns
+3. Added comprehensive docstrings and type hints
+4. Created clean entry points in `main.py` (CLI) and `gui_main.py` (GUI)
+
+This improved code organization, maintainability, and testability.
 
 ### Video Orientation Support
 

@@ -66,6 +66,12 @@
    - GPU acceleration support
    - Tensor operations for image processing
 
+6. **Pytest**
+   - Testing framework
+   - Unit and integration testing
+   - Test fixtures and mocks
+   - Coverage reporting
+
 ## Development Setup
 
 ### Required Software
@@ -94,7 +100,7 @@
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    
    # Install dependencies
-   pip install pillow numpy click attr dotmap
+   pip install -r requirements.txt
    ```
 
 2. **FFmpeg Installation**
@@ -121,13 +127,29 @@
 4. **Directory Structure**
    ```
    VideoCutter/
-   ├── config/                  # Create this directory
-   ├── INPUT/                   # Create this directory
-   │   ├── DEPTH/               # Create this directory
-   │   ├── RESULT/              # Auto-created
-   │   └── SOURCE/              # Auto-created
-   ├── TEMPLATE/                # Create this directory
-   └── *.py                     # Python scripts
+   ├── config/                  # Configuration files
+   │   ├── vertical_config.json   # Configuration for vertical videos
+   │   └── horizontal_config.json # Configuration for horizontal videos
+   ├── docs/                    # Documentation
+   ├── INPUT/                   # Input folder for videos and images
+   │   ├── DEPTH/               # Depth processing folder
+   │   ├── RESULT/              # Auto-created for processed files
+   │   └── SOURCE/              # Auto-created for original files backup
+   ├── TEMPLATE/                # Template files for overlays and audio
+   ├── tests/                   # Test suite
+   │   └── unit/                # Unit tests
+   ├── video_processing/        # Core processing modules
+   │   ├── __init__.py          # Package initialization
+   │   ├── audio.py             # Audio processing functionality
+   │   ├── config.py            # Configuration management
+   │   ├── gui.py               # Graphical user interface
+   │   ├── image.py             # Image processing functionality
+   │   ├── slideshow.py         # Slideshow creation functionality
+   │   ├── utils.py             # Utility functions
+   │   └── video.py             # Video processing functionality
+   ├── gui_main.py              # GUI entry point
+   ├── main.py                  # Command line entry point
+   └── pytest.ini               # Pytest configuration
    ```
 
 5. **Template Files**
@@ -192,6 +214,8 @@ numpy>=1.20.0          # Numerical operations
 click>=8.0.0           # Command-line interface
 attr>=21.2.0           # Class attribute management
 dotmap>=1.3.0          # Dot notation access to dictionaries
+pytest>=7.0.0          # Testing framework
+pytest-cov>=4.0.0      # Test coverage reporting
 ```
 
 ### External Dependencies
@@ -206,6 +230,64 @@ dotmap>=1.3.0          # Dot notation access to dictionaries
      - Montserrat-SemiBold.otf
      - Nexa.otf
    - Must be installed in system font directory or specified path
+
+## Documentation Standards
+
+### Code Documentation
+
+The project follows a comprehensive documentation approach:
+
+1. **Module Docstrings**
+   - Brief description of the module
+   - Detailed explanation of purpose and functionality
+   - Key features or components listed
+   - Usage examples where appropriate
+
+2. **Class Docstrings**
+   - Brief description of the class
+   - Detailed explanation of purpose and functionality
+   - Attributes listed with types and descriptions
+   - Usage examples where appropriate
+
+3. **Function Docstrings**
+   - Brief description of the function
+   - Detailed explanation of purpose and functionality
+   - Parameters listed with types and descriptions
+   - Return values listed with types and descriptions
+   - Exceptions listed with conditions
+   - Usage examples where appropriate
+
+4. **Type Hints**
+   - All function parameters include type hints
+   - Return values include type hints
+   - Complex types use typing module (List, Dict, Optional, etc.)
+   - Improves code understanding and IDE support
+
+5. **README Files**
+   - Each major directory includes a README.md file
+   - Explains purpose and contents of the directory
+   - Provides usage examples and guidance
+   - Lists dependencies and requirements
+
+### Documentation Tools
+
+1. **Docstrings**
+   - Google-style docstrings for readability
+   - Consistent formatting across all modules
+   - Examples included where appropriate
+   - Type information included in parameter descriptions
+
+2. **Markdown**
+   - README files use Markdown format
+   - Consistent structure across all files
+   - Code blocks with syntax highlighting
+   - Lists, tables, and headings for organization
+
+3. **Memory Bank**
+   - Project-level documentation in memory-bank directory
+   - Captures high-level architecture and decisions
+   - Records project context and progress
+   - Documents technical constraints and requirements
 
 ## Integration Points
 
@@ -228,3 +310,49 @@ dotmap>=1.3.0          # Dot notation access to dictionaries
    - Command-line execution
    - GUI-triggered processing
    - No scheduling or automation built-in
+
+## Testing Framework
+
+### Test Structure
+
+1. **Unit Tests**
+   - Located in tests/unit directory
+   - Test individual components in isolation
+   - Mock external dependencies
+   - Focus on function and class behavior
+
+2. **Test Configuration**
+   - pytest.ini defines test configuration
+   - Coverage reporting enabled
+   - Test discovery patterns defined
+   - Verbose output for clarity
+
+3. **Test Fixtures**
+   - Common test data and setup
+   - Mock objects and functions
+   - Environment configuration
+   - Temporary file handling
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage report
+pytest --cov=video_processing
+
+# Run specific test file
+pytest tests/unit/test_config.py
+
+# Run specific test
+pytest tests/unit/test_config.py::TestVideoConfig::test_default_values
+```
+
+### Test Coverage
+
+- Current coverage: ~50%
+- Unit tests for core components
+- Limited integration testing
+- Focus on critical functionality
+- Ongoing expansion of test suite

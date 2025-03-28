@@ -2,138 +2,200 @@
 
 ## System Architecture
 
-VideoCutter follows a modular architecture with a clear separation of concerns. The system is organized into distinct components that handle specific aspects of the video processing pipeline:
+VideoCutter follows a modular architecture with a clear separation of concerns. The system is organized into a package structure with specialized modules that handle specific aspects of the video processing pipeline:
 
 ```mermaid
 graph TD
-    GUI[GUI Interface] --> Cutter
-    Cutter[Cutter] --> Cleaner
-    Cleaner[Cleaner] --> Sorter
-    Sorter[Sorter] --> DepthFlow
-    DepthFlow[DepthFlow] --> Slideshow
-    Slideshow[Slideshow] --> Audio
-    Audio[Audio] --> Subscribe
-    Subscribe[Subscribe] --> FinalVideo[Final Video]
+    Main[main.py / gui_main.py] --> Config[config.py]
+    Main --> Video[video.py]
+    Main --> Image[image.py]
+    Main --> Slideshow[slideshow.py]
+    
+    Config --> VideoConfig[VideoConfig]
+    
+    Video --> Cleaner[run_cleaner]
+    Video --> Sorter[run_sorter]
+    Video --> DepthFlow[run_depth_processor]
+    
+    Image --> ImageProcessor[ImageProcessor]
+    
+    Slideshow --> Audio[audio.py]
+    Slideshow --> Subscribe[add_subscribe]
+    
+    Audio --> FinalVideo[Final Video]
 ```
 
 ### Component Responsibilities
 
-1. **GUI Interface (`gui.py`)**: 
-   - Provides user interface for configuration
-   - Manages configuration presets
-   - Initiates the processing pipeline
+1. **Entry Points**:
+   - `main.py`: Command-line interface entry point
+   - `gui_main.py`: Graphical user interface entry point
 
-2. **Cutter (`cutter.py`)**: 
-   - Processes input videos and images
-   - Splits videos into segments
-   - Handles image resizing and formatting
-   - Orchestrates the overall workflow
+2. **Configuration (`config.py`)**:
+   - `VideoConfig` class for managing all settings
+   - Command-line argument parsing
+   - Default values and derived settings
 
-3. **Cleaner (`cleaner.py`)**: 
-   - Removes videos shorter than specified duration
-   - Ensures quality control of segments
+3. **Video Processing (`video.py`)**:
+   - `VideoProcessor` class for processing videos
+   - Video splitting into segments
+   - Running cleaner, sorter, and depth processor
+   - Managing file organization
 
-4. **Sorter (`sorter.py`)**: 
-   - Organizes files into date-time folders
-   - Renames files for consistent processing
+4. **Image Processing (`image.py`)**:
+   - `ImageProcessor` class for processing images
+   - Image resizing and formatting
+   - Applying effects and filters
+   - Supporting different orientations
 
-5. **DepthFlow (`depth.py`)**: 
-   - Applies 3D parallax effects to images
-   - Creates depth-enhanced video segments
+5. **Slideshow Creation (`slideshow.py`)**:
+   - `SlideshowCreator` class for creating slideshows
+   - Combining videos and images
+   - Adding transitions and effects
+   - Integrating with audio and overlays
 
-6. **Slideshow (`slideshow.py`)**: 
-   - Creates slideshow from processed media
-   - Adds transitions and effects
-   - Incorporates watermarks
+6. **Audio Processing (`audio.py`)**:
+   - `AudioProcessor` class for processing audio
+   - Mixing soundtrack and voiceover
+   - Adding transition sounds
+   - Synchronizing with video
 
-7. **Audio (`audio.py`)**: 
-   - Processes soundtrack and voiceover
-   - Applies audio mixing and effects
-   - Synchronizes audio with video
+7. **Utilities (`utils.py`)**:
+   - Common utility functions
+   - File operations
+   - Video analysis
+   - Directory management
 
-8. **Subscribe (`subscribe.py`)**: 
-   - Adds branding and subscription overlays
-   - Finalizes the video for distribution
+8. **GUI Interface (`gui.py`)**:
+   - `VideoCutterGUI` class for the user interface
+   - Configuration management
+   - User input handling
+   - Process initiation
 
 ## Key Technical Decisions
 
-### 1. Modular Script Architecture
+### 1. Modular Package Structure
 
-**Decision**: Implement functionality in separate Python scripts rather than a monolithic application.
-
-**Rationale**:
-- Easier maintenance and debugging
-- Allows for independent development of features
-- Enables selective execution of pipeline stages
-- Simplifies future extensions
-
-### 2. Command-Line Interface Between Components
-
-**Decision**: Use command-line arguments for inter-script communication.
+**Decision**: Implement the application as a Python package with specialized modules.
 
 **Rationale**:
-- Enables script independence
-- Allows for manual execution of individual steps
-- Simplifies debugging and testing
-- Provides clear documentation of parameters
+- Improves code organization and maintainability
+- Enables better separation of concerns
+- Facilitates unit testing and code reuse
+- Provides a clearer mental model of the system
 
-### 3. FFmpeg for Video Processing
+### 2. Configuration Management
 
-**Decision**: Use FFmpeg as the core video processing engine.
-
-**Rationale**:
-- Industry-standard tool with comprehensive capabilities
-- Excellent performance and reliability
-- Extensive format support
-- Well-documented command structure
-
-### 4. Configuration Presets
-
-**Decision**: Implement JSON-based configuration presets.
+**Decision**: Implement a centralized configuration class with command-line and GUI interfaces.
 
 **Rationale**:
-- Enables quick setup for recurring tasks
-- Reduces user error
-- Provides template system for different output styles
-- Simplifies complex parameter combinations
+- Provides a single source of truth for settings
+- Simplifies parameter management
+- Enables easy switching between configurations
+- Improves user experience with presets
 
-### 5. Date-Time Based Organization
+### 3. Class-Based Design
 
-**Decision**: Organize output in date-time stamped folders.
-
-**Rationale**:
-- Prevents file conflicts
-- Creates natural versioning
-- Simplifies tracking of output history
-- Enables batch processing of multiple runs
-
-### 6. Source Backup
-
-**Decision**: Automatically backup original files.
+**Decision**: Use classes to encapsulate related functionality and state.
 
 **Rationale**:
-- Prevents data loss
-- Enables reprocessing if needed
-- Maintains archive of original content
-- Supports audit trail of modifications
+- Organizes related functionality together
+- Manages state more effectively
+- Provides clear interfaces between components
+- Follows object-oriented design principles
+
+### 4. Comprehensive Documentation
+
+**Decision**: Add detailed docstrings, type hints, and README files throughout the codebase.
+
+**Rationale**:
+- Improves code understanding for new developers
+- Serves as a reference for existing developers
+- Facilitates maintenance and future development
+- Provides examples and usage patterns
+
+### 5. Testing Framework
+
+**Decision**: Implement unit tests with pytest and coverage reporting.
+
+**Rationale**:
+- Ensures code correctness
+- Facilitates refactoring and changes
+- Documents expected behavior
+- Identifies untested code paths
 
 ## Design Patterns
 
-### 1. Pipeline Pattern
+### 1. Factory Pattern
 
-The overall system follows a pipeline pattern, where each component processes data and passes it to the next component. This enables a clear flow of data and processing steps.
+The `VideoConfig` class acts as a factory that creates configuration objects from command-line arguments or GUI inputs:
 
-### 2. Command Pattern
+```python
+# Factory method in config.py
+def parse_arguments() -> VideoConfig:
+    parser = argparse.ArgumentParser(...)
+    # Parse arguments
+    args = parser.parse_args()
+    # Create and return the config object
+    config = VideoConfig(
+        segment_duration=args.segment_duration,
+        # Other parameters...
+    )
+    return config
+```
 
-Each script acts as a command that can be executed independently with specific parameters. The GUI acts as the invoker that configures and executes these commands.
+### 2. Strategy Pattern
 
-### 3. Factory Pattern
+The processing pipeline uses different strategies based on configuration options:
 
-Configuration presets act as factories that create specific configurations for the processing pipeline.
+```python
+# Strategy selection in video.py
+def run_depth_processor(self):
+    if self.config.depthflow == '1':
+        # Use DepthFlow strategy
+        self._run_depth_processor_with_depthflow()
+    else:
+        # Use standard strategy
+        self._run_standard_processor()
+```
 
-### 4. Template Method Pattern
+### 3. Template Method Pattern
 
-The processing pipeline defines a template of steps that are executed in sequence, with specific implementations for each step.
+The processing pipeline defines a template of steps that are executed in sequence:
+
+```python
+# Template method in main.py
+def main():
+    # Parse configuration
+    config = parse_arguments()
+    
+    # Initialize processors
+    video_processor = VideoProcessor(config)
+    image_processor = ImageProcessor(config)
+    slideshow_creator = SlideshowCreator(config)
+    
+    # Execute processing steps
+    video_processor.process_videos()
+    image_processor.process_images(...)
+    video_processor.run_cleaner()
+    video_processor.run_sorter()
+    video_processor.run_depth_processor()
+    slideshow_creator.process_all_folders()
+```
+
+### 4. Facade Pattern
+
+The main entry points (`main.py` and `gui_main.py`) provide a simplified interface to the complex processing pipeline:
+
+```python
+# Facade in gui_main.py
+def main():
+    # Initialize the GUI
+    gui = VideoCutterGUI()
+    
+    # Start the main event loop
+    gui.run()
+```
 
 ## Component Relationships
 
@@ -141,57 +203,108 @@ The processing pipeline defines a template of steps that are executed in sequenc
 
 ```mermaid
 graph LR
-    Input[Input Files] --> Cutter
-    Cutter --> ProcessedMedia[Processed Media]
-    ProcessedMedia --> Sorter
+    Input[Input Files] --> VideoProcessor
+    VideoProcessor --> ProcessedVideos[Processed Videos]
+    Input --> ImageProcessor
+    ImageProcessor --> ProcessedImages[Processed Images]
+    ProcessedVideos --> Cleaner
+    Cleaner --> CleanedVideos[Cleaned Videos]
+    CleanedVideos --> Sorter
+    ProcessedImages --> Sorter
     Sorter --> OrganizedMedia[Organized Media]
-    OrganizedMedia --> DepthFlow
-    DepthFlow --> EnhancedMedia[Enhanced Media]
-    EnhancedMedia --> Slideshow
-    Slideshow --> RawSlideshow[Raw Slideshow]
-    RawSlideshow --> Audio
-    Audio --> AudioSlideshow[Audio Slideshow]
-    AudioSlideshow --> Subscribe
-    Subscribe --> FinalVideo[Final Video]
+    OrganizedMedia --> DepthProcessor
+    DepthProcessor --> EnhancedMedia[Enhanced Media]
+    EnhancedMedia --> SlideshowCreator
+    SlideshowCreator --> RawSlideshow[Raw Slideshow]
+    RawSlideshow --> AudioProcessor
+    AudioProcessor --> AudioSlideshow[Audio Slideshow]
+    AudioSlideshow --> SubscribeOverlay
+    SubscribeOverlay --> FinalVideo[Final Video]
 ```
 
 ### Configuration Flow
 
 ```mermaid
 graph TD
-    ConfigFile[Config File] --> GUI
-    GUI --> Parameters[Processing Parameters]
-    Parameters --> Cutter
-    Cutter --> CutterParams[Cutter Parameters]
-    CutterParams --> Cleaner
-    CutterParams --> Sorter
-    CutterParams --> DepthFlow
-    CutterParams --> Slideshow
-    Slideshow --> SlideshowParams[Slideshow Parameters]
-    SlideshowParams --> Audio
-    SlideshowParams --> Subscribe
+    CommandLine[Command Line] --> ArgumentParser
+    ArgumentParser --> VideoConfig
+    GUI[GUI Interface] --> ConfigPresets[Config Presets]
+    ConfigPresets --> VideoConfig
+    VideoConfig --> VideoProcessor
+    VideoConfig --> ImageProcessor
+    VideoConfig --> SlideshowCreator
+    VideoConfig --> AudioProcessor
 ```
 
 ## Error Handling
 
 The system implements a progressive error handling approach:
 
-1. **Input Validation**: GUI validates user inputs before processing
-2. **Process Monitoring**: Each script monitors subprocess execution
-3. **Error Logging**: Errors are logged to the console
-4. **Graceful Degradation**: Pipeline continues even if some steps fail
-5. **File Preservation**: Original files are preserved regardless of errors
+1. **Input Validation**:
+   - Configuration validation in `VideoConfig` class
+   - File existence checks before processing
+   - Format validation for videos and images
+
+2. **Process Monitoring**:
+   - Subprocess execution monitoring
+   - Return code checking
+   - Output capturing for debugging
+
+3. **Exception Handling**:
+   - Try-except blocks around critical operations
+   - Specific exception types for different errors
+   - Descriptive error messages
+
+4. **Graceful Degradation**:
+   - Continue processing even if some files fail
+   - Skip invalid files rather than aborting
+   - Provide feedback about skipped files
+
+5. **File Preservation**:
+   - Backup original files before processing
+   - Use temporary files for intermediate steps
+   - Ensure output directories exist
 
 ## Performance Considerations
 
-1. **Parallel Processing**: Some components (like DepthFlow) use parallel processing for performance
-2. **Resource Management**: Video processing is memory and CPU intensive
-3. **File I/O Optimization**: Minimizes unnecessary file operations
-4. **Format Efficiency**: Uses efficient video codecs and formats
+1. **Parallel Processing**:
+   - DepthFlow uses parallel processing for performance
+   - Configurable number of workers based on system resources
+   - Environment variable control: `WORKERS`
+
+2. **Resource Management**:
+   - Video processing is memory and CPU intensive
+   - Temporary files cleaned up after processing
+   - Efficient file operations to minimize I/O
+
+3. **Format Efficiency**:
+   - H.264 codec for video compression
+   - AAC codec for audio compression
+   - Optimized settings for quality vs. size
+
+4. **Processing Optimization**:
+   - Efficient FFmpeg command construction
+   - Minimal file operations
+   - Reuse of common operations
 
 ## Future Architecture Considerations
 
-1. **Queue System**: Potential for implementing a job queue for batch processing
-2. **Plugin Architecture**: Framework for extending with additional effects or processors
-3. **Web Interface**: Possibility of web-based control interface
-4. **Distributed Processing**: Potential for distributing processing across multiple machines
+1. **Plugin Architecture**:
+   - Framework for extending with additional effects or processors
+   - Standard interface for plugins
+   - Dynamic discovery and loading
+
+2. **Web Interface**:
+   - Web-based control interface
+   - RESTful API for remote control
+   - Progress monitoring and notification
+
+3. **Distributed Processing**:
+   - Distributing processing across multiple machines
+   - Job queue for managing workload
+   - Worker nodes for parallel processing
+
+4. **Cloud Integration**:
+   - Cloud storage for input and output
+   - Cloud-based processing options
+   - Direct publishing to social media
