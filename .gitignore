@@ -87,5 +87,6 @@ ffmpeg_chromakey_experiments.txt
 *.png
 *.gif
 
-# Exception for sample/test files
+# Exception for sample/test files and documentation
 !TEMPLATE/README.md
+!INPUT/README.md
