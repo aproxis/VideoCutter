@@ -51,9 +51,9 @@ Thumbs.db
 INPUT/
 !INPUT/.gitkeep
 
-# Keep template directory structure but not content
-TEMPLATE/*
-!TEMPLATE/.gitkeep
+# Template directory - include all files
+# TEMPLATE/*
+# !TEMPLATE/.gitkeep
 
 # Keep config directory structure but not content
 config/*

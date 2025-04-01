@@ -72,12 +72,14 @@ VideoCutter/
 
 ### Python Packages
 
+See `requirements.txt` for a complete list of dependencies. Key packages include:
+
 ```
-pillow>=9.0.0
-numpy>=1.20.0
-click>=8.0.0
-attr>=21.2.0
-dotmap>=1.3.0
+pillow>=10.4.0
+numpy>=1.26.4
+opencv-contrib-python>=4.10.0
+pydub>=0.25.1
+tqdm>=4.66.6
 ```
 
 ## Installation
@@ -165,21 +167,47 @@ Adds final branding and subscription overlays:
 
 ## Usage
 
-### GUI Mode
+### Quick Start
 
-1. Launch the GUI:
+1. Set up your environment:
+   ```
+   # Clone the repository
+   git clone https://github.com/aproxis/VideoCutter.git
+   cd VideoCutter
+   
+   # Create and activate a virtual environment
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   
+   # Install dependencies
+   pip install -r requirements.txt
+   
+   # Create necessary directories
+   mkdir -p INPUT/DEPTH INPUT/RESULT INPUT/SOURCE
+   ```
+
+2. Prepare your media:
+   - Place images and videos in the `INPUT` folder
+   - Add background music as `TEMPLATE/music.mp3` (optional)
+   - Add voiceover as `INPUT/voiceover.mp3` (optional)
+
+3. Launch the application:
    ```
    python gui.py
    ```
 
-2. Configure your settings:
+### GUI Mode
+
+1. Configure your settings:
    - Set model name and watermark text
    - Adjust font size and segment duration
    - Choose video orientation (vertical/horizontal)
    - Enable/disable depth effects
    - Set time limits
 
-3. Click "START" to begin processing
+2. Click "START" to begin processing
+
+3. Find your results in the `INPUT/RESULT/[datetime]/` folder
 
 ### Command Line Mode
 
