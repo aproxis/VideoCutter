@@ -76,6 +76,7 @@ ffmpeg_chromakey_experiments.txt
 # CSV and data files
 *.csv
 *.txt
+*.json
 !requirements.txt
 
 # Media files (to avoid large binary files in git)
