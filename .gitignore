@@ -24,6 +24,7 @@ var/
 
 # Virtual Environment
 venv/
+venv_new/
 ENV/
 env/
 
@@ -92,3 +93,6 @@ ffmpeg_chromakey_experiments.txt
 # Exception for sample/test files and documentation
 !TEMPLATE/README.md
 !INPUT/README.md
+
+#Other
+get-pip.py
