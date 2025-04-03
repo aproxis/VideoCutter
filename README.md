@@ -6,8 +6,6 @@ A comprehensive video processing toolkit for creating professional slideshows fr
 
 VideoCutter automates the process of creating engaging video content from images and video clips. It provides a complete pipeline from processing raw media to producing polished slideshows with depth effects, transitions, audio mixing, and custom branding.
 
-![VideoCutter GUI](https://via.placeholder.com/800x500?text=VideoCutter+GUI)
-
 ## Features
 
 - **Video Processing**
@@ -75,11 +73,25 @@ VideoCutter/
 See `requirements.txt` for a complete list of dependencies. Key packages include:
 
 ```
-pillow>=10.4.0
-numpy>=1.26.4
-opencv-contrib-python>=4.10.0
-pydub>=0.25.1
-tqdm>=4.66.6
+curl -L https://evermeet.cx/ffmpeg/ffmpeg-7.1.1.zip -o ffmpeg.zip
+curl -L https://evermeet.cx/ffmpeg/getrelease/ffprobe/7.0 -o ffprobe.zip
+unzip ffmpeg.zip
+unzip ffprobe.zip
+sudo mv ffmpeg /usr/local/bin/
+sudo mv ffprobe /usr/local/bin/
+sudo chmod +x /usr/local/bin/ffmpeg
+sudo chmod +x /usr/local/bin/ffprobe
+
+brew install python-tk@3.11
+brew install python@3.11 
+
+python3.11 -m venv venv
+source venv/bin/activate
+
+pip install Pillow
+pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1
+pip install transformers==4.47.0
+pip install depthflow==0.8.0
 ```
 
 ## Installation
