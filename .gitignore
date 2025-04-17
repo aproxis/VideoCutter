@@ -96,3 +96,6 @@ ffmpeg_chromakey_experiments.txt
 
 #Other
 get-pip.py
+gui_new.py
+TEMPLATE/cover_backup.psd
+TEMPLATE/cover.psd

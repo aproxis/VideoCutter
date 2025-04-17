@@ -15,6 +15,8 @@ parser.add_argument('--i', type=str, default='INPUT', dest='input_folder', help=
 parser.add_argument('--n', type=str, default='Model Name', dest='model_name', help='Model name')
 parser.add_argument('--f', type=int, default=90, dest='fontsize', help='Font size')
 parser.add_argument('--w', type=str, default='Today is a\\n Plus Day', dest='watermark', help='Watermark text')
+parser.add_argument('--wt', type=str, default='random', dest='watermark_type', help='Watermark type: ccw, random')
+parser.add_argument('--ws', type=int, default=50, dest='watermark_speed', help='Watermark speed')
 parser.add_argument('--z', type=str, default='0', dest='depthflow', help='Use DepthFlow for images? 0/1')
 parser.add_argument('--o', type=str, default='vertical', dest='video_orientation', help='Video orientation (vertical|horizontal)')
 parser.add_argument('--b', type=str, default='0', dest='blur', help='Add blur? 0/1')
@@ -405,7 +407,7 @@ if args.depthflow == '1':
 
 # Do the slideshow
 slideshow_script = 'slideshow.py'  # Replace with the actual filename of your sorter script
-slideshow_args = ['--t', str(args.segment_duration - 1), '--tl', str(args.time_limit), '--n', args.model_name, '--w', args.watermark, '--f', str(args.fontsize), '--z', str(args.depthflow), '--o', str(args.video_orientation)]  # Arguments to pass to slideshow.py
+slideshow_args = ['--t', str(args.segment_duration - 1), '--tl', str(args.time_limit), '--n', args.model_name, '--w', args.watermark, '--wt', args.watermark_type, '--ws', str(args.watermark_speed), '--f', str(args.fontsize), '--z', str(args.depthflow), '--o', str(args.video_orientation)]  # Arguments to pass to slideshow.py
 
 print(slideshow_args)
 

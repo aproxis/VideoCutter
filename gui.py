@@ -10,14 +10,33 @@ default_input_folder = 'INPUT'
 default_model_name = 'Model Name'
 default_font_size = 90
 default_watermark = 'Today is a\n Plus Day'
+default_watermark_type = 'random'
+default_watermark_speed = 50
 default_depthflow = 0
 default_time_limit = 600
 
+# Define watermark types
+watermark_types = ['ccw', 'random']
+
+# Create the main window
+root = tk.Tk()
+root.title("Video Cutter GUI")
+
+# Create StringVar for config selection
+var_config = tk.StringVar(root)
+var_watermark_type = tk.StringVar(root)
+var_watermark_type.set(default_watermark_type)  # Set default value
+
+# Get config files from folder
+config_folder = os.path.join(os.path.dirname(__file__), 'config')
+config_files = [file for file in os.listdir(config_folder) if file.endswith(".json")]
 
 def start_process():
     # Get values from the entry fields
     model_name = entry_model_name.get()
     watermark = text_watermark.get("1.0", tk.END).strip()
+    watermark_type = var_watermark_type.get()
+    watermark_speed = entry_watermark_speed.get()
     manual_font_size = entry_font_size.get()
     segment_duration = entry_segment_duration.get()
     input_folder = entry_input_folder.get()
@@ -50,6 +69,8 @@ def start_process():
         'python3', 'cutter.py',
         '--n', model_name,
         '--w', watermark,
+        '--wt', watermark_type,
+        '--ws', watermark_speed,
         '--f', str(font_size),
         '--d', str(segment_duration),
         '--tl', str(time_limit),
@@ -78,21 +99,12 @@ def update_font_size(event):
     entry_calculated_font_size.insert(0, calculated_font_size)
     entry_calculated_font_size.config(state=tk.DISABLED)
 
-# Create the main window
-root = tk.Tk()
-root.title("Video Cutter GUI")
-
-# Get config files from folder
-config_folder = os.path.join(os.path.dirname(__file__), 'config')
-config_files = [file for file in os.listdir(config_folder) if file.endswith(".json")]
-
-# Create StringVar for config selection
-var_config = tk.StringVar(root)
-
 def create_default_config():
     default_config = {
         'model_name': default_model_name,
         'watermark': default_watermark,
+        'watermark_type': default_watermark_type,
+        'watermark_speed': default_watermark_speed,
         'font_size': default_font_size,
         'segment_duration': default_segment_duration,
         'input_folder': default_input_folder,
@@ -143,6 +155,9 @@ def load_config():
     entry_time_limit.insert(0, config['time_limit'])
     var_video_orientation.set(config['video_orientation'])
     var_add_blur.set(config['blur'])
+    var_watermark_type.set(config.get('watermark_type', default_watermark_type))
+    entry_watermark_speed.delete(0, tk.END)
+    entry_watermark_speed.insert(0, config.get('watermark_speed', default_watermark_speed))
 
     # Calculate font size based on model name length
     model_name = config['model_name']
@@ -166,6 +181,8 @@ def save_config():
         json.dump({
             'model_name': entry_model_name.get(),
             'watermark': text_watermark.get("1.0", tk.END).strip(),
+            'watermark_type': var_watermark_type.get(),
+            'watermark_speed': entry_watermark_speed.get(),
             'font_size': entry_font_size.get(),
             'segment_duration': entry_segment_duration.get(),
             'input_folder': entry_input_folder.get(),
@@ -188,6 +205,8 @@ def save_new_config():
         json.dump({
             'model_name': entry_model_name.get(),
             'watermark': text_watermark.get("1.0", tk.END).strip(),
+            'watermark_type': var_watermark_type.get(),
+            'watermark_speed': entry_watermark_speed.get(),
             'font_size': entry_font_size.get(),
             'segment_duration': entry_segment_duration.get(),
             'input_folder': entry_input_folder.get(),
@@ -232,50 +251,60 @@ entry_model_name.insert(0, default_model_name)
 entry_model_name.grid(row=2, column=1, padx=10, pady=5)
 entry_model_name.bind("<KeyRelease>", update_font_size)  # Bind key release event
 
-tk.Label(root, text="Calculated Font Size:").grid(row=4, column=0, padx=10, pady=5)
-entry_calculated_font_size = tk.Entry(root, width=30, state=tk.DISABLED)
-entry_calculated_font_size.grid(row=4, column=1, padx=10, pady=5)
-
 tk.Label(root, text="Watermark:").grid(row=3, column=0, padx=10, pady=5)
 text_watermark = tk.Text(root, width=39, height=3)
 text_watermark.insert("1.0", default_watermark)
 text_watermark.grid(row=3, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Font Size:").grid(row=5, column=0, padx=10, pady=5)
+tk.Label(root, text="Watermark Speed:").grid(row=4, column=0, padx=10, pady=5)
+entry_watermark_speed = tk.Entry(root, width=30)
+entry_watermark_speed.insert(0, default_watermark_speed)
+entry_watermark_speed.grid(row=4, column=1, padx=10, pady=5)
+
+tk.Label(root, text="Watermark Type:").grid(row=5, column=0, padx=10, pady=5)
+entry_watermark_type = tk.OptionMenu(root, var_watermark_type, *watermark_types)
+entry_watermark_type.config(width=10)
+entry_watermark_type.grid(row=5, column=1, padx=10, pady=5)
+
+tk.Label(root, text="Calculated Font Size:").grid(row=6, column=0, padx=10, pady=5)
+entry_calculated_font_size = tk.Entry(root, width=30, state=tk.DISABLED)
+entry_calculated_font_size.grid(row=6, column=1, padx=10, pady=5)
+
+tk.Label(root, text="Font Size:").grid(row=7, column=0, padx=10, pady=5)
 entry_font_size = tk.Entry(root, width=30)
 entry_font_size.insert(0, default_font_size)
-entry_font_size.grid(row=5, column=1, padx=10, pady=5)
+entry_font_size.grid(row=7, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Segment Duration:").grid(row=6, column=0, padx=10, pady=5)
+tk.Label(root, text="Segment Duration:").grid(row=8, column=0, padx=10, pady=5)
 entry_segment_duration = tk.Entry(root, width=30)
 entry_segment_duration.insert(0, default_segment_duration)
-entry_segment_duration.grid(row=6, column=1, padx=10, pady=5)
+entry_segment_duration.grid(row=8, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Time Limit:").grid(row=7, column=0, padx=10, pady=5)
+tk.Label(root, text="Time Limit:").grid(row=9, column=0, padx=10, pady=5)
 entry_time_limit = tk.Entry(root, width=30)
 entry_time_limit.insert(0, default_time_limit)
-entry_time_limit.grid(row=7, column=1, padx=10, pady=5)
+entry_time_limit.grid(row=9, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Input Folder:").grid(row=8, column=0, padx=10, pady=5)
+tk.Label(root, text="Input Folder:").grid(row=10, column=0, padx=10, pady=5)
 entry_input_folder = tk.Entry(root, width=30)
 entry_input_folder.insert(0, default_input_folder)
-entry_input_folder.grid(row=8, column=1, padx=10, pady=5)
+entry_input_folder.grid(row=10, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Save as:").grid(row=10, column=0, padx=10, pady=5)
+tk.Label(root, text="Save as:").grid(row=11, column=0, padx=10, pady=5)
 entry_new_filename = tk.Entry(root, width=30)
-entry_new_filename.grid(row=10, column=1, padx=10, pady=5)
+entry_new_filename.grid(row=11, column=1, padx=10, pady=5)
 
-tk.Label(root, text="DepthFlow:").grid(row=9, column=0, padx=10, pady=5)
+tk.Label(root, text="DepthFlow:").grid(row=12, column=0, padx=10, pady=5)
 var_depthflow = tk.BooleanVar()
 var_depthflow.set(False)
-tk.Checkbutton(root, text="Depthflow", variable=var_depthflow).grid(row=9, column=1, padx=5, pady=5)
+tk.Checkbutton(root, text="Depthflow", variable=var_depthflow).grid(row=12, column=1, padx=5, pady=5)
 
 # Create a StringVar for video orientation
 var_video_orientation = tk.StringVar(value='horizontal')  # Default to horizontal
 
 # Add Radiobuttons for video orientation
-tk.Radiobutton(root, text="Vertical", variable=var_video_orientation, value='vertical').grid(row=11, column=0, padx=5, pady=5)
-tk.Radiobutton(root, text="Horizontal", variable=var_video_orientation, value='horizontal').grid(row=11, column=1, padx=5, pady=5)
+tk.Radiobutton(root, text="Vertical", variable=var_video_orientation, value='vertical').grid(row=13, column=0, padx=5, pady=5)
+tk.Radiobutton(root, text="Horizontal", variable=var_video_orientation, value='horizontal').grid(row=13, column=1, padx=5, pady=5)
 
 # Create a BooleanVar for adding blur
 var_add_blur = tk.BooleanVar()
@@ -283,7 +312,7 @@ var_add_blur.set(False)  # Default to not adding blur
 
 # Add a Checkbutton for adding blur, initially hidden
 blur_checkbox = tk.Checkbutton(root, text="Side Blur", variable=var_add_blur)
-blur_checkbox.grid(row=12, column=1, padx=5, pady=5)
+blur_checkbox.grid(row=14, column=1, padx=5, pady=5)
 
 # Function to show/hide blur checkbox based on orientation
 def toggle_blur_checkbox():
@@ -304,7 +333,7 @@ start_button = tk.Button(
     fg="green",
     highlightbackground="green"
 )
-start_button.grid(row=14, column=1, pady=20, padx=20)
+start_button.grid(row=16, column=1, pady=20, padx=20)
 
 save_button = tk.Button(
     root,
@@ -322,7 +351,7 @@ save_new_button = tk.Button(
     fg="blue",
     highlightbackground="blue"
 )
-save_new_button.grid(row=13, column=1, pady=5, padx=5)
+save_new_button.grid(row=15, column=1, pady=5, padx=5)
 
 delete_button = tk.Button(
     root,
@@ -340,7 +369,7 @@ quit_button = tk.Button(
     bg="black",
     highlightbackground="black"
 )
-quit_button.grid(row=14, column=0, pady=20, padx=20)
+quit_button.grid(row=15, column=0, pady=20, padx=20)
 
 # Load initial config
 load_config()

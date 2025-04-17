@@ -15,6 +15,8 @@ parser.add_argument('--t', type=int, default=5, dest='slide_time', help='Frame d
 parser.add_argument('--n', type=str, default='Model Name', dest='model_name', help='Model name.')
 parser.add_argument('--f', type=int, default=90, dest='fontsize', help='Font size')
 parser.add_argument('--w', type=str, default='Today is a\\n Plus Day', dest='watermark', help='Watermark text')
+parser.add_argument('--wt', type=str, default='random', dest='watermark_type', help='Watermark type: ccw, random')
+parser.add_argument('--ws', type=int, default=50, dest='watermark_speed', help='Watermark speed')
 parser.add_argument('--z', type=str, default='0', dest='depthflow', help='Use DepthFlow for images? True/False')
 parser.add_argument('--tl', type=int, default=595, dest='time_limit', help='Duration of clip')
 parser.add_argument('--o', type=str, default='vertical', dest='video_orientation', help='Video orientation (vertical|horizontal)')
@@ -27,7 +29,7 @@ video_orientation = args.video_orientation
 
 slide_time = args.slide_time
 
-template_folder = '/Users/a/Desktop/Share/YT/Scripts/VideoCutter/TEMPLATE/'
+template_folder = 'TEMPLATE/'
 # Set target height and width
 if video_orientation == 'vertical':
     target_height = 1920
@@ -83,7 +85,7 @@ def create_slideshow(folder_path):
         print(f"***** Error: Outro video file does not exist at {outro_video_path}. Skipping slideshow creation.")
         return
     else:
-        merged_paths.append(outro_video_path)
+        merged_paths.append(os.path.abspath(outro_video_path))
         print(merged_paths)
 
     # Check if there are any JPG files
@@ -100,12 +102,17 @@ def create_slideshow(folder_path):
 
     # Set watermark text and opacity
     watermark_text = args.watermark
+    watermark_type = args.watermark_type
 
     watermark_opacity = 0.7
-    wmTimer = 50 # every half-slide move watermark
+    wmTimer = args.watermark_speed # 50 - every half-slide move watermark
  
     # Set font file and font size
-    fontfile='/Users/a/Library/Fonts/Nexa.otf'
+    # add fallback for any system path and font
+
+    fontfile = subprocess.run(['fc-list', ':family', 'Nexa'], check=True, capture_output=True).stdout.decode().strip().split(':')[0]
+    # print font
+    print(f"***** Using font: {fontfile}")
     fontsize = 40
 
     # Set up FFMPEG command
@@ -152,8 +159,21 @@ def create_slideshow(folder_path):
 
         else:
             # Crossfade effect between intermediate media and watermark
+            if watermark_type == 'ccw':
 
-            filter_arg += f'[f{i-1}][z{i + 1}]xfade=transition={transition_type}:duration=0.5:offset={offset},drawtext=text=\'{watermark_text}\':x=if(eq(mod(n\,{wmTimer})\,0)\,random(1)*w\,x):y=if(eq(mod(n\,{wmTimer})\,0)\,random(1)*h\,y):fontfile={fontfile}:fontsize={fontsize}:fontcolor_expr=random@{watermark_opacity}[f{i}];'
+                filter_arg += (
+                    f'[f{i-1}][z{i + 1}]xfade=transition={transition_type}:duration=0.5:offset={offset},'
+                    f'drawtext=text=\'{watermark_text}\':'
+                    f'x=\'if(lt(mod(n/{wmTimer},4),1),15+mod(n/{wmTimer},1)*(w-text_w-30),if(lt(mod(n/{wmTimer},4),2),w-text_w-15,if(lt(mod(n/{wmTimer},4),3),w-text_w-15-(mod(n/{wmTimer},1)*(w-text_w-30)),15)))\':\
+                    y=\'if(lt(mod(n/{wmTimer},4),1),15,if(lt(mod(n/{wmTimer},4),2),15+mod(n/{wmTimer},1)*(h-text_h-30),if(lt(mod(n/{wmTimer},4),3),h-text_h-15,h-text_h-15-(mod(n/{wmTimer},1)*(h-text_h-30)))))\':\
+                    fontfile={fontfile}:fontsize={fontsize}:fontcolor_expr=random@{watermark_opacity}[f{i}];'
+            )
+            
+            elif watermark_type == 'random':
+
+                filter_arg += f'[f{i-1}][z{i + 1}]xfade=transition={transition_type}:duration=0.5:offset={offset},drawtext=text=\'{watermark_text}\':x=if(eq(mod(n\,{wmTimer})\,0)\,random(1)*w\,x):y=if(eq(mod(n\,{wmTimer})\,0)\,random(1)*h\,y):fontfile={fontfile}:fontsize={fontsize}:fontcolor_expr=random@{watermark_opacity}[f{i}];'
+
+            
 
                
 
