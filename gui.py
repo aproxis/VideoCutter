@@ -14,9 +14,16 @@ default_watermark_type = 'random'
 default_watermark_speed = 50
 default_depthflow = 0
 default_time_limit = 600
+default_font = 'Nexa Bold.otf'  # Default font
 
 # Define watermark types
 watermark_types = ['ccw', 'random']
+
+# Get available fonts from the fonts directory
+fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
+available_fonts = [f for f in os.listdir(fonts_dir) if f.endswith('.ttf') or f.endswith('.otf')]
+if not available_fonts:
+    available_fonts = ['Nexa Bold.otf']  # Fallback if no fonts found
 
 # Create the main window
 root = tk.Tk()
@@ -26,6 +33,8 @@ root.title("Video Cutter GUI")
 var_config = tk.StringVar(root)
 var_watermark_type = tk.StringVar(root)
 var_watermark_type.set(default_watermark_type)  # Set default value
+var_font = tk.StringVar(root)
+var_font.set(default_font)  # Set default font
 
 # Get config files from folder
 config_folder = os.path.join(os.path.dirname(__file__), 'config')
@@ -64,6 +73,9 @@ def start_process():
     else:
         font_size = int(entry_calculated_font_size.get())  # Use calculated font size if manual is empty
 
+    # Get selected font
+    selected_font = var_font.get()
+    
     # Construct the command with the arguments
     command = [
         'python3', 'cutter.py',
@@ -77,7 +89,8 @@ def start_process():
         '--z', str(depthflow),
         '--i', input_folder,
         '--o', video_orientation,  # Add video orientation to command
-        '--b', str(blur)
+        '--b', str(blur),
+        '--font', selected_font  # Add font parameter
     ]
 
     print(command)
@@ -111,7 +124,8 @@ def create_default_config():
         'depthflow': default_depthflow,
         'time_limit': default_time_limit,
         'video_orientation': 'vertical',
-        'blur': 0
+        'blur': 0,
+        'font': default_font
     }
     default_filename = "default_config.json"
     config_file = os.path.join(config_folder, default_filename)
@@ -158,6 +172,13 @@ def load_config():
     var_watermark_type.set(config.get('watermark_type', default_watermark_type))
     entry_watermark_speed.delete(0, tk.END)
     entry_watermark_speed.insert(0, config.get('watermark_speed', default_watermark_speed))
+    
+    # Set font if it exists in config, otherwise use default
+    if 'font' in config and config['font'] in available_fonts:
+        var_font.set(config['font'])
+    else:
+        # If the configured font is not available, use the first available font
+        var_font.set(available_fonts[0] if available_fonts else default_font)
 
     # Calculate font size based on model name length
     model_name = config['model_name']
@@ -189,7 +210,8 @@ def save_config():
             'depthflow': var_depthflow.get(),
             'time_limit': entry_time_limit.get(),
             'video_orientation': var_video_orientation.get(),
-            'blur': var_add_blur.get()
+            'blur': var_add_blur.get(),
+            'font': var_font.get()
         }, f)
     messagebox.showinfo("Success", "Config saved successfully!")
 
@@ -213,7 +235,8 @@ def save_new_config():
             'depthflow': var_depthflow.get(),
             'time_limit': entry_time_limit.get(),
             'video_orientation': var_video_orientation.get(),
-            'blur': var_add_blur.get()
+            'blur': var_add_blur.get(),
+            'font': var_font.get()
         }, f)
     messagebox.showinfo("Success", "New config saved successfully!")
     
@@ -285,26 +308,31 @@ entry_time_limit = tk.Entry(root, width=30)
 entry_time_limit.insert(0, default_time_limit)
 entry_time_limit.grid(row=9, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Input Folder:").grid(row=10, column=0, padx=10, pady=5)
+tk.Label(root, text="Font:").grid(row=10, column=0, padx=10, pady=5)
+entry_font = tk.OptionMenu(root, var_font, *available_fonts)
+entry_font.config(width=20)
+entry_font.grid(row=10, column=1, padx=10, pady=5)
+
+tk.Label(root, text="Input Folder:").grid(row=11, column=0, padx=10, pady=5)
 entry_input_folder = tk.Entry(root, width=30)
 entry_input_folder.insert(0, default_input_folder)
-entry_input_folder.grid(row=10, column=1, padx=10, pady=5)
+entry_input_folder.grid(row=11, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Save as:").grid(row=11, column=0, padx=10, pady=5)
+tk.Label(root, text="Save as:").grid(row=12, column=0, padx=10, pady=5)
 entry_new_filename = tk.Entry(root, width=30)
-entry_new_filename.grid(row=11, column=1, padx=10, pady=5)
+entry_new_filename.grid(row=12, column=1, padx=10, pady=5)
 
-tk.Label(root, text="DepthFlow:").grid(row=12, column=0, padx=10, pady=5)
+tk.Label(root, text="DepthFlow:").grid(row=13, column=0, padx=10, pady=5)
 var_depthflow = tk.BooleanVar()
 var_depthflow.set(False)
-tk.Checkbutton(root, text="Depthflow", variable=var_depthflow).grid(row=12, column=1, padx=5, pady=5)
+tk.Checkbutton(root, text="Depthflow", variable=var_depthflow).grid(row=13, column=1, padx=5, pady=5)
 
 # Create a StringVar for video orientation
 var_video_orientation = tk.StringVar(value='horizontal')  # Default to horizontal
 
 # Add Radiobuttons for video orientation
-tk.Radiobutton(root, text="Vertical", variable=var_video_orientation, value='vertical').grid(row=13, column=0, padx=5, pady=5)
-tk.Radiobutton(root, text="Horizontal", variable=var_video_orientation, value='horizontal').grid(row=13, column=1, padx=5, pady=5)
+tk.Radiobutton(root, text="Vertical", variable=var_video_orientation, value='vertical').grid(row=14, column=0, padx=5, pady=5)
+tk.Radiobutton(root, text="Horizontal", variable=var_video_orientation, value='horizontal').grid(row=14, column=1, padx=5, pady=5)
 
 # Create a BooleanVar for adding blur
 var_add_blur = tk.BooleanVar()
@@ -312,7 +340,7 @@ var_add_blur.set(False)  # Default to not adding blur
 
 # Add a Checkbutton for adding blur, initially hidden
 blur_checkbox = tk.Checkbutton(root, text="Side Blur", variable=var_add_blur)
-blur_checkbox.grid(row=14, column=1, padx=5, pady=5)
+blur_checkbox.grid(row=15, column=1, padx=5, pady=5)
 
 # Function to show/hide blur checkbox based on orientation
 def toggle_blur_checkbox():
@@ -346,7 +374,7 @@ save_button.grid(row=1, column=1, pady=5, padx=5)
 
 save_new_button = tk.Button(
     root,
-    text="Save As",
+    text="Save New Config",
     command=save_new_config,
     fg="blue",
     highlightbackground="blue"

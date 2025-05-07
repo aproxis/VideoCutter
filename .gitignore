@@ -99,3 +99,12 @@ get-pip.py
 gui_new.py
 TEMPLATE/cover_backup.psd
 TEMPLATE/cover.psd
+fonts.py
+Sub0_README.md
+Sub0.py
+Subs 2.py
+Subs_2_README.md
+VoiceProxy/Base.xlsx
+VoiceProxy/README.md
+VoiceProxy/VOICE_Proxy.py
+VoiceProxy/Voice.py

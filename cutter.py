@@ -20,6 +20,7 @@ parser.add_argument('--ws', type=int, default=50, dest='watermark_speed', help='
 parser.add_argument('--z', type=str, default='0', dest='depthflow', help='Use DepthFlow for images? 0/1')
 parser.add_argument('--o', type=str, default='vertical', dest='video_orientation', help='Video orientation (vertical|horizontal)')
 parser.add_argument('--b', type=str, default='0', dest='blur', help='Add blur? 0/1')
+parser.add_argument('--font', type=str, default='Nexa Bold.otf', dest='font', help='Font file name')
 
 args = parser.parse_args()
 
@@ -76,6 +77,60 @@ os.makedirs(source_date_folder, exist_ok=True)
 
 
 
+# Function to process videos based on orientation
+def process_videos(input_path, output_path, target_height, video_orientation):
+    # Get video dimensions
+    cmd = f"ffprobe -v error -show_entries stream=width,height -of json {input_path}"
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+    json_data = json.loads(result.stdout)
+    width = json_data['streams'][0]['width']
+    height = json_data['streams'][0]['height']
+    
+    # Determine if video is vertical (height > width)
+    is_vertical_video = height > width
+    
+    # Create a temporary file for processing
+    temp_output = os.path.join(os.path.dirname(output_path), "temp_" + os.path.basename(output_path))
+    
+    # Process based on video orientation and target orientation
+    if is_vertical_video and video_orientation == 'horizontal':
+        print(f"Processing vertical video to horizontal format with blur: {input_path}")
+        
+        # Target dimensions for horizontal video (16:9)
+        target_width = target_height * 16 // 9
+        
+        # Calculate dimensions for the resized video maintaining aspect ratio
+        new_height = target_height
+        new_width = int(width * target_height / height)
+        
+        # FFmpeg complex filter to:
+        # 1. Create a scaled and blurred copy of the video for background
+        # 2. Scale the original video maintaining aspect ratio
+        # 3. Overlay the original video on top of the blurred background
+        filter_complex = (
+            f"[0:v]scale={target_width}:{target_height},boxblur=20:5[bg];"
+            f"[0:v]scale={new_width}:{new_height}[fg];"
+            f"[bg][fg]overlay=(W-w)/2:(H-h)/2:format=auto[outv]"
+        )
+        
+        # Execute FFmpeg command
+        cmd = (
+            f"ffmpeg -hide_banner -loglevel error -i {input_path} "
+            f"-filter_complex \"{filter_complex}\" "
+            f"-map \"[outv]\" -c:v libx264 -crf 22 -preset medium "
+            f"-r 30 -an {temp_output}"
+        )
+        
+        subprocess.run(cmd, shell=True, check=True)
+        
+        # Replace original with processed file
+        shutil.move(temp_output, output_path)
+        return True
+    else:
+        # For other cases, just copy the file to output
+        shutil.copy(input_path, output_path)
+        return False
+
 # List all video files in the input folder
 video_files = [f for f in os.listdir(input_folder) if f.endswith('.mp4')]
 
@@ -85,38 +140,45 @@ image_files = [f for f in os.listdir(input_folder) if f.endswith('.jpg') or f.en
 # List all audio files in the input folder
 audio_files = [f for f in os.listdir(input_folder) if f.endswith('.mp3')]
 
-print('##### Video splitting')
+print('##### Video processing')
 
-# Split each video file into segments
+# Process each video file
 for video_file in video_files:
     input_path = os.path.join(input_folder, video_file)
     
-    # ffprobe video to be 16:9 proportion
+    # ffprobe video to check dimensions
     cmd = f"ffprobe -v error -show_entries stream=width,height -of json {input_path}"
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
     json_data = json.loads(result.stdout)
     width = json_data['streams'][0]['width']
     height = json_data['streams'][0]['height']
-    aspect_ratio =  height / width
     
-    if abs(aspect_ratio - 16 / 9) > 0.01:
-        print(f"Deleting {input_path} as it's not 16:9 aspect ratio")
-        os.remove(input_path) # Delete the file
-        continue
-    else:
+    # Copy original video to the "SOURCE" subfolder
+    shutil.copy(input_path, os.path.join(source_date_folder, video_file))
+    
+    # Process the video based on orientation
+    target_height = 1080  # For horizontal output
+    processed_path = os.path.join(result_folder, video_file)
+    
+    # Process the video (resize, blur background if needed)
+    processed = process_videos(input_path, processed_path, target_height, video_orientation)
+    
+    # If video was processed, use it for splitting
+    if processed:
+        # Split the processed video
         output_prefix = os.path.splitext(os.path.basename(video_file))[0] + '_'
-
-        # input_path is the path to the original video file
-        # result_folder is RESULT
-        # output_prefix is "filename_"
-        # Splitting creates "filename_0.mp4", "filename_1.mp4", etc. in INPUT/RESULT subfolder
-
+        split_video(processed_path, os.path.join(result_folder, output_prefix))
+        # Remove the intermediate processed file
+        os.remove(processed_path)
+    else:
+        # Split the original video
+        output_prefix = os.path.splitext(os.path.basename(video_file))[0] + '_'
         split_video(input_path, os.path.join(result_folder, output_prefix))
+    
+    # Remove the original video from input folder
+    os.remove(input_path)
 
-        # After splitting - Move original video to the "SOURCE" subfolder
-        shutil.move(input_path, os.path.join(source_date_folder, video_file))
-
-print(f'##### Video moved to {result_folder}')
+print(f'##### Videos processed and moved to {result_folder}')
 
 # def resize_image(media_path, target_height):
 #     # Function to resize the image
@@ -327,10 +389,8 @@ def process_images(input_folder, result_folder, source_date_folder, video_orient
     
     print(f'##### Images moved to {result_folder}')
 
+# Process images
 process_images(input_folder, result_folder, source_date_folder, video_orientation)
-
-
-
 
 
 
@@ -407,7 +467,7 @@ if args.depthflow == '1':
 
 # Do the slideshow
 slideshow_script = 'slideshow.py'  # Replace with the actual filename of your sorter script
-slideshow_args = ['--t', str(args.segment_duration - 1), '--tl', str(args.time_limit), '--n', args.model_name, '--w', args.watermark, '--wt', args.watermark_type, '--ws', str(args.watermark_speed), '--f', str(args.fontsize), '--z', str(args.depthflow), '--o', str(args.video_orientation)]  # Arguments to pass to slideshow.py
+slideshow_args = ['--t', str(args.segment_duration - 1), '--tl', str(args.time_limit), '--n', args.model_name, '--w', args.watermark, '--wt', args.watermark_type, '--ws', str(args.watermark_speed), '--f', str(args.fontsize), '--z', str(args.depthflow), '--o', str(args.video_orientation), '--font', args.font]  # Arguments to pass to slideshow.py
 
 print(slideshow_args)
 

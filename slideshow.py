@@ -20,6 +20,7 @@ parser.add_argument('--ws', type=int, default=50, dest='watermark_speed', help='
 parser.add_argument('--z', type=str, default='0', dest='depthflow', help='Use DepthFlow for images? True/False')
 parser.add_argument('--tl', type=int, default=595, dest='time_limit', help='Duration of clip')
 parser.add_argument('--o', type=str, default='vertical', dest='video_orientation', help='Video orientation (vertical|horizontal)')
+parser.add_argument('--font', type=str, default='Nexa Bold.otf', dest='font', help='Font file name')
 
 # Parse the command-line arguments
 args = parser.parse_args()
@@ -108,9 +109,24 @@ def create_slideshow(folder_path):
     wmTimer = args.watermark_speed # 50 - every half-slide move watermark
  
     # Set font file and font size
-    # add fallback for any system path and font
-
-    fontfile = subprocess.run(['fc-list', ':family', 'Nexa'], check=True, capture_output=True).stdout.decode().strip().split(':')[0]
+    # Try to find the font in the fonts directory
+    font_path = os.path.join('fonts', args.font)
+    if os.path.exists(font_path):
+        fontfile = os.path.abspath(font_path)
+    else:
+        # Fallback: try to find any font in the fonts directory
+        fonts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
+        available_fonts = [f for f in os.listdir(fonts_dir) if f.endswith('.ttf') or f.endswith('.otf')]
+        if available_fonts:
+            fontfile = os.path.join(fonts_dir, available_fonts[0])
+        else:
+            # Last resort: try to find Nexa font in the system
+            try:
+                fontfile = subprocess.run(['fc-list', ':family', 'Nexa'], check=True, capture_output=True).stdout.decode().strip().split(':')[0]
+            except:
+                print("***** Error: Could not find any font. Using default system font.")
+                fontfile = ""
+    
     # print font
     print(f"***** Using font: {fontfile}")
     fontsize = 40
