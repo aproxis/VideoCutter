@@ -9,18 +9,29 @@ from datetime import datetime
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--d', type=int, default=6, dest='segment_duration', help='Duration of each segment (in seconds)')
+parser.add_argument('--sd', type=int, default=6, dest='segment_duration', help='Duration of each segment (in seconds)')
 parser.add_argument('--tl', type=int, default=595, dest='time_limit', help='Duration of clip')
+
+
 parser.add_argument('--i', type=str, default='INPUT', dest='input_folder', help='Input folder')
-parser.add_argument('--n', type=str, default='Model Name', dest='model_name', help='Model name')
-parser.add_argument('--f', type=int, default=90, dest='fontsize', help='Font size')
+parser.add_argument('--tpl', type=str, default='TEMPLATE', dest='template_folder', help='Template folder')
+
+parser.add_argument('--t', type=str, default='Model Name', dest='title', help='Video title')
+parser.add_argument('--tfs', type=int, default=90, dest='title_fontsize', help='Font size')
+parser.add_argument('--tf', type=str, default='Montserrat-SemiBold.otf', dest='title_fontfile', help='Font file name')
+parser.add_argument('--tfc', type=str, default='random', dest='title_fontcolor', help='Font color (hex code without #, or "random")')
+parser.add_argument('--osd', type=int, default=21, dest='start_delay', help='Delay before overlay appears (in seconds)')
+
+
 parser.add_argument('--w', type=str, default='Today is a\\n Plus Day', dest='watermark', help='Watermark text')
 parser.add_argument('--wt', type=str, default='random', dest='watermark_type', help='Watermark type: ccw, random')
 parser.add_argument('--ws', type=int, default=50, dest='watermark_speed', help='Watermark speed')
+parser.add_argument('--wf', type=str, default='Nexa Bold.otf', dest='watermark_font', help='Watermark font file name')
+
 parser.add_argument('--z', type=str, default='0', dest='depthflow', help='Use DepthFlow for images? 0/1')
 parser.add_argument('--o', type=str, default='vertical', dest='video_orientation', help='Video orientation (vertical|horizontal)')
+
 parser.add_argument('--b', type=str, default='0', dest='blur', help='Add blur? 0/1')
-parser.add_argument('--font', type=str, default='Nexa Bold.otf', dest='font', help='Font file name')
 
 args = parser.parse_args()
 
@@ -54,6 +65,9 @@ def split_video(input_file, output_prefix, segment_duration=args.segment_duratio
 
 # Input folder containing videos
 input_folder = args.input_folder
+
+# Template folder
+template_folder = args.template_folder + '/'
 
 # Output folder for processed videos
 result_folder = os.path.join(input_folder, 'RESULT')
@@ -457,7 +471,30 @@ if args.depthflow == '1':
 
     print("DepthFlow is True")
     depth_script = 'depth.py'  # Replace with the actual filename of your depth script
-    depth_args = ['--o', result_folder, '--d', datetime_str, '--t', str(args.segment_duration - 1), '--tl', str(args.time_limit)]
+    
+    # Calculate length of outro video to subtract from time limit later in DepthFlow
+    # Get outro video duration using ffprobe
+    
+    if video_orientation == 'vertical':
+        outro_video_path = template_folder + 'outro_vertical.mp4'
+
+    else:
+        outro_video_path = template_folder + 'outro_horizontal.mp4'
+    try:
+        cmd = f"ffprobe -v error -show_entries format=duration -of json {outro_video_path}"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+        json_data = json.loads(result.stdout)
+        outro_duration = float(json_data['format']['duration'])
+        print(f"Outro video duration: {outro_duration} seconds")
+    except Exception as e:
+        print(f"Error getting outro video duration: {e}")
+        outro_duration = 15  # Fallback to default duration if ffprobe fails
+
+    slideshow_duration = int(args.time_limit - outro_duration)
+
+    depth_args = ['--o', result_folder, '--d', datetime_str, '--sd', str(args.segment_duration), '--tl', str(slideshow_duration)]
+    
+    print(f"##### CREATING DEPTHFLOW: {depth_args}")
 
     # Construct the full command to run depth.py with arguments
     depth_command = ['python3', depth_script]  + depth_args
@@ -467,15 +504,33 @@ if args.depthflow == '1':
 
 # Do the slideshow
 slideshow_script = 'slideshow.py'  # Replace with the actual filename of your sorter script
-slideshow_args = ['--t', str(args.segment_duration - 1), '--tl', str(args.time_limit), '--n', args.model_name, '--w', args.watermark, '--wt', args.watermark_type, '--ws', str(args.watermark_speed), '--f', str(args.fontsize), '--z', str(args.depthflow), '--o', str(args.video_orientation), '--font', args.font]  # Arguments to pass to slideshow.py
+slideshow_args = [
+    '--sd', str(args.segment_duration - 1), 
+    '--tl', str(args.time_limit), 
 
-print(slideshow_args)
+    '--tpl', args.template_folder,
 
+    '--t', args.title, 
+    '--tfs', str(args.title_fontsize), 
+    '--tf', args.title_fontfile,
+    '--tfc', args.title_fontcolor,
+    '--osd', str(args.start_delay),
+
+    '--w', args.watermark, 
+    '--wf', args.watermark_font,
+    '--wt', args.watermark_type, 
+    '--ws', str(args.watermark_speed), 
+
+    '--z', str(args.depthflow), 
+    '--o', str(args.video_orientation)
+]
 
 # Construct the full command to run slideshow.py with arguments
 slideshow_command = ['python3', slideshow_script]  + slideshow_args
 
 # Run the slideshow.py script with arguments
+print(f"###### CREATING SLIDESHOW: {slideshow_command}")
+
 subprocess.run(slideshow_command)
 
 print("###### SLIDESHOW READY ######")

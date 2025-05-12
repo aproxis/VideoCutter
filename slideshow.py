@@ -11,16 +11,28 @@ start_time = time.time()
 
 # Create an ArgumentParser to handle command-line arguments
 parser = argparse.ArgumentParser(description="Create slideshow.")
-parser.add_argument('--t', type=int, default=5, dest='slide_time', help='Frame duration.')
-parser.add_argument('--n', type=str, default='Model Name', dest='model_name', help='Model name.')
-parser.add_argument('--f', type=int, default=90, dest='fontsize', help='Font size')
-parser.add_argument('--w', type=str, default='Today is a\\n Plus Day', dest='watermark', help='Watermark text')
-parser.add_argument('--wt', type=str, default='random', dest='watermark_type', help='Watermark type: ccw, random')
-parser.add_argument('--ws', type=int, default=50, dest='watermark_speed', help='Watermark speed')
-parser.add_argument('--z', type=str, default='0', dest='depthflow', help='Use DepthFlow for images? True/False')
+parser.add_argument('--sd', type=int, default=5, dest='slide_time', help='Frame duration (in seconds)')
 parser.add_argument('--tl', type=int, default=595, dest='time_limit', help='Duration of clip')
+
+parser.add_argument('--tpl', type=str, default='TEMPLATE', dest='template_folder', help='Template folder')
+
+
+parser.add_argument('--t', type=str, default='Model Name', dest='title', help='Video title')
+parser.add_argument('--tfs', type=int, default=90, dest='title_fontsize', help='Title font size')
+parser.add_argument('--tf', type=str, default='Montserrat-SemiBold.otf', dest='title_fontfile', help='Font file name')
+parser.add_argument('--tfc', type=str, default='random', dest='title_fontcolor', help='Font color (hex code without #, or "random")')
+parser.add_argument('--osd', type=int, default=21, dest='start_delay', help='Delay before title+subscribe overlay appears (in seconds)')
+
+
+parser.add_argument('--w', type=str, default='Today is a\\n Plus Day', dest='watermark', help='Watermark text')
+parser.add_argument('--wf', type=str, default='Nexa Bold.otf', dest='watermark_font', help='Font file name')
+parser.add_argument('--wt', type=str, default='random', dest='watermark_type', help='Watermark type: ccw, random')
+parser.add_argument('--ws', type=int, default=50, dest='watermark_speed', help='Watermark speed (in frames: 25 = 1s)')
+
+
+parser.add_argument('--z', type=str, default='0', dest='depthflow', help='Use DepthFlow for images? 1/0')
 parser.add_argument('--o', type=str, default='vertical', dest='video_orientation', help='Video orientation (vertical|horizontal)')
-parser.add_argument('--font', type=str, default='Nexa Bold.otf', dest='font', help='Font file name')
+
 
 # Parse the command-line arguments
 args = parser.parse_args()
@@ -30,7 +42,7 @@ video_orientation = args.video_orientation
 
 slide_time = args.slide_time
 
-template_folder = 'TEMPLATE/'
+template_folder = args.template_folder + '/'
 # Set target height and width
 if video_orientation == 'vertical':
     target_height = 1920
@@ -110,26 +122,26 @@ def create_slideshow(folder_path):
  
     # Set font file and font size
     # Try to find the font in the fonts directory
-    font_path = os.path.join('fonts', args.font)
-    if os.path.exists(font_path):
-        fontfile = os.path.abspath(font_path)
+    watermark_font_path = os.path.join('fonts', args.watermark_font)
+    if os.path.exists(watermark_font_path):
+        watermark_fontfile = os.path.abspath(watermark_font_path)
     else:
         # Fallback: try to find any font in the fonts directory
         fonts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
         available_fonts = [f for f in os.listdir(fonts_dir) if f.endswith('.ttf') or f.endswith('.otf')]
         if available_fonts:
-            fontfile = os.path.join(fonts_dir, available_fonts[0])
+            watermark_fontfile = os.path.join(fonts_dir, available_fonts[0])
         else:
             # Last resort: try to find Nexa font in the system
             try:
-                fontfile = subprocess.run(['fc-list', ':family', 'Nexa'], check=True, capture_output=True).stdout.decode().strip().split(':')[0]
+                watermark_fontfile = subprocess.run(['fc-list', ':family', 'Nexa'], check=True, capture_output=True).stdout.decode().strip().split(':')[0]
             except:
                 print("***** Error: Could not find any font. Using default system font.")
-                fontfile = ""
+                watermark_fontfile = ""
     
     # print font
-    print(f"***** Using font: {fontfile}")
-    fontsize = 40
+    print(f"***** Using font: {watermark_fontfile}")
+    watermark_fontsize = 40
 
     # Set up FFMPEG command
     command = [
@@ -182,12 +194,12 @@ def create_slideshow(folder_path):
                     f'drawtext=text=\'{watermark_text}\':'
                     f'x=\'if(lt(mod(n/{wmTimer},4),1),15+mod(n/{wmTimer},1)*(w-text_w-30),if(lt(mod(n/{wmTimer},4),2),w-text_w-15,if(lt(mod(n/{wmTimer},4),3),w-text_w-15-(mod(n/{wmTimer},1)*(w-text_w-30)),15)))\':\
                     y=\'if(lt(mod(n/{wmTimer},4),1),15,if(lt(mod(n/{wmTimer},4),2),15+mod(n/{wmTimer},1)*(h-text_h-30),if(lt(mod(n/{wmTimer},4),3),h-text_h-15,h-text_h-15-(mod(n/{wmTimer},1)*(h-text_h-30)))))\':\
-                    fontfile={fontfile}:fontsize={fontsize}:fontcolor_expr=random@{watermark_opacity}[f{i}];'
+                    fontfile={watermark_fontfile}:fontsize={watermark_fontsize}:fontcolor_expr=random@{watermark_opacity}[f{i}];'
             )
             
             elif watermark_type == 'random':
 
-                filter_arg += f'[f{i-1}][z{i + 1}]xfade=transition={transition_type}:duration=0.5:offset={offset},drawtext=text=\'{watermark_text}\':x=if(eq(mod(n\,{wmTimer})\,0)\,random(1)*w\,x):y=if(eq(mod(n\,{wmTimer})\,0)\,random(1)*h\,y):fontfile={fontfile}:fontsize={fontsize}:fontcolor_expr=random@{watermark_opacity}[f{i}];'
+                filter_arg += f'[f{i-1}][z{i + 1}]xfade=transition={transition_type}:duration=0.5:offset={offset},drawtext=text=\'{watermark_text}\':x=if(eq(mod(n\,{wmTimer})\,0)\,random(1)*w\,x):y=if(eq(mod(n\,{wmTimer})\,0)\,random(1)*h\,y):fontfile={watermark_fontfile}:fontsize={watermark_fontsize}:fontcolor_expr=random@{watermark_opacity}[f{i}];'
 
             
 
@@ -255,7 +267,20 @@ def create_slideshow(folder_path):
 
         
         subscribe_script = 'subscribe.py' 
-        subscribe_args = ['--i', folder_path, '--n', f'"{args.model_name}"', '--f', str(args.fontsize), '--o', str(args.video_orientation)]        
+        subscribe_args = [
+            '--i', folder_path, 
+            '--tpl', args.template_folder,
+            
+            '--t', f'"{args.title}"', 
+            '--tf', args.title_fontfile,
+            '--tfc', args.title_fontcolor, 
+            '--tfs', str(args.title_fontsize), 
+            '--osd', str(args.start_delay),
+
+            '--o', str(args.video_orientation), 
+
+        ]
+        
         subscribe_command = ['python3', subscribe_script]  + subscribe_args
         subprocess.run(subscribe_command, check=True)
 

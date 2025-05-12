@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(description="Create DepthFlow")
 # Create an ArgumentParser to handle command-line arguments
 parser.add_argument('--o', dest='path', required=True, help='Path to the directory containing files to be sorted.')
 parser.add_argument('--d', dest='datetimeStr', required=True, help='Datetime folder name.')
-parser.add_argument('--t', type=int, default=5, dest='slide_time', help='Frame duration.')
+parser.add_argument('--sd', type=int, default=5, dest='segment_duration', help='Frame duration.')
 parser.add_argument('--tl', type=int, default=595, dest='time_limit', help='Duration of clip')
 
 args = parser.parse_args()
@@ -41,7 +41,8 @@ video_paths = [f for f in os.listdir(datetime_folder) if f.endswith('.mp4')]
 merged_paths = sorted(image_paths + video_paths, key=lambda x: x.lower())
 
 # limit number of values in "merged_paths"
-limit = int(args.time_limit/args.slide_time - 3)
+limit = int(args.time_limit / (args.segment_duration - 1))
+print(f"***** Number of values in merged_paths: {len(merged_paths)}")
 merged_paths = merged_paths[:limit]
 
 # delete images that are not in "merged_paths" from disk
@@ -160,7 +161,7 @@ class DepthManager:
         print(f"Zoom: {zoom_value}")
 
         applied = set()
-        for _ in range(random.randint(2, 3)):  # Randomly choose 2 to 3 animations
+        for _ in range(random.randint(1, 2)):  # Randomly choose 2 to 3 animations
             name, animation = random.choice([x for x in animations if x[0] not in applied])
             applied.add(name)
             data.scene.add_animation(animation)
@@ -175,7 +176,7 @@ class DepthManager:
         return DotMap(
             render=combinations(
                 height=(1920),
-                time=(6),
+                time=(args.segment_duration),
                 fps=(25),
             )
         )
@@ -219,7 +220,7 @@ class YourManager(DepthManager):
             variation=[0],
             render=combinations(
                 height=[1920],
-                time=[6],
+                time=[args.segment_duration],
                 loop=[1],
                 fps=[25],
             )

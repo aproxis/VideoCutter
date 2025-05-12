@@ -6,18 +6,29 @@ import json
 
 # Default values remain the same
 default_segment_duration = 6
+default_time_limit = 600
+
 default_input_folder = 'INPUT'
-default_model_name = 'Model Name'
-default_font_size = 90
+default_template_folder = 'TEMPLATE'
+
+default_title = 'Model Name'
+default_title_font = 'Montserrat-SemiBold.otf'  # Default title font
+default_title_font_size = 90
+default_title_fontcolor = 'random'  # Default font color
+default_delay = 21  # Default delay for subscribe overlay
+
 default_watermark = 'Today is a\n Plus Day'
 default_watermark_type = 'random'
 default_watermark_speed = 50
+default_watermark_font = 'Nexa Bold.otf'  # Default font
+
 default_depthflow = 0
-default_time_limit = 600
-default_font = 'Nexa Bold.otf'  # Default font
 
 # Define watermark types
 watermark_types = ['ccw', 'random']
+
+# Define font color options
+font_colors = ['random', 'FF00B4', 'ff6600', '0b4178', 'FFFFFF', '000000', '00FF00', '0000FF', 'FFFF00']
 
 # Get available fonts from the fonts directory
 fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
@@ -33,8 +44,12 @@ root.title("Video Cutter GUI")
 var_config = tk.StringVar(root)
 var_watermark_type = tk.StringVar(root)
 var_watermark_type.set(default_watermark_type)  # Set default value
-var_font = tk.StringVar(root)
-var_font.set(default_font)  # Set default font
+var_watermark_font = tk.StringVar(root)
+var_watermark_font.set(default_watermark_font)  # Set default font
+var_title_fontcolor = tk.StringVar(root)
+var_title_fontcolor.set(default_title_fontcolor)  # Set default font color
+var_title_font = tk.StringVar(root)
+var_title_font.set(default_title_font)  # Set default title font
 
 # Get config files from folder
 config_folder = os.path.join(os.path.dirname(__file__), 'config')
@@ -42,17 +57,23 @@ config_files = [file for file in os.listdir(config_folder) if file.endswith(".js
 
 def start_process():
     # Get values from the entry fields
-    model_name = entry_model_name.get()
+    title = entry_title.get()
     watermark = text_watermark.get("1.0", tk.END).strip()
     watermark_type = var_watermark_type.get()
     watermark_speed = entry_watermark_speed.get()
-    manual_font_size = entry_font_size.get()
+    manual_font_size = entry_title_font_size.get()
     segment_duration = entry_segment_duration.get()
     input_folder = entry_input_folder.get()
+    template_folder = entry_template_folder.get()
     depthflow_tf = var_depthflow.get()
     time_limit = entry_time_limit.get()
     video_orientation = var_video_orientation.get()
     blur_checkbox = var_add_blur.get()
+    
+    # Get subscribe.py parameters
+    delay = entry_delay.get()
+    title_fontcolor = var_title_fontcolor.get()
+    title_font = var_title_font.get()
 
     if depthflow_tf:
         depthflow = '1'
@@ -69,63 +90,77 @@ def start_process():
 
     # Determine font size to use
     if manual_font_size != "":
-        font_size = int(manual_font_size)  # Use manual input if provided
+        title_font_size = int(manual_font_size)  # Use manual input if provided
     else:
-        font_size = int(entry_calculated_font_size.get())  # Use calculated font size if manual is empty
+        title_font_size = int(entry_calculated_title_font_size.get())  # Use calculated font size if manual is empty
 
     # Get selected font
-    selected_font = var_font.get()
+    watermark_font = var_watermark_font.get()
     
     # Construct the command with the arguments
     command = [
         'python3', 'cutter.py',
-        '--n', model_name,
+        '--sd', str(segment_duration),
+        '--tl', str(time_limit),
+
+        '--i', input_folder,
+        '--tpl', template_folder,
+
+        '--t', title,
+        '--tfs', str(title_font_size),
+        '--tfc', title_fontcolor,
+        '--tf', title_font,
+        '--osd', str(delay),
+
         '--w', watermark,
         '--wt', watermark_type,
         '--ws', watermark_speed,
-        '--f', str(font_size),
-        '--d', str(segment_duration),
-        '--tl', str(time_limit),
+        '--wf', watermark_font,
+
         '--z', str(depthflow),
-        '--i', input_folder,
-        '--o', video_orientation,  # Add video orientation to command
-        '--b', str(blur),
-        '--font', selected_font  # Add font parameter
+        '--o', video_orientation,
+        '--b', str(blur)
+
     ]
 
     print(command)
     subprocess.run(command)
+    
 
 def update_font_size(event):
-    model_name = entry_model_name.get()
-    length = len(model_name)
+    title = entry_title.get()
+    length = len(title)
     if length <= 10:
-        calculated_font_size = 90
+        calculated_title_font_size = 90
     elif 11 <= length <= 14:
-        calculated_font_size = 80
+        calculated_title_font_size = 80
     elif 15 <= length <= 18:
-        calculated_font_size = 70
+        calculated_title_font_size = 70
     else:
-        calculated_font_size = 65
-    entry_calculated_font_size.config(state=tk.NORMAL)
-    entry_calculated_font_size.delete(0, tk.END)
-    entry_calculated_font_size.insert(0, calculated_font_size)
-    entry_calculated_font_size.config(state=tk.DISABLED)
+        calculated_title_font_size = 65
+    entry_calculated_title_font_size.config(state=tk.NORMAL)
+    entry_calculated_title_font_size.delete(0, tk.END)
+    entry_calculated_title_font_size.insert(0, calculated_title_font_size)
+    entry_calculated_title_font_size.config(state=tk.DISABLED)
 
 def create_default_config():
     default_config = {
-        'model_name': default_model_name,
+        'title': default_title,
         'watermark': default_watermark,
         'watermark_type': default_watermark_type,
         'watermark_speed': default_watermark_speed,
-        'font_size': default_font_size,
+        'title_font_size': default_title_font_size,
         'segment_duration': default_segment_duration,
         'input_folder': default_input_folder,
+        'template_folder': default_template_folder,
         'depthflow': default_depthflow,
         'time_limit': default_time_limit,
         'video_orientation': 'vertical',
         'blur': 0,
-        'font': default_font
+        'watermark_font': default_watermark_font,
+        'delay': default_delay,
+        'title_fontcolor': default_title_fontcolor,
+        'title_font': default_title_font
     }
     default_filename = "default_config.json"
     config_file = os.path.join(config_folder, default_filename)
@@ -154,16 +189,18 @@ def load_config():
     config_file = os.path.join(config_folder, var_config.get())
     with open(config_file, 'r') as f:
         config = json.load(f)
-    entry_model_name.delete(0, tk.END)
-    entry_model_name.insert(0, config['model_name'])
+    entry_title.delete(0, tk.END)
+    entry_title.insert(0, config['title'])
     text_watermark.delete("1.0", tk.END)
     text_watermark.insert("1.0", config['watermark'])
-    entry_font_size.delete(0, tk.END)
-    entry_font_size.insert(0, config['font_size'])
+    entry_title_font_size.delete(0, tk.END)
+    entry_title_font_size.insert(0, config['title_font_size'])
     entry_segment_duration.delete(0, tk.END)
     entry_segment_duration.insert(0, config['segment_duration'])
     entry_input_folder.delete(0, tk.END)
     entry_input_folder.insert(0, config['input_folder'])
+    entry_template_folder.delete(0, tk.END)
+    entry_template_folder.insert(0, config['template_folder'])
     var_depthflow.set(config['depthflow'])
     entry_time_limit.delete(0, tk.END)
     entry_time_limit.insert(0, config['time_limit'])
@@ -175,43 +212,65 @@ def load_config():
     
     # Set font if it exists in config, otherwise use default
     if 'font' in config and config['font'] in available_fonts:
-        var_font.set(config['font'])
+        var_watermark_font.set(config['font'])
     else:
         # If the configured font is not available, use the first available font
-        var_font.set(available_fonts[0] if available_fonts else default_font)
-
-    # Calculate font size based on model name length
-    model_name = config['model_name']
-    length = len(model_name)
-    if length <= 10:
-        calculated_font_size = 90
-    elif 11 <= length <= 14:
-        calculated_font_size = 80
-    elif 15 <= length <= 18:
-        calculated_font_size = 70
+        var_watermark_font.set(available_fonts[0] if available_fonts else default_watermark_font)
+    
+    # Load subscribe.py parameters
+    entry_delay.delete(0, tk.END)
+    entry_delay.insert(0, config.get('delay', default_delay))
+    
+    if 'title_fontcolor' in config:
+        var_title_fontcolor.set(config['title_fontcolor'])
     else:
-        calculated_font_size = 65
-    entry_calculated_font_size.config(state=tk.NORMAL)
-    entry_calculated_font_size.delete(0, tk.END)
-    entry_calculated_font_size.insert(0, calculated_font_size)
-    entry_calculated_font_size.config(state=tk.DISABLED)
+        var_title_fontcolor.set(default_title_fontcolor)
+    
+    if 'title_font' in config and config['title_font'] in available_fonts:
+        var_title_font.set(config['title_font'])
+    else:
+        var_title_font.set(available_fonts[0] if available_fonts else default_title_font)
+    
+    # Load template folder
+    entry_template_folder.delete(0, tk.END)
+    entry_template_folder.insert(0, config.get('template_folder', 'TEMPLATE'))
+
+    # Calculate font size based on title length
+    title = config['title']
+    length = len(title)
+    if length <= 10:
+        calculated_title_font_size = 90
+    elif 11 <= length <= 14:
+        calculated_title_font_size = 80
+    elif 15 <= length <= 18:
+        calculated_title_font_size = 70
+    else:
+        calculated_title_font_size = 65
+    entry_calculated_title_font_size.config(state=tk.NORMAL)
+    entry_calculated_title_font_size.delete(0, tk.END)
+    entry_calculated_title_font_size.insert(0, calculated_title_font_size)
+    entry_calculated_title_font_size.config(state=tk.DISABLED)
 
 def save_config():
     config_file = os.path.join(config_folder, var_config.get())
     with open(config_file, 'w') as f:
         json.dump({
-            'model_name': entry_model_name.get(),
+            'title': entry_title.get(),
             'watermark': text_watermark.get("1.0", tk.END).strip(),
             'watermark_type': var_watermark_type.get(),
             'watermark_speed': entry_watermark_speed.get(),
-            'font_size': entry_font_size.get(),
+            'title_font_size': entry_title_font_size.get(),
             'segment_duration': entry_segment_duration.get(),
             'input_folder': entry_input_folder.get(),
+            'template_folder': entry_template_folder.get(),
             'depthflow': var_depthflow.get(),
             'time_limit': entry_time_limit.get(),
             'video_orientation': var_video_orientation.get(),
             'blur': var_add_blur.get(),
-            'font': var_font.get()
+            'watermark_font': var_watermark_font.get(),
+            'delay': entry_delay.get(),
+            'title_fontcolor': var_title_fontcolor.get(),
+            'title_font': var_title_font.get()
         }, f)
     messagebox.showinfo("Success", "Config saved successfully!")
 
@@ -225,18 +284,22 @@ def save_new_config():
         return
     with open(config_file, 'w') as f:
         json.dump({
-            'model_name': entry_model_name.get(),
+            'title': entry_title.get(),
             'watermark': text_watermark.get("1.0", tk.END).strip(),
             'watermark_type': var_watermark_type.get(),
             'watermark_speed': entry_watermark_speed.get(),
-            'font_size': entry_font_size.get(),
+            'title_font_size': entry_title_font_size.get(),
             'segment_duration': entry_segment_duration.get(),
             'input_folder': entry_input_folder.get(),
+            'template_folder': entry_template_folder.get(),
             'depthflow': var_depthflow.get(),
             'time_limit': entry_time_limit.get(),
             'video_orientation': var_video_orientation.get(),
             'blur': var_add_blur.get(),
-            'font': var_font.get()
+            'watermark_font': var_watermark_font.get(),
+            'delay': entry_delay.get(),
+            'title_fontcolor': var_title_fontcolor.get(),
+            'title_font': var_title_font.get()
         }, f)
     messagebox.showinfo("Success", "New config saved successfully!")
     
@@ -261,86 +324,164 @@ def delete_config():
         update_config_menu()
         load_config()
 
-# Create GUI elements
-tk.Label(root, text="Config:").grid(row=0, column=0, padx=10, pady=5)
-config_menu = tk.OptionMenu(root, var_config, *config_files)
+# Create a frame for the config section
+config_frame = tk.Frame(root)
+config_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+
+tk.Label(config_frame, text="Config:").grid(row=0, column=0, padx=10, pady=5)
+config_menu = tk.OptionMenu(config_frame, var_config, *config_files)
+config_menu.config(width=15)
 config_menu.grid(row=0, column=1, padx=10, pady=5)
+
+# Now that config_menu is defined, we can update it
 update_config_menu()
 
-# Create remaining GUI elements
-tk.Label(root, text="Model Name:").grid(row=2, column=0, padx=10, pady=5)
-entry_model_name = tk.Entry(root, width=30)
-entry_model_name.insert(0, default_model_name)
-entry_model_name.grid(row=2, column=1, padx=10, pady=5)
-entry_model_name.bind("<KeyRelease>", update_font_size)  # Bind key release event
+# Save New Config elements
+tk.Label(config_frame, text="Save as:").grid(row=0, column=2, padx=10, pady=5)
+entry_new_filename = tk.Entry(config_frame, width=15)
+entry_new_filename.grid(row=0, column=3, padx=10, pady=5)
 
-tk.Label(root, text="Watermark:").grid(row=3, column=0, padx=10, pady=5)
-text_watermark = tk.Text(root, width=39, height=3)
+save_new_button = tk.Button(
+    config_frame,
+    text="Save New Config",
+    command=save_new_config,
+    fg="blue",
+    highlightbackground="blue"
+)
+save_new_button.grid(row=0, column=4, pady=5, padx=5)
+
+save_button = tk.Button(
+    config_frame,
+    text="Save",
+    command=save_config,
+    fg="green",
+    highlightbackground="green"
+)
+save_button.grid(row=0, column=5, pady=5, padx=5)
+
+delete_button = tk.Button(
+    config_frame,
+    text="Delete",
+    command=delete_config,
+    fg="red",
+    highlightbackground="red"
+)
+delete_button.grid(row=0, column=6, pady=5, padx=5)
+
+# Title Section (First Group)
+title_frame = tk.LabelFrame(root, text="Title Settings", padx=10, pady=5)
+title_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+
+tk.Label(title_frame, text="Title:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+entry_title = tk.Entry(title_frame, width=30)
+entry_title.insert(0, default_title)
+entry_title.grid(row=0, column=1, padx=10, pady=5)
+entry_title.bind("<KeyRelease>", update_font_size)  # Bind key release event
+
+tk.Label(title_frame, text="Font:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+entry_title_font = tk.OptionMenu(title_frame, var_title_font, *available_fonts)
+entry_title_font.config(width=20)
+entry_title_font.grid(row=1, column=1, padx=10, pady=5)
+
+tk.Label(title_frame, text="Color:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+entry_title_fontcolor = tk.OptionMenu(title_frame, var_title_fontcolor, *font_colors)
+entry_title_fontcolor.config(width=10)
+entry_title_fontcolor.grid(row=2, column=1, padx=10, pady=5)
+
+tk.Label(title_frame, text="Size AUTO:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+entry_calculated_title_font_size = tk.Entry(title_frame, width=30, state=tk.DISABLED)
+entry_calculated_title_font_size.grid(row=3, column=1, padx=10, pady=5)
+
+tk.Label(title_frame, text="Size MANUAL:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
+entry_title_font_size = tk.Entry(title_frame, width=30)
+entry_title_font_size.insert(0, default_title_font_size)
+entry_title_font_size.grid(row=4, column=1, padx=10, pady=5)
+
+tk.Label(title_frame, text="Overlay Delay:").grid(row=5, column=0, padx=10, pady=5, sticky="w")
+entry_delay = tk.Entry(title_frame, width=30)
+entry_delay.insert(0, default_delay)
+entry_delay.grid(row=5, column=1, padx=10, pady=5)
+
+# Watermark Section (Second Group)
+watermark_frame = tk.LabelFrame(root, text="Watermark Settings", padx=10, pady=5)
+watermark_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+
+tk.Label(watermark_frame, text="Text:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+text_watermark = tk.Text(watermark_frame, width=39, height=3)
 text_watermark.insert("1.0", default_watermark)
-text_watermark.grid(row=3, column=1, padx=10, pady=5)
+text_watermark.grid(row=0, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Watermark Speed:").grid(row=4, column=0, padx=10, pady=5)
-entry_watermark_speed = tk.Entry(root, width=30)
-entry_watermark_speed.insert(0, default_watermark_speed)
-entry_watermark_speed.grid(row=4, column=1, padx=10, pady=5)
-
-tk.Label(root, text="Watermark Type:").grid(row=5, column=0, padx=10, pady=5)
-entry_watermark_type = tk.OptionMenu(root, var_watermark_type, *watermark_types)
-entry_watermark_type.config(width=10)
-entry_watermark_type.grid(row=5, column=1, padx=10, pady=5)
-
-tk.Label(root, text="Calculated Font Size:").grid(row=6, column=0, padx=10, pady=5)
-entry_calculated_font_size = tk.Entry(root, width=30, state=tk.DISABLED)
-entry_calculated_font_size.grid(row=6, column=1, padx=10, pady=5)
-
-tk.Label(root, text="Font Size:").grid(row=7, column=0, padx=10, pady=5)
-entry_font_size = tk.Entry(root, width=30)
-entry_font_size.insert(0, default_font_size)
-entry_font_size.grid(row=7, column=1, padx=10, pady=5)
-
-tk.Label(root, text="Segment Duration:").grid(row=8, column=0, padx=10, pady=5)
-entry_segment_duration = tk.Entry(root, width=30)
-entry_segment_duration.insert(0, default_segment_duration)
-entry_segment_duration.grid(row=8, column=1, padx=10, pady=5)
-
-tk.Label(root, text="Time Limit:").grid(row=9, column=0, padx=10, pady=5)
-entry_time_limit = tk.Entry(root, width=30)
-entry_time_limit.insert(0, default_time_limit)
-entry_time_limit.grid(row=9, column=1, padx=10, pady=5)
-
-tk.Label(root, text="Font:").grid(row=10, column=0, padx=10, pady=5)
-entry_font = tk.OptionMenu(root, var_font, *available_fonts)
+tk.Label(watermark_frame, text="Font:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+entry_font = tk.OptionMenu(watermark_frame, var_watermark_font, *available_fonts)
 entry_font.config(width=20)
-entry_font.grid(row=10, column=1, padx=10, pady=5)
+entry_font.grid(row=1, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Input Folder:").grid(row=11, column=0, padx=10, pady=5)
-entry_input_folder = tk.Entry(root, width=30)
+tk.Label(watermark_frame, text="Type:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+entry_watermark_type = tk.OptionMenu(watermark_frame, var_watermark_type, *watermark_types)
+entry_watermark_type.config(width=10)
+entry_watermark_type.grid(row=2, column=1, padx=10, pady=5)
+
+tk.Label(watermark_frame, text="Speed (frames: 25 = 1s):").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+entry_watermark_speed = tk.Entry(watermark_frame, width=30)
+entry_watermark_speed.insert(0, default_watermark_speed)
+entry_watermark_speed.grid(row=3, column=1, padx=10, pady=5)
+
+# Folders Section (Third Group)
+folders_frame = tk.LabelFrame(root, text="Folders", padx=10, pady=5)
+folders_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+
+tk.Label(folders_frame, text="Input Folder:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+entry_input_folder = tk.Entry(folders_frame, width=30)
 entry_input_folder.insert(0, default_input_folder)
-entry_input_folder.grid(row=11, column=1, padx=10, pady=5)
+entry_input_folder.grid(row=0, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Save as:").grid(row=12, column=0, padx=10, pady=5)
-entry_new_filename = tk.Entry(root, width=30)
-entry_new_filename.grid(row=12, column=1, padx=10, pady=5)
+tk.Label(folders_frame, text="Template Folder:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+entry_template_folder = tk.Entry(folders_frame, width=30)
+entry_template_folder.insert(0, "TEMPLATE")
+entry_template_folder.grid(row=1, column=1, padx=10, pady=5)
 
-tk.Label(root, text="DepthFlow:").grid(row=13, column=0, padx=10, pady=5)
-var_depthflow = tk.BooleanVar()
-var_depthflow.set(False)
-tk.Checkbutton(root, text="Depthflow", variable=var_depthflow).grid(row=13, column=1, padx=5, pady=5)
+# Video Duration Section (Fourth Group)
+duration_frame = tk.LabelFrame(root, text="Video Duration", padx=10, pady=5)
+duration_frame.grid(row=4, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
 
+tk.Label(duration_frame, text="Segment Duration:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+entry_segment_duration = tk.Entry(duration_frame, width=30)
+entry_segment_duration.insert(0, default_segment_duration)
+entry_segment_duration.grid(row=0, column=1, padx=10, pady=5)
+
+tk.Label(duration_frame, text="Time Limit (s):").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+entry_time_limit = tk.Entry(duration_frame, width=30)
+entry_time_limit.insert(0, default_time_limit)
+entry_time_limit.grid(row=1, column=1, padx=10, pady=5)
+
+# Video Processing Section (Fifth Group)
+processing_frame = tk.LabelFrame(root, text="Video Processing", padx=10, pady=5)
+processing_frame.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+
+# Create a frame for orientation
+orientation_frame = tk.Frame(processing_frame)
+orientation_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+
+tk.Label(orientation_frame, text="Video Orientation:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
 # Create a StringVar for video orientation
 var_video_orientation = tk.StringVar(value='horizontal')  # Default to horizontal
+tk.Radiobutton(orientation_frame, text="Vertical", variable=var_video_orientation, value='vertical').grid(row=0, column=1, padx=5, pady=5)
+tk.Radiobutton(orientation_frame, text="Horizontal", variable=var_video_orientation, value='horizontal').grid(row=0, column=2, padx=5, pady=5)
 
-# Add Radiobuttons for video orientation
-tk.Radiobutton(root, text="Vertical", variable=var_video_orientation, value='vertical').grid(row=14, column=0, padx=5, pady=5)
-tk.Radiobutton(root, text="Horizontal", variable=var_video_orientation, value='horizontal').grid(row=14, column=1, padx=5, pady=5)
+# Create a frame for checkboxes
+checkbox_frame = tk.Frame(processing_frame)
+checkbox_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 
 # Create a BooleanVar for adding blur
 var_add_blur = tk.BooleanVar()
 var_add_blur.set(False)  # Default to not adding blur
+blur_checkbox = tk.Checkbutton(checkbox_frame, text="Side Blur", variable=var_add_blur)
+blur_checkbox.grid(row=0, column=0, padx=5, pady=5)
 
-# Add a Checkbutton for adding blur, initially hidden
-blur_checkbox = tk.Checkbutton(root, text="Side Blur", variable=var_add_blur)
-blur_checkbox.grid(row=15, column=1, padx=5, pady=5)
+# DepthFlow checkbox
+var_depthflow = tk.BooleanVar()
+var_depthflow.set(False)
+tk.Checkbutton(checkbox_frame, text="Depthflow", variable=var_depthflow).grid(row=0, column=1, padx=5, pady=5)
 
 # Function to show/hide blur checkbox based on orientation
 def toggle_blur_checkbox():
@@ -353,51 +494,34 @@ def toggle_blur_checkbox():
 # Bind the radiobutton selection to the toggle function
 var_video_orientation.trace('w', lambda *args: toggle_blur_checkbox())
 
-# Create buttons
+# Initialize the toggle_blur_checkbox function
+toggle_blur_checkbox()
+
+# Add START and EXIT buttons at the bottom
+buttons_frame = tk.Frame(root)
+buttons_frame.grid(row=6, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+
 start_button = tk.Button(
-    root,
+    buttons_frame,
     text="START",
     command=start_process,
     fg="green",
-    highlightbackground="green"
+    highlightbackground="green",
+    width=15,
+    height=2
 )
-start_button.grid(row=16, column=1, pady=20, padx=20)
-
-save_button = tk.Button(
-    root,
-    text="Save",
-    command=save_config,
-    fg="green",
-    highlightbackground="green"
-)
-save_button.grid(row=1, column=1, pady=5, padx=5)
-
-save_new_button = tk.Button(
-    root,
-    text="Save New Config",
-    command=save_new_config,
-    fg="blue",
-    highlightbackground="blue"
-)
-save_new_button.grid(row=15, column=1, pady=5, padx=5)
-
-delete_button = tk.Button(
-    root,
-    text="Delete",
-    command=delete_config,
-    fg="red",
-    highlightbackground="red"
-)
-delete_button.grid(row=1, column=0, pady=5, padx=5)
+start_button.grid(row=0, column=1, pady=10, padx=20)
 
 quit_button = tk.Button(
-    root,
+    buttons_frame,
     text="EXIT",
     command=root.quit,
     bg="black",
-    highlightbackground="black"
+    highlightbackground="black",
+    width=15,
+    height=2
 )
-quit_button.grid(row=15, column=0, pady=20, padx=20)
+quit_button.grid(row=0, column=0, pady=10, padx=20)
 
 # Load initial config
 load_config()
