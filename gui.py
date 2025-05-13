@@ -1,8 +1,11 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 import subprocess
 import os
 import json
+import glob
+from PIL import Image, ImageTk, ImageDraw, ImageFont
+import io
 
 # Default values remain the same
 default_segment_duration = 6
@@ -110,6 +113,16 @@ def start_process():
     # Get .srt generation parameter
     generate_srt = var_generate_srt.get()
     subtitle_max_width = entry_subtitle_max_width.get()
+    
+    # Get subtitle styling parameters
+    subtitle_font = var_subtitle_font.get()
+    subtitle_fontsize = var_subtitle_fontsize.get()
+    subtitle_fontcolor = var_subtitle_fontcolor.get()
+    subtitle_bgcolor = var_subtitle_bgcolor.get()
+    subtitle_bgopacity = var_subtitle_bgopacity.get()
+    subtitle_position = var_subtitle_position.get()
+    subtitle_outline = var_subtitle_outline.get()
+    subtitle_outlinecolor = var_subtitle_outlinecolor.get()
 
     if depthflow_tf:
         depthflow = '1'
@@ -167,8 +180,17 @@ def start_process():
         '--cb', str(chromakey_blend),
         
         '--srt', '1' if generate_srt else '0',
-        '--smaxw', str(subtitle_max_width)
-
+        '--smaxw', str(subtitle_max_width),
+        
+        # Subtitle styling parameters
+        '--sf', subtitle_font,
+        '--sfs', str(subtitle_fontsize),
+        '--sfc', subtitle_fontcolor,
+        '--sbc', subtitle_bgcolor,
+        '--sbo', str(subtitle_bgopacity),
+        '--spos', str(subtitle_position),
+        '--sout', str(subtitle_outline),
+        '--soutc', subtitle_outlinecolor
     ]
 
     print(command)
@@ -372,7 +394,16 @@ def save_config():
             'chromakey_similarity': entry_chromakey_similarity.get(),
             'chromakey_blend': entry_chromakey_blend.get(),
             'generate_srt': var_generate_srt.get(),
-            'subtitle_maxwidth': entry_subtitle_max_width.get()
+            'subtitle_maxwidth': entry_subtitle_max_width.get(),
+            # Subtitle styling parameters
+            'subtitle_font': var_subtitle_font.get(),
+            'subtitle_fontsize': var_subtitle_fontsize.get(),
+            'subtitle_fontcolor': var_subtitle_fontcolor.get(),
+            'subtitle_bgcolor': var_subtitle_bgcolor.get(),
+            'subtitle_bgopacity': var_subtitle_bgopacity.get(),
+            'subtitle_position': var_subtitle_position.get(),
+            'subtitle_outline': var_subtitle_outline.get(),
+            'subtitle_outlinecolor': var_subtitle_outlinecolor.get()
         }, f)
     messagebox.showinfo("Success", "Config saved successfully!")
 
@@ -411,7 +442,16 @@ def save_new_config():
             'chromakey_similarity': entry_chromakey_similarity.get(),
             'chromakey_blend': entry_chromakey_blend.get(),
             'generate_srt': var_generate_srt.get(),
-            'subtitle_maxwidth': entry_subtitle_max_width.get()
+            'subtitle_maxwidth': entry_subtitle_max_width.get(),
+            # Subtitle styling parameters
+            'subtitle_font': var_subtitle_font.get(),
+            'subtitle_fontsize': var_subtitle_fontsize.get(),
+            'subtitle_fontcolor': var_subtitle_fontcolor.get(),
+            'subtitle_bgcolor': var_subtitle_bgcolor.get(),
+            'subtitle_bgopacity': var_subtitle_bgopacity.get(),
+            'subtitle_position': var_subtitle_position.get(),
+            'subtitle_outline': var_subtitle_outline.get(),
+            'subtitle_outlinecolor': var_subtitle_outlinecolor.get()
         }, f)
     messagebox.showinfo("Success", "New config saved successfully!")
     
@@ -480,11 +520,23 @@ delete_button = tk.Button(
 )
 delete_button.grid(row=0, column=6, pady=5, padx=5)
 
-# Main layout - create a frame for the left and right columns
-main_frame = tk.Frame(root)
-main_frame.grid(row=1, column=0, sticky="nsew")
+# Create a notebook for tabbed interface
+notebook = ttk.Notebook(root)
+notebook.grid(row=1, column=0, sticky="nsew")
 root.grid_rowconfigure(1, weight=1)
 root.grid_columnconfigure(0, weight=1)
+
+# Create tabs
+tab_general = ttk.Frame(notebook)
+tab_subtitles = ttk.Frame(notebook)
+
+# Add tabs to notebook
+notebook.add(tab_general, text="General Settings")
+notebook.add(tab_subtitles, text="Subtitles")
+
+# Main layout - create a frame for the left and right columns in the general tab
+main_frame = tk.Frame(tab_general)
+main_frame.pack(fill="both", expand=True)
 
 # Left column frame
 left_column = tk.Frame(main_frame)
@@ -497,6 +549,143 @@ right_column.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
 # Configure the columns to expand
 main_frame.grid_columnconfigure(0, weight=1)
 main_frame.grid_columnconfigure(1, weight=1)
+
+# Create variables for subtitle settings
+var_subtitle_font = tk.StringVar(root)
+var_subtitle_font.set(available_fonts[0] if available_fonts else "Arial")
+var_subtitle_fontsize = tk.IntVar(root, value=24)
+var_subtitle_fontcolor = tk.StringVar(root, value="FFFFFF")
+var_subtitle_bgcolor = tk.StringVar(root, value="000000")
+var_subtitle_bgopacity = tk.DoubleVar(root, value=0.5)
+var_subtitle_position = tk.IntVar(root, value=2)
+var_subtitle_outline = tk.DoubleVar(root, value=1)
+var_subtitle_outlinecolor = tk.StringVar(root, value="000000")
+
+# Function to update subtitle preview
+def update_subtitle_preview(*args):
+    try:
+        # Create a blank image
+        img = Image.new('RGB', (400, 100), color=(50, 50, 50))
+        draw = ImageDraw.Draw(img)
+        
+        # Try to load the selected font
+        try:
+            font_path = os.path.join(fonts_dir, var_subtitle_font.get())
+            font = ImageFont.truetype(font_path, var_subtitle_fontsize.get())
+        except:
+            # Fallback to default font
+            font = ImageFont.load_default()
+        
+        # Draw sample text
+        sample_text = "Sample Subtitle Text"
+        # PIL.ImageDraw.textsize is deprecated since Pillow 9.2.0, use textbbox or textlength instead
+        try:
+            # For newer Pillow versions
+            left, top, right, bottom = draw.textbbox((0, 0), sample_text, font=font)
+            text_width = right - left
+            text_height = bottom - top
+        except AttributeError:
+            # Fallback for older Pillow versions
+            try:
+                text_width, text_height = draw.textsize(sample_text, font=font)
+            except:
+                # Last resort fallback
+                text_width, text_height = 200, 20
+                
+        position = (200 - text_width // 2, 50 - text_height // 2)
+        
+        # Draw text with outline simulation
+        draw.text((position[0]-1, position[1]-1), sample_text, font=font, fill=f"#{var_subtitle_outlinecolor.get()}")
+        draw.text((position[0]+1, position[1]-1), sample_text, font=font, fill=f"#{var_subtitle_outlinecolor.get()}")
+        draw.text((position[0]-1, position[1]+1), sample_text, font=font, fill=f"#{var_subtitle_outlinecolor.get()}")
+        draw.text((position[0]+1, position[1]+1), sample_text, font=font, fill=f"#{var_subtitle_outlinecolor.get()}")
+        draw.text(position, sample_text, font=font, fill=f"#{var_subtitle_fontcolor.get()}")
+        
+        # Convert to PhotoImage
+        photo = ImageTk.PhotoImage(img)
+        preview_label.config(image=photo)
+        preview_label.image = photo  # Keep a reference
+    except Exception as e:
+        print(f"Error updating preview: {e}")
+
+# Subtitles tab layout
+subtitle_frame = tk.Frame(tab_subtitles, padx=10, pady=10)
+subtitle_frame.pack(fill="both", expand=True)
+
+# Left column for settings
+subtitle_settings = tk.LabelFrame(subtitle_frame, text="Subtitle Settings", padx=10, pady=10)
+subtitle_settings.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+
+# Font settings
+tk.Label(subtitle_settings, text="Font:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+font_dropdown = ttk.Combobox(subtitle_settings, textvariable=var_subtitle_font, values=available_fonts, width=25)
+font_dropdown.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+font_dropdown.bind("<<ComboboxSelected>>", update_subtitle_preview)
+
+tk.Label(subtitle_settings, text="Font Size:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+font_size_slider = ttk.Scale(subtitle_settings, from_=12, to=48, variable=var_subtitle_fontsize, orient="horizontal")
+font_size_slider.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+font_size_slider.bind("<ButtonRelease-1>", update_subtitle_preview)
+
+tk.Label(subtitle_settings, text="Text Color:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+text_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_fontcolor, width=10)
+text_color_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+text_color_entry.bind("<KeyRelease>", update_subtitle_preview)
+
+tk.Label(subtitle_settings, text="Background Color:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
+bg_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_bgcolor, width=10)
+bg_color_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+bg_color_entry.bind("<KeyRelease>", update_subtitle_preview)
+
+tk.Label(subtitle_settings, text="Background Opacity:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
+bg_opacity_slider = ttk.Scale(subtitle_settings, from_=0, to=1, variable=var_subtitle_bgopacity, orient="horizontal")
+bg_opacity_slider.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
+bg_opacity_slider.bind("<ButtonRelease-1>", update_subtitle_preview)
+
+tk.Label(subtitle_settings, text="Outline Thickness:").grid(row=5, column=0, sticky="w", padx=5, pady=5)
+outline_slider = ttk.Scale(subtitle_settings, from_=0, to=4, variable=var_subtitle_outline, orient="horizontal")
+outline_slider.grid(row=5, column=1, sticky="ew", padx=5, pady=5)
+outline_slider.bind("<ButtonRelease-1>", update_subtitle_preview)
+
+tk.Label(subtitle_settings, text="Outline Color:").grid(row=6, column=0, sticky="w", padx=5, pady=5)
+outline_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_outlinecolor, width=10)
+outline_color_entry.grid(row=6, column=1, sticky="w", padx=5, pady=5)
+outline_color_entry.bind("<KeyRelease>", update_subtitle_preview)
+
+# Position selection
+tk.Label(subtitle_settings, text="Position:").grid(row=7, column=0, sticky="w", padx=5, pady=5)
+position_frame = tk.Frame(subtitle_settings)
+position_frame.grid(row=7, column=1, sticky="w", padx=5, pady=5)
+
+positions = [
+    (1, "Top Left"), (2, "Top Center"), (3, "Top Right"),
+    (4, "Middle Left"), (5, "Middle Center"), (6, "Middle Right"),
+    (7, "Bottom Left"), (8, "Bottom Center"), (9, "Bottom Right")
+]
+
+for pos, label in positions:
+    tk.Radiobutton(
+        position_frame, 
+        text=label, 
+        variable=var_subtitle_position, 
+        value=pos,
+        command=update_subtitle_preview
+    ).pack(anchor="w")
+
+# Right column for preview
+preview_frame = tk.LabelFrame(subtitle_frame, text="Preview", padx=10, pady=10)
+preview_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+
+# Preview label
+preview_label = tk.Label(preview_frame)
+preview_label.pack(padx=10, pady=10)
+
+# Initialize preview
+update_subtitle_preview()
+
+# Configure grid weights
+subtitle_frame.grid_columnconfigure(0, weight=1)
+subtitle_frame.grid_columnconfigure(1, weight=1)
 
 # Title Section (First Group)
 title_frame = tk.LabelFrame(left_column, text="Title Settings", padx=10, pady=5)

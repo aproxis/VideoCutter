@@ -4,6 +4,7 @@ import random
 import argparse
 import time
 import json
+import glob
 
 # Start timing the entire process
 start_time = time.time()
@@ -31,7 +32,16 @@ parser.add_argument('--chr', type=str, default='65db41', dest='chromakey_color',
 parser.add_argument('--cs', type=float, default=0.18, dest='chromakey_similarity', help='Chromakey similarity (0-1)')
 parser.add_argument('--cb', type=float, default=0, dest='chromakey_blend', help='Chromakey blend (0-1)')
 
+# Subtitle arguments
 parser.add_argument('--srt', type=str, default='0', dest='generate_srt', help='Add SRT subtitles? 0/1')
+parser.add_argument('--sf', type=str, default='Arial', dest='subtitle_font', help='Font for subtitles')
+parser.add_argument('--sfs', type=int, default=24, dest='subtitle_fontsize', help='Subtitle font size')
+parser.add_argument('--sfc', type=str, default='FFFFFF', dest='subtitle_fontcolor', help='Subtitle font color (hex without #)')
+parser.add_argument('--sbc', type=str, default='000000', dest='subtitle_bgcolor', help='Subtitle background color (hex without #)')
+parser.add_argument('--sbo', type=float, default=0.5, dest='subtitle_bgopacity', help='Subtitle background opacity (0-1)')
+parser.add_argument('--spos', type=int, default=2, dest='subtitle_position', help='Subtitle position (1-9, ASS alignment)')
+parser.add_argument('--sout', type=float, default=1, dest='subtitle_outline', help='Subtitle outline thickness')
+parser.add_argument('--soutc', type=str, default='000000', dest='subtitle_outlinecolor', help='Subtitle outline color (hex without #)')
 
 parser.add_argument('--o', type=str, default='vertical', dest='orientation', help='Orientation (vertical or horizontal).')
 
@@ -113,17 +123,59 @@ if args.generate_srt == '1':
     step_start = time.time()
     srt_file = os.path.join(input_dir, 'subs/voiceover.srt')
     srt_styled_output = output_video.replace('.mp4', '_styled.mp4')
-
+    
+    # Get subtitle font path
+    subtitle_font = args.subtitle_font
+    # Check if font exists in fonts directory
+    fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
+    font_files = glob.glob(os.path.join(fonts_dir, '*.[ot]tf'))
+    font_names = [os.path.basename(f) for f in font_files]
+    
+    # If the specified font exists in the fonts directory, use it
+    if subtitle_font in font_names:
+        font_path = os.path.join(fonts_dir, subtitle_font)
+    # If it's a font file that exists in the system, use it
+    elif os.path.exists(os.path.join('/Users/a/Library/Fonts', subtitle_font)):
+        font_path = os.path.join('/Users/a/Library/Fonts', subtitle_font)
+    # Otherwise, use the first available font in the fonts directory
+    elif font_files:
+        font_path = font_files[0]
+        subtitle_font = os.path.basename(font_path)
+        print(f"Font '{args.subtitle_font}' not found, using '{subtitle_font}' instead.")
+    else:
+        # Fallback to Arial
+        subtitle_font = 'Arial'
+        print(f"No fonts found in fonts directory, using system font '{subtitle_font}'.")
+    
+    # Prepare subtitle styling
+    subtitle_style = (
+        f"FontName={subtitle_font},"
+        f"FontSize={args.subtitle_fontsize},"
+        f"PrimaryColour=&H00{args.subtitle_fontcolor},"
+        f"BackColour=&H{int(args.subtitle_bgopacity * 255):02X}{args.subtitle_bgcolor},"
+        f"OutlineColour=&H00{args.subtitle_outlinecolor},"
+        f"Outline={args.subtitle_outline},"
+        f"Shadow=1,"
+        f"Alignment={args.subtitle_position}"
+    )
+    
     srt_command = [
         'ffmpeg',
         '-loglevel', 'error',
         '-i', output_video,
-        '-vf', f"subtitles={srt_file}:force_style='FontName=Arial,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=0,Shadow=1,Alignment=2'",
+        '-vf', f"subtitles={srt_file}:force_style='{subtitle_style}'",
         '-c:a', 'copy',
         '-y', srt_styled_output
     ]
-
+    
+    print(f"Applying subtitles with style: {subtitle_style}")
     subprocess.run(srt_command)
+    
+    # If successful, replace the original output with the styled version
+    if os.path.exists(srt_styled_output):
+        os.replace(srt_styled_output, output_video)
+        print(f"Subtitles added successfully.")
+    
     print(f"Subtitles: {time.time() - step_start:.2f} seconds.")
 
 print(f"Finished processing. Output video: {output_video}")
