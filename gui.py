@@ -16,13 +16,25 @@ default_title_font = 'Montserrat-SemiBold.otf'  # Default title font
 default_title_font_size = 90
 default_title_fontcolor = 'random'  # Default font color
 default_delay = 21  # Default delay for subscribe overlay
+default_title_appearance_delay = 1  # Default delay before title appears
+default_title_visible_time = 5  # Default time title remains visible
+default_title_x_offset = 110  # Default X offset for title positioning
+default_title_y_offset = -35  # Default Y offset for title positioning
+
+default_voiceover_delay = 5
 
 default_watermark = 'Today is a\n Plus Day'
 default_watermark_type = 'random'
 default_watermark_speed = 50
 default_watermark_font = 'Nexa Bold.otf'  # Default font
 
+default_chromakey_color = '65db41'
+default_chromakey_similarity = 0.18
+default_chromakey_blend = 0
+
 default_depthflow = 0
+default_generate_srt = False  # Default value for .srt generation
+default_subtitle_maxwidth = 21 
 
 # Define watermark types
 watermark_types = ['ccw', 'random']
@@ -39,6 +51,8 @@ if not available_fonts:
 # Create the main window
 root = tk.Tk()
 root.title("Video Cutter GUI")
+# Set window size to use more screen space
+root.geometry("1200x800")
 
 # Create StringVar for config selection
 var_config = tk.StringVar(root)
@@ -50,6 +64,14 @@ var_title_fontcolor = tk.StringVar(root)
 var_title_fontcolor.set(default_title_fontcolor)  # Set default font color
 var_title_font = tk.StringVar(root)
 var_title_font.set(default_title_font)  # Set default title font
+
+# Create StringVar for chromakey color
+var_chromakey_color = tk.StringVar(root)
+var_chromakey_color.set(default_chromakey_color)  # Set default chromakey color
+
+# Create BooleanVar for .srt generation
+var_generate_srt = tk.BooleanVar()
+var_generate_srt.set(default_generate_srt)  # Default to not generating .srt
 
 # Get config files from folder
 config_folder = os.path.join(os.path.dirname(__file__), 'config')
@@ -74,6 +96,20 @@ def start_process():
     delay = entry_delay.get()
     title_fontcolor = var_title_fontcolor.get()
     title_font = var_title_font.get()
+    voiceover_delay = entry_voiceover_delay.get()
+    title_appearance_delay = entry_title_appearance_delay.get()
+    title_visible_time = entry_title_visible_time.get()
+    title_x_offset = entry_title_x_offset.get()
+    title_y_offset = entry_title_y_offset.get()
+    
+    # Get chromakey parameters
+    chromakey_color = var_chromakey_color.get()
+    chromakey_similarity = entry_chromakey_similarity.get()
+    chromakey_blend = entry_chromakey_blend.get()
+    
+    # Get .srt generation parameter
+    generate_srt = var_generate_srt.get()
+    subtitle_max_width = entry_subtitle_max_width.get()
 
     if depthflow_tf:
         depthflow = '1'
@@ -110,7 +146,12 @@ def start_process():
         '--tfs', str(title_font_size),
         '--tfc', title_fontcolor,
         '--tf', title_font,
+        '--tad', str(title_appearance_delay),
+        '--tvt', str(title_visible_time),
         '--osd', str(delay),
+        '--vd', str(voiceover_delay),
+        '--txo', str(title_x_offset),
+        '--tyo', str(title_y_offset),
 
         '--w', watermark,
         '--wt', watermark_type,
@@ -119,7 +160,14 @@ def start_process():
 
         '--z', str(depthflow),
         '--o', video_orientation,
-        '--b', str(blur)
+        '--b', str(blur),
+        
+        '--chr', chromakey_color,
+        '--cs', str(chromakey_similarity),
+        '--cb', str(chromakey_blend),
+        
+        '--srt', '1' if generate_srt else '0',
+        '--smaxw', str(subtitle_max_width)
 
     ]
 
@@ -160,7 +208,17 @@ def create_default_config():
         'watermark_font': default_watermark_font,
         'delay': default_delay,
         'title_fontcolor': default_title_fontcolor,
-        'title_font': default_title_font
+        'title_font': default_title_font,
+        'voiceover_delay': default_voiceover_delay,
+        'title_appearance_delay': default_title_appearance_delay,
+        'title_visible_time': default_title_visible_time,
+        'title_x_offset': default_title_x_offset,
+        'title_y_offset': default_title_y_offset,
+        'chromakey_color': default_chromakey_color,
+        'chromakey_similarity': default_chromakey_similarity,
+        'chromakey_blend': default_chromakey_blend,
+        'generate_srt': default_generate_srt,
+        'subtitle_maxwidth': default_subtitle_maxwidth
     }
     default_filename = "default_config.json"
     config_file = os.path.join(config_folder, default_filename)
@@ -221,6 +279,40 @@ def load_config():
     entry_delay.delete(0, tk.END)
     entry_delay.insert(0, config.get('delay', default_delay))
     
+    # Load voiceover delay
+    entry_voiceover_delay.delete(0, tk.END)
+    entry_voiceover_delay.insert(0, config.get('voiceover_delay', default_voiceover_delay))
+    
+    # Load title offset parameters
+    entry_title_x_offset.delete(0, tk.END)
+    entry_title_x_offset.insert(0, config.get('title_x_offset', default_title_x_offset))
+    
+    entry_title_y_offset.delete(0, tk.END)
+    entry_title_y_offset.insert(0, config.get('title_y_offset', default_title_y_offset))
+    
+    # Load chromakey parameters
+    var_chromakey_color.set(config.get('chromakey_color', default_chromakey_color))
+    
+    entry_chromakey_similarity.delete(0, tk.END)
+    entry_chromakey_similarity.insert(0, config.get('chromakey_similarity', default_chromakey_similarity))
+    
+    entry_chromakey_blend.delete(0, tk.END)
+    entry_chromakey_blend.insert(0, config.get('chromakey_blend', default_chromakey_blend))
+    
+    # Load .srt generation setting
+    var_generate_srt.set(config.get('generate_srt', default_generate_srt))
+    
+    # Load subtitle max width
+    entry_subtitle_max_width.delete(0, tk.END)
+    entry_subtitle_max_width.insert(0, config.get('subtitle_maxwidth', default_subtitle_maxwidth))
+    
+    # Load title appearance parameters
+    entry_title_appearance_delay.delete(0, tk.END)
+    entry_title_appearance_delay.insert(0, config.get('title_appearance_delay', default_title_appearance_delay))
+    
+    entry_title_visible_time.delete(0, tk.END)
+    entry_title_visible_time.insert(0, config.get('title_visible_time', default_title_visible_time))
+    
     if 'title_fontcolor' in config:
         var_title_fontcolor.set(config['title_fontcolor'])
     else:
@@ -270,7 +362,17 @@ def save_config():
             'watermark_font': var_watermark_font.get(),
             'delay': entry_delay.get(),
             'title_fontcolor': var_title_fontcolor.get(),
-            'title_font': var_title_font.get()
+            'title_font': var_title_font.get(),
+            'voiceover_delay': entry_voiceover_delay.get(),
+            'title_appearance_delay': entry_title_appearance_delay.get(),
+            'title_visible_time': entry_title_visible_time.get(),
+            'title_x_offset': entry_title_x_offset.get(),
+            'title_y_offset': entry_title_y_offset.get(),
+            'chromakey_color': var_chromakey_color.get(),
+            'chromakey_similarity': entry_chromakey_similarity.get(),
+            'chromakey_blend': entry_chromakey_blend.get(),
+            'generate_srt': var_generate_srt.get(),
+            'subtitle_maxwidth': entry_subtitle_max_width.get()
         }, f)
     messagebox.showinfo("Success", "Config saved successfully!")
 
@@ -299,7 +401,17 @@ def save_new_config():
             'watermark_font': var_watermark_font.get(),
             'delay': entry_delay.get(),
             'title_fontcolor': var_title_fontcolor.get(),
-            'title_font': var_title_font.get()
+            'title_font': var_title_font.get(),
+            'voiceover_delay': entry_voiceover_delay.get(),
+            'title_appearance_delay': entry_title_appearance_delay.get(),
+            'title_visible_time': entry_title_visible_time.get(),
+            'title_x_offset': entry_title_x_offset.get(),
+            'title_y_offset': entry_title_y_offset.get(),
+            'chromakey_color': var_chromakey_color.get(),
+            'chromakey_similarity': entry_chromakey_similarity.get(),
+            'chromakey_blend': entry_chromakey_blend.get(),
+            'generate_srt': var_generate_srt.get(),
+            'subtitle_maxwidth': entry_subtitle_max_width.get()
         }, f)
     messagebox.showinfo("Success", "New config saved successfully!")
     
@@ -368,9 +480,27 @@ delete_button = tk.Button(
 )
 delete_button.grid(row=0, column=6, pady=5, padx=5)
 
+# Main layout - create a frame for the left and right columns
+main_frame = tk.Frame(root)
+main_frame.grid(row=1, column=0, sticky="nsew")
+root.grid_rowconfigure(1, weight=1)
+root.grid_columnconfigure(0, weight=1)
+
+# Left column frame
+left_column = tk.Frame(main_frame)
+left_column.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+
+# Right column frame
+right_column = tk.Frame(main_frame)
+right_column.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+
+# Configure the columns to expand
+main_frame.grid_columnconfigure(0, weight=1)
+main_frame.grid_columnconfigure(1, weight=1)
+
 # Title Section (First Group)
-title_frame = tk.LabelFrame(root, text="Title Settings", padx=10, pady=5)
-title_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+title_frame = tk.LabelFrame(left_column, text="Title Settings", padx=10, pady=5)
+title_frame.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
 
 tk.Label(title_frame, text="Title:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
 entry_title = tk.Entry(title_frame, width=30)
@@ -402,12 +532,32 @@ entry_delay = tk.Entry(title_frame, width=30)
 entry_delay.insert(0, default_delay)
 entry_delay.grid(row=5, column=1, padx=10, pady=5)
 
+tk.Label(title_frame, text="Title Appearance Delay:").grid(row=6, column=0, padx=10, pady=5, sticky="w")
+entry_title_appearance_delay = tk.Entry(title_frame, width=30)
+entry_title_appearance_delay.insert(0, default_title_appearance_delay)
+entry_title_appearance_delay.grid(row=6, column=1, padx=10, pady=5)
+
+tk.Label(title_frame, text="Title Visible Time:").grid(row=7, column=0, padx=10, pady=5, sticky="w")
+entry_title_visible_time = tk.Entry(title_frame, width=30)
+entry_title_visible_time.insert(0, default_title_visible_time)
+entry_title_visible_time.grid(row=7, column=1, padx=10, pady=5)
+
+tk.Label(title_frame, text="Title X Offset:").grid(row=8, column=0, padx=10, pady=5, sticky="w")
+entry_title_x_offset = tk.Entry(title_frame, width=30)
+entry_title_x_offset.insert(0, default_title_x_offset)
+entry_title_x_offset.grid(row=8, column=1, padx=10, pady=5)
+
+tk.Label(title_frame, text="Title Y Offset:").grid(row=9, column=0, padx=10, pady=5, sticky="w")
+entry_title_y_offset = tk.Entry(title_frame, width=30)
+entry_title_y_offset.insert(0, default_title_y_offset)
+entry_title_y_offset.grid(row=9, column=1, padx=10, pady=5)
+
 # Watermark Section (Second Group)
-watermark_frame = tk.LabelFrame(root, text="Watermark Settings", padx=10, pady=5)
-watermark_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+watermark_frame = tk.LabelFrame(left_column, text="Watermark Settings", padx=10, pady=5)
+watermark_frame.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
 
 tk.Label(watermark_frame, text="Text:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-text_watermark = tk.Text(watermark_frame, width=39, height=3)
+text_watermark = tk.Text(watermark_frame, width=30, height=3)
 text_watermark.insert("1.0", default_watermark)
 text_watermark.grid(row=0, column=1, padx=10, pady=5)
 
@@ -426,9 +576,9 @@ entry_watermark_speed = tk.Entry(watermark_frame, width=30)
 entry_watermark_speed.insert(0, default_watermark_speed)
 entry_watermark_speed.grid(row=3, column=1, padx=10, pady=5)
 
-# Folders Section (Third Group)
-folders_frame = tk.LabelFrame(root, text="Folders", padx=10, pady=5)
-folders_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+# Folders Section (First Group in Right Column)
+folders_frame = tk.LabelFrame(right_column, text="Folders", padx=10, pady=5)
+folders_frame.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
 
 tk.Label(folders_frame, text="Input Folder:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
 entry_input_folder = tk.Entry(folders_frame, width=30)
@@ -440,9 +590,9 @@ entry_template_folder = tk.Entry(folders_frame, width=30)
 entry_template_folder.insert(0, "TEMPLATE")
 entry_template_folder.grid(row=1, column=1, padx=10, pady=5)
 
-# Video Duration Section (Fourth Group)
-duration_frame = tk.LabelFrame(root, text="Video Duration", padx=10, pady=5)
-duration_frame.grid(row=4, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+# Video Duration Section (Second Group in Right Column)
+duration_frame = tk.LabelFrame(right_column, text="Video Duration", padx=10, pady=5)
+duration_frame.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
 
 tk.Label(duration_frame, text="Segment Duration:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
 entry_segment_duration = tk.Entry(duration_frame, width=30)
@@ -454,9 +604,45 @@ entry_time_limit = tk.Entry(duration_frame, width=30)
 entry_time_limit.insert(0, default_time_limit)
 entry_time_limit.grid(row=1, column=1, padx=10, pady=5)
 
-# Video Processing Section (Fifth Group)
-processing_frame = tk.LabelFrame(root, text="Video Processing", padx=10, pady=5)
-processing_frame.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+# Sound/Audio Section
+sound_frame = tk.LabelFrame(right_column, text="Sound/Audio Settings", padx=10, pady=5)
+sound_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
+
+tk.Label(sound_frame, text="Voiceover Delay:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+entry_voiceover_delay = tk.Entry(sound_frame, width=30)
+entry_voiceover_delay.insert(0, default_voiceover_delay)
+entry_voiceover_delay.grid(row=0, column=1, padx=10, pady=5)
+
+# Add Generate .srt checkbox
+tk.Checkbutton(sound_frame, text="Generate .srt", variable=var_generate_srt).grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+
+# Subtitle line max width
+tk.Label(sound_frame, text="Characters per line (max):").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+entry_subtitle_max_width = tk.Entry(sound_frame, width=30)
+entry_subtitle_max_width.insert(0, default_subtitle_maxwidth)
+entry_subtitle_max_width.grid(row=2, column=1, padx=10, pady=5)
+
+# Chromakey Section
+chromakey_frame = tk.LabelFrame(right_column, text="Chromakey Settings", padx=10, pady=5)
+chromakey_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+
+tk.Label(chromakey_frame, text="Color:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+entry_chromakey_color = tk.Entry(chromakey_frame, width=30, textvariable=var_chromakey_color)
+entry_chromakey_color.grid(row=0, column=1, padx=10, pady=5)
+
+tk.Label(chromakey_frame, text="Similarity:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+entry_chromakey_similarity = tk.Entry(chromakey_frame, width=30)
+entry_chromakey_similarity.insert(0, default_chromakey_similarity)
+entry_chromakey_similarity.grid(row=1, column=1, padx=10, pady=5)
+
+tk.Label(chromakey_frame, text="Blend:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+entry_chromakey_blend = tk.Entry(chromakey_frame, width=30)
+entry_chromakey_blend.insert(0, default_chromakey_blend)
+entry_chromakey_blend.grid(row=2, column=1, padx=10, pady=5)
+
+# Video Processing Section (Last Group in Right Column)
+processing_frame = tk.LabelFrame(right_column, text="Video Processing", padx=10, pady=5)
+processing_frame.grid(row=4, column=0, padx=10, pady=5, sticky="ew")
 
 # Create a frame for orientation
 orientation_frame = tk.Frame(processing_frame)
@@ -499,7 +685,7 @@ toggle_blur_checkbox()
 
 # Add START and EXIT buttons at the bottom
 buttons_frame = tk.Frame(root)
-buttons_frame.grid(row=6, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+buttons_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
 
 start_button = tk.Button(
     buttons_frame,

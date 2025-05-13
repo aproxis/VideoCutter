@@ -21,6 +21,12 @@ parser.add_argument('--tfs', type=int, default=90, dest='title_fontsize', help='
 parser.add_argument('--tf', type=str, default='Montserrat-SemiBold.otf', dest='title_fontfile', help='Font file name')
 parser.add_argument('--tfc', type=str, default='random', dest='title_fontcolor', help='Font color (hex code without #, or "random")')
 parser.add_argument('--osd', type=int, default=21, dest='start_delay', help='Delay before overlay appears (in seconds)')
+parser.add_argument('--tad', type=int, default=1, dest='title_appearance_delay', help='Delay before title appears (in seconds)')
+parser.add_argument('--tvt', type=int, default=5, dest='title_visible_time', help='Duration title remains visible (in seconds)')
+parser.add_argument('--tyo', type=int, default=-35, dest='title_y_offset', help='Title y offset')
+parser.add_argument('--txo', type=int, default=110, dest='title_x_offset', help='Title x offset')
+
+parser.add_argument('--vd', type=int, default=5, dest='vo_delay', help='Voiceover start delay (in seconds)')
 
 
 parser.add_argument('--w', type=str, default='Today is a\\n Plus Day', dest='watermark', help='Watermark text')
@@ -30,6 +36,14 @@ parser.add_argument('--wf', type=str, default='Nexa Bold.otf', dest='watermark_f
 
 parser.add_argument('--z', type=str, default='0', dest='depthflow', help='Use DepthFlow for images? 0/1')
 parser.add_argument('--o', type=str, default='vertical', dest='video_orientation', help='Video orientation (vertical|horizontal)')
+
+parser.add_argument('--chr', type=str, default='65db41', dest='chromakey_color', help='Chromakey color (hex code without #)')
+parser.add_argument('--cs', type=float, default=0.18, dest='chromakey_similarity', help='Chromakey similarity (0-1)')
+parser.add_argument('--cb', type=float, default=0, dest='chromakey_blend', help='Chromakey blend (0-1)')
+
+
+parser.add_argument('--srt', type=str, default='0', dest='generate_srt', help='Add subtitle? 0/1')
+parser.add_argument('--smaxw', type=int, default=21, dest='subtitle_max_width', help='Maximum characters in one line of subtitles')
 
 parser.add_argument('--b', type=str, default='0', dest='blur', help='Add blur? 0/1')
 
@@ -142,7 +156,7 @@ def process_videos(input_path, output_path, target_height, video_orientation):
         return True
     else:
         # For other cases, just copy the file to output
-        shutil.copy(input_path, output_path)
+        # shutil.copy(input_path, output_path)
         return False
 
 # List all video files in the input folder
@@ -463,7 +477,26 @@ sorter_command = ['python3', sorter_script]  + sorter_args
 # Run the cleaner.py script with arguments
 subprocess.run(sorter_command)
 
-print(f'##### Create slideshow {str(args.segment_duration - 1)}s per frame')
+print(f'##### Create slideshow {str(args.segment_duration - 1)}s per slide with 1s transitions')
+
+# Calculate length of outro video to subtract from time limit later in DepthFlow and Slideshow
+# Get outro video duration using ffprobe
+
+if video_orientation == 'vertical':
+    outro_video_path = template_folder + 'outro_vertical.mp4'
+
+else:
+    outro_video_path = template_folder + 'outro_horizontal.mp4'
+try:
+    cmd = f"ffprobe -v error -show_entries format=duration -of json {outro_video_path}"
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+    json_data = json.loads(result.stdout)
+    outro_duration = round(float(json_data['format']['duration']))
+    print(f"Outro video duration: {outro_duration} seconds")
+except Exception as e:
+    print(f"Error getting outro video duration: {e}")
+    outro_duration = 15  # Fallback to default duration if ffprobe fails
+
 
 # Check if DepthFlow equal 1:
 
@@ -471,24 +504,6 @@ if args.depthflow == '1':
 
     print("DepthFlow is True")
     depth_script = 'depth.py'  # Replace with the actual filename of your depth script
-    
-    # Calculate length of outro video to subtract from time limit later in DepthFlow
-    # Get outro video duration using ffprobe
-    
-    if video_orientation == 'vertical':
-        outro_video_path = template_folder + 'outro_vertical.mp4'
-
-    else:
-        outro_video_path = template_folder + 'outro_horizontal.mp4'
-    try:
-        cmd = f"ffprobe -v error -show_entries format=duration -of json {outro_video_path}"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
-        json_data = json.loads(result.stdout)
-        outro_duration = float(json_data['format']['duration'])
-        print(f"Outro video duration: {outro_duration} seconds")
-    except Exception as e:
-        print(f"Error getting outro video duration: {e}")
-        outro_duration = 15  # Fallback to default duration if ffprobe fails
 
     slideshow_duration = int(args.time_limit - outro_duration)
 
@@ -507,6 +522,7 @@ slideshow_script = 'slideshow.py'  # Replace with the actual filename of your so
 slideshow_args = [
     '--sd', str(args.segment_duration - 1), 
     '--tl', str(args.time_limit), 
+    '--od', str(outro_duration),
 
     '--tpl', args.template_folder,
 
@@ -515,6 +531,11 @@ slideshow_args = [
     '--tf', args.title_fontfile,
     '--tfc', args.title_fontcolor,
     '--osd', str(args.start_delay),
+    '--tad', str(args.title_appearance_delay),
+    '--tvt', str(args.title_visible_time),
+    '--txo', str(args.title_x_offset),
+    '--tyo', str(args.title_y_offset),
+    '--vd', str(args.vo_delay),
 
     '--w', args.watermark, 
     '--wf', args.watermark_font,
@@ -522,7 +543,14 @@ slideshow_args = [
     '--ws', str(args.watermark_speed), 
 
     '--z', str(args.depthflow), 
-    '--o', str(args.video_orientation)
+    '--o', str(args.video_orientation),
+
+    '--chr', args.chromakey_color, 
+    '--cs', str(args.chromakey_similarity), 
+    '--cb', str(args.chromakey_blend),
+
+    '--srt', args.generate_srt,
+    '--smaxw', str(args.subtitle_max_width),
 ]
 
 # Construct the full command to run slideshow.py with arguments

@@ -10,13 +10,18 @@ start_time = time.time()
 # Create an ArgumentParser to handle command-line arguments
 parser = argparse.ArgumentParser(description="Create slideshow.")
 parser.add_argument('--i', dest='path', required=True, help='Path to the directory containing audio and video')
+parser.add_argument('--od', type=int, default=14, dest='outro_duration', help='Outro duration (in seconds)')
+parser.add_argument('--vd', type=int, default=5, dest='vo_delay', help='Voiceover start delay (in seconds)')
+parser.add_argument('--srt', type=str, default='0', dest='generate_srt', help='Generate .srt subtitles? 0/1')
+parser.add_argument('--smaxw', type=int, default=21, dest='subtitle_max_width', help='Maximum characters in one line of subtitles')
+
 
 
 # Parse the command-line arguments
 args = parser.parse_args()
 directory = args.path
 
-def add_audio_to_video(slideshow_video_path, soundtrack_path, transition_sound_path, voiceover_path, voiceover_end_path, output_video_path):
+def add_audio_to_video(slideshow_video_path, soundtrack_path, transition_sound_path, voiceover_path, voiceover_end_path, output_video_path, generate_srt=False):
     # Step 1: Cut the soundtrack and reduce its volume by 50%
     # Get the duration of the slideshow video
     ffprobe_command = [
@@ -57,7 +62,7 @@ def add_audio_to_video(slideshow_video_path, soundtrack_path, transition_sound_p
         'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
         '-i', transition_sound_path,
         '-ss', '0',  # Start from the beginning of the soundtrack
-        '-t', str(duration - 13),  # Cut the soundtrack to match video duration minus end screen
+        '-t', str(duration - args.outro_duration),  # Cut the soundtrack to match video duration minus end screen
         '-af', 'volume=1.6',
         '-q:a', '0',  # Set audio quality (0-9, 0 is the best)
         '-ac', '2',  # Set the number of audio channels to 2 (stereo)
@@ -66,7 +71,7 @@ def add_audio_to_video(slideshow_video_path, soundtrack_path, transition_sound_p
 
     try:
         subprocess.run(transition_cut_command, check=True)
-        print(f"--2-- Cutted transitions to video duration - 13 seconds: ", str(duration - 13))
+        print(f"--2-- Cutted transitions to video duration - {args.outro_duration} seconds: ", str(duration - args.outro_duration))
 
     except subprocess.CalledProcessError as error:
         print("***** Error cutting and adjusting transition:", error)
@@ -77,7 +82,7 @@ def add_audio_to_video(slideshow_video_path, soundtrack_path, transition_sound_p
     voiceover_adjusted_path = os.path.join(directory, 'adjusted_voiceover.mp3')
     voiceover_blank_command = [
         'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
-        '-f', 'lavfi', '-t', '5', '-i', 'anullsrc=r=44100:cl=stereo',
+        '-f', 'lavfi', '-t', str(args.vo_delay), '-i', 'anullsrc=r=44100:cl=stereo',
         '-i', voiceover_path,
         '-filter_complex', '[0][1]concat=n=2:v=0:a=1[v]',
         '-map', '[v]',
@@ -87,7 +92,23 @@ def add_audio_to_video(slideshow_video_path, soundtrack_path, transition_sound_p
 
     try:
         subprocess.run(voiceover_blank_command, check=True)
-        print(f"--3-- Added 5 seconds to voiceoiver.")
+        print(f"--3-- Added {args.vo_delay} seconds start delay to voiceoiver.")
+        
+        # Generate SRT subtitles if requested
+        if generate_srt:
+            print("--3.1-- Generating SRT subtitles...")
+            srt_command = [
+                'python3', 'srt_generator.py',
+                '--i', directory,
+                '--srt', '1',
+                '--smaxw', str(args.subtitle_max_width)
+            ]
+            try:
+                subprocess.run(srt_command, check=True)
+                print("--3.2-- SRT subtitles generated successfully.")
+            except subprocess.CalledProcessError as srt_error:
+                print(f"***** Error generating SRT subtitles: {srt_error}")
+                # Continue with audio processing even if SRT generation fails
 
     except subprocess.CalledProcessError as error:
         print("***** Error adding blank audio to the voiceover:", error)
@@ -249,5 +270,5 @@ voiceover_end_path = 'TEMPLATE/voiceover_end.mp3'
 transition_sound_path = 'TEMPLATE/transition_long.mp3'
 
 
-add_audio_to_video(slideshow_video_path, soundtrack_path, transition_sound_path, voiceover_path, voiceover_end_path, output_video_path)
+add_audio_to_video(slideshow_video_path, soundtrack_path, transition_sound_path, voiceover_path, voiceover_end_path, output_video_path, args.generate_srt == '1')
 print(f"Add Audio: {time.time() - start_time:.2f} seconds.")

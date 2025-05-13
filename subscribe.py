@@ -20,7 +20,18 @@ parser.add_argument('--tf', type=str, default='Montserrat-SemiBold.otf', dest='t
 parser.add_argument('--tfs', type=int, default=90, dest='title_fontsize', help='Title font size')
 parser.add_argument('--tfc', type=str, default='random', dest='title_fontcolor', help='Font color (hex code without #, or "random")')
 parser.add_argument('--osd', type=int, default=21, dest='start_delay', help='Delay before overlay appears (in seconds)')
+parser.add_argument('--tad', type=int, default=1, dest='title_appearance_delay', help='Delay before title appears (in seconds)')
+parser.add_argument('--tvt', type=int, default=5, dest='title_visible_time', help='Duration title remains visible (in seconds)')
+parser.add_argument('--tyo', type=int, default=-35, dest='title_y_offset', help='Title y offset')
+parser.add_argument('--txo', type=int, default=110, dest='title_x_offset', help='Title x offset')
 
+
+
+parser.add_argument('--chr', type=str, default='65db41', dest='chromakey_color', help='Chromakey color (hex code without #)')
+parser.add_argument('--cs', type=float, default=0.18, dest='chromakey_similarity', help='Chromakey similarity (0-1)')
+parser.add_argument('--cb', type=float, default=0, dest='chromakey_blend', help='Chromakey blend (0-1)')
+
+parser.add_argument('--srt', type=str, default='0', dest='generate_srt', help='Add SRT subtitles? 0/1')
 
 parser.add_argument('--o', type=str, default='vertical', dest='orientation', help='Orientation (vertical or horizontal).')
 
@@ -38,7 +49,9 @@ else:
 
 title = args.title.strip('"')
 output_video = os.path.join(input_dir, f"{title.replace(' ', '_')}.mp4")
-chromakey_color = '65db41'
+chromakey_color = args.chromakey_color
+chromakey_similarity = args.chromakey_similarity
+chromakey_blend = args.chromakey_blend
 delay = args.start_delay  # Start time for the overlay (in seconds)
 print(f"Start delay: {delay} seconds")
 
@@ -69,12 +82,24 @@ print("Overlaying videos...")
 step_start = time.time()
 
 # Apply overlay and chromakey to the first part
+# Get title appearance parameters
+title_appearance_delay = args.title_appearance_delay
+title_visible_time = args.title_visible_time
+
+# Calculate when title should appear and disappear
+title_start = delay + title_appearance_delay
+title_end = title_start + title_visible_time
+
+# Calculate x and y offset
+title_x_offset = args.title_x_offset
+title_y_offset = args.title_y_offset
+
 overlay_command = [
     'ffmpeg',
     '-loglevel', 'error',
     '-i', input_video,
     '-i', overlay_video,
-    '-filter_complex', f"[1:a]adelay={delay*1000}|{delay*1000},volume=0.5[a1];[0:a]volume=1.0[a0];[a0][a1]amix=inputs=2:normalize=0[aout];[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS+{delay}/TB,chromakey=color=0x{chromakey_color}:similarity=0.18:blend=0.0[ckout];[v0][ckout]overlay=enable='between(t\,{delay},{delay+overlay_duration})',drawtext=text='{title}':x=((w-tw)/2+110):y=((h/2)-35):enable='between(t\,{delay+1},{delay+6})':fontfile={fontfile}:fontsize={fontsize}:fontcolor=0x{fontcolor}:shadowcolor=black:shadowx=4:shadowy=2:alpha=0.8[out]",
+    '-filter_complex', f"[1:a]adelay={delay*1000}|{delay*1000},volume=0.5[a1];[0:a]volume=1.0[a0];[a0][a1]amix=inputs=2:normalize=0[aout];[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS+{delay}/TB,chromakey=color=0x{chromakey_color}:similarity={chromakey_similarity}:blend={chromakey_blend}[ckout];[v0][ckout]overlay=enable='between(t\,{delay},{delay+overlay_duration})',drawtext=text='{title}':x=((w-tw)/2+{title_x_offset}):y=((h/2)+{title_y_offset}):enable='between(t\,{title_start},{title_end})':fontfile={fontfile}:fontsize={fontsize}:fontcolor=0x{fontcolor}:shadowcolor=black:shadowx=4:shadowy=2:alpha=0.8[out]",
     '-map', '[out]', '-map', '[aout]',
     '-c:v', 'libx264', '-c:a', 'aac', '-y', output_video
 ]
@@ -82,5 +107,23 @@ print(overlay_command)
 subprocess.run(overlay_command)
 
 print(f"Name + Subscribe: {time.time() - step_start:.2f} seconds.")
+
+if args.generate_srt == '1':
+    print("Adding subtitles...")
+    step_start = time.time()
+    srt_file = os.path.join(input_dir, 'subs/voiceover.srt')
+    srt_styled_output = output_video.replace('.mp4', '_styled.mp4')
+
+    srt_command = [
+        'ffmpeg',
+        '-loglevel', 'error',
+        '-i', output_video,
+        '-vf', f"subtitles={srt_file}:force_style='FontName=Arial,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=0,Shadow=1,Alignment=2'",
+        '-c:a', 'copy',
+        '-y', srt_styled_output
+    ]
+
+    subprocess.run(srt_command)
+    print(f"Subtitles: {time.time() - step_start:.2f} seconds.")
 
 print(f"Finished processing. Output video: {output_video}")

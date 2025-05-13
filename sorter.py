@@ -57,6 +57,7 @@ for file in files:
     # Build the old and new paths
     old_path = os.path.join(output_folder, file)
     new_path = os.path.join(datetime_folder, new_name)
+    print(old_path, new_path)
 
     # Move the file to the "/datetime_folder" subfolder with the new name
     shutil.move(old_path, new_path)

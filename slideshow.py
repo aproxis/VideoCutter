@@ -13,6 +13,7 @@ start_time = time.time()
 parser = argparse.ArgumentParser(description="Create slideshow.")
 parser.add_argument('--sd', type=int, default=5, dest='slide_time', help='Frame duration (in seconds)')
 parser.add_argument('--tl', type=int, default=595, dest='time_limit', help='Duration of clip')
+parser.add_argument('--od', type=int, default=14, dest='outro_duration', help='Outro duration (in seconds)')
 
 parser.add_argument('--tpl', type=str, default='TEMPLATE', dest='template_folder', help='Template folder')
 
@@ -22,6 +23,12 @@ parser.add_argument('--tfs', type=int, default=90, dest='title_fontsize', help='
 parser.add_argument('--tf', type=str, default='Montserrat-SemiBold.otf', dest='title_fontfile', help='Font file name')
 parser.add_argument('--tfc', type=str, default='random', dest='title_fontcolor', help='Font color (hex code without #, or "random")')
 parser.add_argument('--osd', type=int, default=21, dest='start_delay', help='Delay before title+subscribe overlay appears (in seconds)')
+parser.add_argument('--tad', type=int, default=1, dest='title_appearance_delay', help='Delay before title appears (in seconds)')
+parser.add_argument('--tvt', type=int, default=5, dest='title_visible_time', help='Duration title remains visible (in seconds)')
+parser.add_argument('--tyo', type=int, default=-35, dest='title_y_offset', help='Title y offset')
+parser.add_argument('--txo', type=int, default=110, dest='title_x_offset', help='Title x offset')
+
+parser.add_argument('--vd', type=int, default=5, dest='vo_delay', help='Voiceover start delay (in seconds)')
 
 
 parser.add_argument('--w', type=str, default='Today is a\\n Plus Day', dest='watermark', help='Watermark text')
@@ -32,6 +39,13 @@ parser.add_argument('--ws', type=int, default=50, dest='watermark_speed', help='
 
 parser.add_argument('--z', type=str, default='0', dest='depthflow', help='Use DepthFlow for images? 1/0')
 parser.add_argument('--o', type=str, default='vertical', dest='video_orientation', help='Video orientation (vertical|horizontal)')
+
+parser.add_argument('--chr', type=str, default='65db41', dest='chromakey_color', help='Chromakey color (hex code without #)')
+parser.add_argument('--cs', type=float, default=0.18, dest='chromakey_similarity', help='Chromakey similarity (0-1)')
+parser.add_argument('--cb', type=float, default=0, dest='chromakey_blend', help='Chromakey blend (0-1)')
+
+parser.add_argument('--srt', type=str, default='0', dest='generate_srt', help='Generate .srt subtitles? 0/1')
+parser.add_argument('--smaxw', type=int, default=21, dest='subtitle_max_width', help='Maximum characters in one line of subtitles')
 
 
 # Parse the command-line arguments
@@ -238,7 +252,9 @@ def create_slideshow(folder_path):
                 print(f"Skipping file {file_path} with unsupported extension")
 
 
-    max_duration = len(merged_paths) * slide_time + (14 - slide_time) # 5 seconds for every image: maximum duration in seconds to limit infinite loop adding last image infinitely; +(14 - slide_time) is for outro.mp4, it's 14 seconds long
+    max_duration = len(merged_paths) * slide_time + (args.outro_duration - slide_time) # 5 seconds for every image: maximum duration in seconds to limit infinite loop adding last image infinitely; +(14 - slide_time) is for outro.mp4, it's 14 seconds long
+    print(f"***** Number of values in merged_paths: {len(merged_paths)}, {slide_time} seconds per image, {args.outro_duration} seconds for outro.mp4")
+    print(f"***** Max duration: {max_duration} seconds")
 
     max_frames = max_duration * fps  #  25 frames per second
 
@@ -257,7 +273,13 @@ def create_slideshow(folder_path):
         print(f"##### Adding audio")
         
         audio_script = 'audio.py' 
-        audio_args = ['--i', folder_path]
+        audio_args = [
+            '--i', folder_path, 
+            '--od', str(args.outro_duration),
+            '--vd', str(args.vo_delay),
+            '--srt', args.generate_srt,
+            '--smaxw', str(args.subtitle_max_width),
+        ]
         audio_command = ['python3', audio_script]  + audio_args
         subprocess.run(audio_command, check=True)
 
@@ -276,8 +298,17 @@ def create_slideshow(folder_path):
             '--tfc', args.title_fontcolor, 
             '--tfs', str(args.title_fontsize), 
             '--osd', str(args.start_delay),
+            '--tad', str(args.title_appearance_delay),
+            '--tvt', str(args.title_visible_time),
+            '--txo', str(args.title_x_offset),
+            '--tyo', str(args.title_y_offset),
 
-            '--o', str(args.video_orientation), 
+            '--o', str(args.video_orientation),
+            '--chr', args.chromakey_color,
+            '--cs', str(args.chromakey_similarity),
+            '--cb', str(args.chromakey_blend),
+
+            '--srt', args.generate_srt,
 
         ]
         
