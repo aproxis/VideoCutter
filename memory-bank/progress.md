@@ -52,6 +52,14 @@
    - ✅ Save/load/delete configuration functionality
    - ✅ Automatic font size calculation based on text length
 
+9. **Subtitle System**
+   - ✅ SRT subtitle integration with videos
+   - ✅ Custom font selection from fonts/ directory
+   - ✅ Advanced styling with ASS format
+   - ✅ Real-time preview in GUI
+   - ✅ Shadow and outline effects
+   - ✅ Configurable positioning and colors
+
 ### Documentation
 
 1. **User Documentation**
@@ -114,6 +122,13 @@
    - ⬜ Parallel processing of multiple videos
    - ⬜ Job management interface
 
+5. **Advanced Subtitle Features**
+   - ⬜ Multiple subtitle track support
+   - ⬜ Subtitle timing adjustment
+   - ⬜ Text formatting options (bold, italic)
+   - ⬜ Animated subtitle effects
+   - ⬜ Subtitle editor with timeline
+
 ### Infrastructure
 
 1. **Testing Framework**
@@ -138,21 +153,22 @@
 
 ### Project Status: Beta
 
-VideoCutter is currently in a functional beta state. The core functionality is complete and working, with a usable GUI interface and configuration system. The system can process images and videos, create slideshows with depth effects, add audio, and apply branding overlays.
+VideoCutter is currently in a functional beta state. The core functionality is complete and working, with a usable GUI interface and configuration system. The system can process images and videos, create slideshows with depth effects, add audio, and apply branding overlays. Subtitle functionality has been enhanced with advanced styling options and accurate preview rendering.
 
 The current focus is on documentation, organization, and preparing for version control. This includes creating comprehensive documentation in both README and memory bank formats, and setting up a Git repository for future development.
 
 ### Key Metrics
 
-1. **Functionality Completion**: ~85%
+1. **Functionality Completion**: ~87%
    - Core processing pipeline: 95%
    - GUI and configuration: 90%
+   - Subtitle system: 85%
    - Error handling: 60%
    - Performance optimization: 70%
 
-2. **Documentation Completion**: ~80%
+2. **Documentation Completion**: ~85%
    - User documentation: 90%
-   - Developer documentation: 80%
+   - Developer documentation: 85%
    - Code comments: 70%
    - Examples: 60%
 
@@ -164,17 +180,25 @@ The current focus is on documentation, organization, and preparing for version c
 
 ### Recent Progress
 
-1. **Documentation**
-   - Created comprehensive README.md
-   - Established memory-bank structure
-   - Documented system architecture and components
-   - Mapped processing pipeline
+1. **Subtitle System Enhancements**
+   - Fixed RGB to BGR color conversion for ASS subtitles
+   - Implemented proper shadow rendering with opacity control
+   - Corrected layer ordering for shadow, outline, and text
+   - Enhanced preview accuracy in the GUI
+   - Added numeric formatting for slider values
+   - Improved font detection and fallback mechanisms
 
-2. **Organization**
-   - Reviewed code structure and relationships
-   - Identified areas for improvement
-   - Prepared for version control
-   - Documented configuration options
+2. **Documentation**
+   - Updated memory-bank with subtitle system details
+   - Documented ASS format specifics and color handling
+   - Added subtitle workflow documentation
+   - Updated system patterns with subtitle processing architecture
+
+3. **Organization**
+   - Refactored subtitle preview rendering for better accuracy
+   - Improved parameter handling between components
+   - Enhanced font management system
+   - Standardized color conversion across components
 
 ## Known Issues
 
@@ -202,6 +226,13 @@ The current focus is on documentation, organization, and preparing for version c
    - Limited inline documentation
    - Duplicate code in some processing functions
 
+5. **Subtitle System**
+   - Limited to single subtitle track
+   - No subtitle timing adjustment
+   - Limited text formatting options
+   - No subtitle editor with timeline
+   - ASS format complexity requires careful parameter handling
+
 ## Next Immediate Steps
 
 1. **Complete Memory Bank**
@@ -220,3 +251,35 @@ The current focus is on documentation, organization, and preparing for version c
    - Document all configuration options
    - Improve validation and error handling
    - Standardize parameter naming and structure
+
+4. **Subtitle System Enhancements**
+   - Add support for multiple subtitle tracks
+   - Implement subtitle timing adjustment
+   - Add more text formatting options
+   - Enhance subtitle preview with timeline
+   - Improve error handling for subtitle processing
+
+## Recent Achievements
+
+### Subtitle Rendering Improvements
+
+- ✅ Fixed RGB to BGR color conversion for ASS subtitle format
+- ✅ Corrected opacity handling by inverting values for ASS format
+- ✅ Implemented proper alpha compositing for shadow effects
+- ✅ Fixed the drawing order to ensure shadows appear behind text with outlines
+- ✅ Enhanced preview rendering to match the final video output
+
+### GUI Enhancements
+
+- ✅ Improved the subtitle preview with proper layer management
+- ✅ Added formatting for float values to limit them to 2 decimal places
+- ✅ Fixed shadow controls state management
+- ✅ Enhanced preview rendering with alpha compositing
+- ✅ Implemented proper masking for complex text shapes with outlines
+
+### FFmpeg Integration
+
+- ✅ Updated subtitle styling parameters to use proper ASS format
+- ✅ Fixed opacity handling in the ASS style string
+- ✅ Implemented proper color ordering for ASS format
+- ✅ Enhanced font path resolution for custom fonts

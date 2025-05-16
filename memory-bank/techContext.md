@@ -15,6 +15,7 @@
    - Handles video splitting, merging, and effects
    - Manages audio mixing and synchronization
    - Provides format conversion and optimization
+   - Renders subtitles with ASS styling
 
 3. **Tkinter**
    - GUI framework for the configuration interface
@@ -27,6 +28,7 @@
    - Handles image resizing, cropping, and effects
    - Manages watermark application
    - Provides format conversion
+   - Used for subtitle preview rendering
 
 5. **DepthFlow**
    - 3D parallax effect generation
@@ -65,6 +67,12 @@
    - Powers depth estimation models
    - GPU acceleration support
    - Tensor operations for image processing
+
+6. **Advanced SubStation Alpha (ASS)**
+   - Subtitle format for advanced styling
+   - Supports rich text formatting
+   - Enables shadow and outline effects
+   - Provides precise positioning control
 
 ## Development Setup
 
@@ -121,12 +129,16 @@
 4. **Directory Structure**
    ```
    VideoCutter/
-   ├── config/                  # Create this directory
-   ├── INPUT/                   # Create this directory
-   │   ├── DEPTH/               # Create this directory
-   │   ├── RESULT/              # Auto-created
-   │   └── SOURCE/              # Auto-created
-   ├── TEMPLATE/                # Create this directory
+   ├── config/                  # Configuration presets
+   ├── fonts/                   # Custom fonts for text and subtitles
+   ├── INPUT/                   # Input directory for media
+   │   ├── DEPTH/               # Processed depth files
+   │   ├── RESULT/              # Final output videos
+   │   └── SOURCE/              # Backup of source files
+   ├── TEMPLATE/                # Template files for overlays and audio
+   │   ├── name_subscribe_like.mp4           # Vertical overlay
+   │   └── name_subscribe_like_horizontal.mp4 # Horizontal overlay
+   ├── memory-bank/             # Project documentation
    └── *.py                     # Python scripts
    ```
 
@@ -182,6 +194,12 @@
    - Stereo audio output (2 channels)
    - AAC codec used for output
 
+4. **Subtitle Format Constraints**
+   - Input subtitles in SRT format
+   - Output subtitles rendered using ASS format
+   - Custom fonts must be in TTF or OTF format
+   - Font files must be in the fonts/ directory or system fonts
+
 ## Dependencies
 
 ### Python Package Dependencies
@@ -205,6 +223,7 @@ dotmap>=1.3.0          # Dot notation access to dictionaries
    - Required fonts:
      - Montserrat-SemiBold.otf
      - Nexa.otf
+     - Arial.ttf (for subtitles)
    - Must be installed in system font directory or specified path
 
 ## Integration Points
@@ -228,3 +247,69 @@ dotmap>=1.3.0          # Dot notation access to dictionaries
    - Command-line execution
    - GUI-triggered processing
    - No scheduling or automation built-in
+
+## Subtitle Processing
+
+### Subtitle Workflow
+
+1. **SRT Generation**
+   - SRT files can be manually created or generated
+   - Placed in INPUT/subs/voiceover.srt
+   - Standard SRT format with timecodes and text
+
+2. **Styling Parameters**
+   - Font selection from fonts/ directory
+   - Font size, color, and position
+   - Outline thickness and color
+   - Shadow toggle and opacity
+   - Position using ASS alignment (1-9)
+
+3. **Color Handling**
+   - RGB to BGR conversion for ASS format
+   - Opacity handling for shadow effects
+   - Hex color codes without # prefix
+
+4. **Preview Rendering**
+   - Real-time preview in GUI
+   - PIL/Pillow for rendering
+   - Alpha compositing for shadow effects
+   - Layer management for proper z-ordering
+
+5. **FFmpeg Integration**
+   - ASS style string generation
+   - Subtitle filter application
+   - Hardcoded subtitle rendering
+   - Font path resolution
+
+### ASS Format Specifics
+
+The ASS subtitle format uses specific color ordering and parameters:
+
+1. **Color Format**: BGR (not RGB) in hexadecimal
+2. **Opacity**: Inverted scale (00=fully opaque, FF=fully transparent)
+3. **Style Parameters**:
+   - `FontName`: Font to use
+   - `FontSize`: Size in pixels
+   - `PrimaryColour`: Text color (&H00BBGGRR)
+   - `OutlineColour`: Outline color (&H00BBGGRR)
+   - `BackColour`: Shadow color (&HAABBGGRR where AA is opacity)
+   - `Outline`: Outline thickness
+   - `Shadow`: Shadow presence (0/1)
+   - `Alignment`: Position (1-9)
+
+### Font Management
+
+1. **Font Discovery**
+   - Searches fonts/ directory for TTF/OTF files
+   - Falls back to system fonts if not found
+   - Provides dropdown selection in GUI
+
+2. **Font Rendering**
+   - PIL/Pillow for preview rendering
+   - FFmpeg for final video rendering
+   - Consistent appearance between preview and final output
+
+3. **Font Fallbacks**
+   - Default to Arial if specified font not found
+   - Graceful degradation to system fonts
+   - Error logging for missing fonts

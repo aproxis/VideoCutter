@@ -181,17 +181,27 @@ def start_process():
         
         '--srt', '1' if generate_srt else '0',
         '--smaxw', str(subtitle_max_width),
-        
-        # Subtitle styling parameters
-        '--sf', subtitle_font,
-        '--sfs', str(subtitle_fontsize),
-        '--sfc', subtitle_fontcolor,
-        '--sbc', subtitle_bgcolor,
-        '--sbo', str(subtitle_bgopacity),
-        '--spos', str(subtitle_position),
-        '--sout', str(subtitle_outline),
-        '--soutc', subtitle_outlinecolor
     ]
+    
+    # Add subtitle styling parameters only if SRT generation is enabled
+    if generate_srt:
+        subtitle_params = [
+            '--sf', subtitle_font,
+            '--sfs', str(subtitle_fontsize),
+            '--sfc', subtitle_fontcolor,
+            '--spos', str(subtitle_position),
+            '--sout', str(subtitle_outline),
+            '--soutc', subtitle_outlinecolor,
+            '--shadow', '1' if var_subtitle_shadow.get() else '0'
+        ]
+        
+        # Always add shadow color and opacity parameters, they'll only be used if shadow is enabled
+        subtitle_params.extend([
+            '--sbc', subtitle_bgcolor,
+            '--sbo', str(subtitle_bgopacity)
+        ])
+        
+        command.extend(subtitle_params)
 
     print(command)
     subprocess.run(command)
@@ -240,7 +250,17 @@ def create_default_config():
         'chromakey_similarity': default_chromakey_similarity,
         'chromakey_blend': default_chromakey_blend,
         'generate_srt': default_generate_srt,
-        'subtitle_maxwidth': default_subtitle_maxwidth
+        'subtitle_maxwidth': default_subtitle_maxwidth,
+        # Subtitle styling parameters
+        'subtitle_font': default_subtitle_font,
+        'subtitle_fontsize': default_subtitle_fontsize,
+        'subtitle_fontcolor': default_subtitle_fontcolor,
+        'subtitle_bgcolor': default_subtitle_bgcolor,
+        'subtitle_bgopacity': default_subtitle_bgopacity,
+        'subtitle_position': default_subtitle_position,
+        'subtitle_outline': default_subtitle_outline,
+        'subtitle_outlinecolor': default_subtitle_outlinecolor,
+        'subtitle_shadow': default_subtitle_shadow
     }
     default_filename = "default_config.json"
     config_file = os.path.join(config_folder, default_filename)
@@ -328,6 +348,28 @@ def load_config():
     entry_subtitle_max_width.delete(0, tk.END)
     entry_subtitle_max_width.insert(0, config.get('subtitle_maxwidth', default_subtitle_maxwidth))
     
+    # Load subtitle styling parameters
+    var_subtitle_font.set(config.get('subtitle_font', default_subtitle_font))
+    var_subtitle_fontsize.set(config.get('subtitle_fontsize', default_subtitle_fontsize))
+    var_subtitle_fontcolor.set(config.get('subtitle_fontcolor', default_subtitle_fontcolor))
+    var_subtitle_bgcolor.set(config.get('subtitle_bgcolor', default_subtitle_bgcolor))
+    var_subtitle_bgopacity.set(config.get('subtitle_bgopacity', default_subtitle_bgopacity))
+    var_subtitle_position.set(config.get('subtitle_position', default_subtitle_position))
+    var_subtitle_outline.set(config.get('subtitle_outline', default_subtitle_outline))
+    var_subtitle_outlinecolor.set(config.get('subtitle_outlinecolor', default_subtitle_outlinecolor))
+    var_subtitle_shadow.set(config.get('subtitle_shadow', default_subtitle_shadow))
+    
+    # Update slider value entries
+    update_slider_value(var_subtitle_fontsize, font_size_value_entry)
+    update_slider_value(var_subtitle_bgopacity, bg_opacity_value_entry)
+    update_slider_value(var_subtitle_outline, outline_value_entry)
+    
+    # Update shadow controls state
+    toggle_shadow_controls()
+    
+    # Update subtitle preview
+    update_subtitle_preview()
+    
     # Load title appearance parameters
     entry_title_appearance_delay.delete(0, tk.END)
     entry_title_appearance_delay.insert(0, config.get('title_appearance_delay', default_title_appearance_delay))
@@ -403,7 +445,8 @@ def save_config():
             'subtitle_bgopacity': var_subtitle_bgopacity.get(),
             'subtitle_position': var_subtitle_position.get(),
             'subtitle_outline': var_subtitle_outline.get(),
-            'subtitle_outlinecolor': var_subtitle_outlinecolor.get()
+            'subtitle_outlinecolor': var_subtitle_outlinecolor.get(),
+            'subtitle_shadow': var_subtitle_shadow.get()
         }, f)
     messagebox.showinfo("Success", "Config saved successfully!")
 
@@ -451,7 +494,8 @@ def save_new_config():
             'subtitle_bgopacity': var_subtitle_bgopacity.get(),
             'subtitle_position': var_subtitle_position.get(),
             'subtitle_outline': var_subtitle_outline.get(),
-            'subtitle_outlinecolor': var_subtitle_outlinecolor.get()
+            'subtitle_outlinecolor': var_subtitle_outlinecolor.get(),
+            'subtitle_shadow': var_subtitle_shadow.get()
         }, f)
     messagebox.showinfo("Success", "New config saved successfully!")
     
@@ -550,19 +594,66 @@ right_column.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
 main_frame.grid_columnconfigure(0, weight=1)
 main_frame.grid_columnconfigure(1, weight=1)
 
+# Default subtitle settings
+default_subtitle_font = available_fonts[0] if available_fonts else "Arial"
+default_subtitle_fontsize = 24
+default_subtitle_fontcolor = "FFFFFF"
+default_subtitle_bgcolor = "000000"
+default_subtitle_bgopacity = 0.5
+default_subtitle_position = 2
+default_subtitle_outline = 1
+default_subtitle_outlinecolor = "000000"
+default_subtitle_shadow = True
+
 # Create variables for subtitle settings
 var_subtitle_font = tk.StringVar(root)
-var_subtitle_font.set(available_fonts[0] if available_fonts else "Arial")
-var_subtitle_fontsize = tk.IntVar(root, value=24)
-var_subtitle_fontcolor = tk.StringVar(root, value="FFFFFF")
-var_subtitle_bgcolor = tk.StringVar(root, value="000000")
-var_subtitle_bgopacity = tk.DoubleVar(root, value=0.5)
-var_subtitle_position = tk.IntVar(root, value=2)
-var_subtitle_outline = tk.DoubleVar(root, value=1)
-var_subtitle_outlinecolor = tk.StringVar(root, value="000000")
+var_subtitle_font.set(default_subtitle_font)
+var_subtitle_fontsize = tk.IntVar(root, value=default_subtitle_fontsize)
+var_subtitle_fontcolor = tk.StringVar(root, value=default_subtitle_fontcolor)
+var_subtitle_bgcolor = tk.StringVar(root, value=default_subtitle_bgcolor)
+var_subtitle_bgopacity = tk.DoubleVar(root, value=default_subtitle_bgopacity)
+var_subtitle_position = tk.IntVar(root, value=default_subtitle_position)
+var_subtitle_outline = tk.DoubleVar(root, value=default_subtitle_outline)
+var_subtitle_outlinecolor = tk.StringVar(root, value=default_subtitle_outlinecolor)
+var_subtitle_shadow = tk.BooleanVar(root, value=default_subtitle_shadow)
+
+# Function to toggle background color and opacity controls based on shadow checkbox
+def toggle_shadow_controls(*args):
+    if var_subtitle_shadow.get():
+        bg_color_entry.config(state=tk.NORMAL)
+        bg_opacity_slider.config(state=tk.NORMAL)
+        bg_opacity_value_entry.config(state=tk.NORMAL)
+    else:
+        bg_color_entry.config(state=tk.DISABLED)
+        bg_opacity_slider.config(state=tk.DISABLED)
+        bg_opacity_value_entry.config(state=tk.DISABLED)
+    update_subtitle_preview()
+
+# Function to update slider value entry
+def update_slider_value(var, entry):
+    entry.delete(0, tk.END)
+    # Format to 2 decimal places for float values
+    if isinstance(var.get(), float):
+        entry.insert(0, f"{var.get():.2f}")
+    else:
+        entry.insert(0, str(var.get()))
+
+# Function to update slider from entry
+def update_slider_from_entry(entry, var, slider, min_val, max_val):
+    try:
+        value = float(entry.get())
+        if min_val <= value <= max_val:
+            var.set(value)
+            update_subtitle_preview()
+    except ValueError:
+        pass  # Ignore invalid input
+
+# Create a global variable for the preview label
+preview_label = None
 
 # Function to update subtitle preview
 def update_subtitle_preview(*args):
+    global preview_label
     try:
         # Create a blank image
         img = Image.new('RGB', (400, 100), color=(50, 50, 50))
@@ -594,15 +685,105 @@ def update_subtitle_preview(*args):
                 
         position = (200 - text_width // 2, 50 - text_height // 2)
         
-        # Draw text with outline simulation
-        draw.text((position[0]-1, position[1]-1), sample_text, font=font, fill=f"#{var_subtitle_outlinecolor.get()}")
-        draw.text((position[0]+1, position[1]-1), sample_text, font=font, fill=f"#{var_subtitle_outlinecolor.get()}")
-        draw.text((position[0]-1, position[1]+1), sample_text, font=font, fill=f"#{var_subtitle_outlinecolor.get()}")
-        draw.text((position[0]+1, position[1]+1), sample_text, font=font, fill=f"#{var_subtitle_outlinecolor.get()}")
-        draw.text(position, sample_text, font=font, fill=f"#{var_subtitle_fontcolor.get()}")
+        # Create a base image with alpha channel for layering
+        base_img = Image.new('RGBA', img.size, (0, 0, 0, 0))
+        base_draw = ImageDraw.Draw(base_img)
+        
+        # Draw the main text first (this will be the base layer)
+        base_draw.text(position, sample_text, font=font, fill=f"#{var_subtitle_fontcolor.get()}")
+        
+        # If outline is enabled, create an outline layer
+        outline_img = None
+        if var_subtitle_outline.get() > 0:
+            outline_thickness = var_subtitle_outline.get()
+            outline_img = Image.new('RGBA', img.size, (0, 0, 0, 0))
+            outline_draw = ImageDraw.Draw(outline_img)
+            
+            # Draw outline by drawing text multiple times with offset
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    if dx != 0 or dy != 0:  # Skip the center position
+                        outline_draw.text(
+                            (position[0] + dx * outline_thickness, position[1] + dy * outline_thickness),
+                            sample_text,
+                            font=font,
+                            fill=f"#{var_subtitle_outlinecolor.get()}"
+                        )
+            
+            # Composite outline under the text
+            base_img = Image.alpha_composite(outline_img, base_img)
+        
+        # If shadow is enabled, create a shadow layer
+        if var_subtitle_shadow.get():
+            # Calculate shadow color with opacity
+            shadow_color = var_subtitle_bgcolor.get()
+            r = int(shadow_color[0:2], 16)
+            g = int(shadow_color[2:4], 16)
+            b = int(shadow_color[4:6], 16)
+            opacity = var_subtitle_bgopacity.get()
+            shadow_rgba = (r, g, b, int(opacity * 255))
+            
+            # Create shadow image (this goes behind everything)
+            shadow_img = Image.new('RGBA', img.size, (0, 0, 0, 0))
+            shadow_draw = ImageDraw.Draw(shadow_img)
+            
+            # Draw shadow of the text with outline if outline is enabled
+            shadow_offset = 2
+            
+            # If outline is enabled, draw shadow for the outlined text
+            if var_subtitle_outline.get() > 0 and outline_img:
+                # Create a mask from the outline+text image
+                mask = Image.new('L', img.size, 0)
+                mask_draw = ImageDraw.Draw(mask)
+                
+                # Draw the outline shape
+                outline_thickness = var_subtitle_outline.get()
+                for dx in [-1, 0, 1]:
+                    for dy in [-1, 0, 1]:
+                        mask_draw.text(
+                            (position[0] + dx * outline_thickness, position[1] + dy * outline_thickness),
+                            sample_text,
+                            font=font,
+                            fill=255
+                        )
+                
+                # Draw the text shape
+                mask_draw.text(position, sample_text, font=font, fill=255)
+                
+                # Draw shadow using the mask
+                shadow_draw.bitmap(
+                    (shadow_offset, shadow_offset),
+                    mask,
+                    fill=shadow_rgba
+                )
+            else:
+                # Just draw shadow for the text
+                shadow_draw.text(
+                    (position[0] + shadow_offset, position[1] + shadow_offset),
+                    sample_text,
+                    font=font,
+                    fill=shadow_rgba
+                )
+            
+            # Composite shadow onto background, then add text+outline on top
+            img = Image.alpha_composite(img.convert('RGBA'), shadow_img)
+            img = Image.alpha_composite(img, base_img).convert('RGB')
+        else:
+            # No shadow, just composite text+outline onto background
+            img = Image.alpha_composite(img.convert('RGBA'), base_img).convert('RGB')
+        
+        # Update the draw object for any additional drawing
+        draw = ImageDraw.Draw(img)
         
         # Convert to PhotoImage
         photo = ImageTk.PhotoImage(img)
+        
+        # Check if preview_label exists and create it if needed
+        if preview_label is None:
+            preview_label = tk.Label(preview_frame)
+            preview_label.pack(padx=10, pady=10)
+        
+        # Update the image
         preview_label.config(image=photo)
         preview_label.image = photo  # Keep a reference
     except Exception as e:
@@ -622,45 +803,84 @@ font_dropdown = ttk.Combobox(subtitle_settings, textvariable=var_subtitle_font, 
 font_dropdown.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
 font_dropdown.bind("<<ComboboxSelected>>", update_subtitle_preview)
 
+# Font size with slider and numeric display
+font_size_frame = tk.Frame(subtitle_settings)
+font_size_frame.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+
 tk.Label(subtitle_settings, text="Font Size:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
-font_size_slider = ttk.Scale(subtitle_settings, from_=12, to=48, variable=var_subtitle_fontsize, orient="horizontal")
-font_size_slider.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
-font_size_slider.bind("<ButtonRelease-1>", update_subtitle_preview)
+font_size_slider = ttk.Scale(font_size_frame, from_=12, to=48, variable=var_subtitle_fontsize, orient="horizontal")
+font_size_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
+font_size_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_fontsize, font_size_value_entry), update_subtitle_preview()))
+
+font_size_value_entry = tk.Entry(font_size_frame, width=4)
+font_size_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
+font_size_value_entry.insert(0, str(var_subtitle_fontsize.get()))
+font_size_value_entry.bind("<Return>", lambda e: update_slider_from_entry(font_size_value_entry, var_subtitle_fontsize, font_size_slider, 12, 48))
+font_size_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(font_size_value_entry, var_subtitle_fontsize, font_size_slider, 12, 48))
 
 tk.Label(subtitle_settings, text="Text Color:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
 text_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_fontcolor, width=10)
 text_color_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
 text_color_entry.bind("<KeyRelease>", update_subtitle_preview)
 
-tk.Label(subtitle_settings, text="Background Color:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
+# Shadow checkbox
+shadow_frame = tk.Frame(subtitle_settings)
+shadow_frame.grid(row=3, column=0, columnspan=2, sticky="w", padx=5, pady=5)
+shadow_checkbox = tk.Checkbutton(shadow_frame, text="Enable Text Shadow", variable=var_subtitle_shadow, command=toggle_shadow_controls)
+shadow_checkbox.pack(anchor="w")
+
+tk.Label(subtitle_settings, text="Shadow Color:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
 bg_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_bgcolor, width=10)
-bg_color_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+bg_color_entry.grid(row=4, column=1, sticky="w", padx=5, pady=5)
 bg_color_entry.bind("<KeyRelease>", update_subtitle_preview)
 
-tk.Label(subtitle_settings, text="Background Opacity:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
-bg_opacity_slider = ttk.Scale(subtitle_settings, from_=0, to=1, variable=var_subtitle_bgopacity, orient="horizontal")
-bg_opacity_slider.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
-bg_opacity_slider.bind("<ButtonRelease-1>", update_subtitle_preview)
+# Background opacity with slider and numeric display
+bg_opacity_frame = tk.Frame(subtitle_settings)
+bg_opacity_frame.grid(row=5, column=1, sticky="ew", padx=5, pady=5)
 
-tk.Label(subtitle_settings, text="Outline Thickness:").grid(row=5, column=0, sticky="w", padx=5, pady=5)
-outline_slider = ttk.Scale(subtitle_settings, from_=0, to=4, variable=var_subtitle_outline, orient="horizontal")
-outline_slider.grid(row=5, column=1, sticky="ew", padx=5, pady=5)
-outline_slider.bind("<ButtonRelease-1>", update_subtitle_preview)
+tk.Label(subtitle_settings, text="Shadow Opacity:").grid(row=5, column=0, sticky="w", padx=5, pady=5)
+bg_opacity_slider = ttk.Scale(bg_opacity_frame, from_=0, to=1, variable=var_subtitle_bgopacity, orient="horizontal")
+bg_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
+bg_opacity_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_bgopacity, bg_opacity_value_entry), update_subtitle_preview()))
 
-tk.Label(subtitle_settings, text="Outline Color:").grid(row=6, column=0, sticky="w", padx=5, pady=5)
+bg_opacity_value_entry = tk.Entry(bg_opacity_frame, width=4)
+bg_opacity_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
+bg_opacity_value_entry.insert(0, str(var_subtitle_bgopacity.get()))
+bg_opacity_value_entry.bind("<Return>", lambda e: update_slider_from_entry(bg_opacity_value_entry, var_subtitle_bgopacity, bg_opacity_slider, 0, 1))
+bg_opacity_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(bg_opacity_value_entry, var_subtitle_bgopacity, bg_opacity_slider, 0, 1))
+
+# Outline thickness with slider and numeric display
+outline_frame = tk.Frame(subtitle_settings)
+outline_frame.grid(row=6, column=1, sticky="ew", padx=5, pady=5)
+
+tk.Label(subtitle_settings, text="Outline Thickness:").grid(row=6, column=0, sticky="w", padx=5, pady=5)
+outline_slider = ttk.Scale(outline_frame, from_=0, to=4, variable=var_subtitle_outline, orient="horizontal")
+outline_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
+outline_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_outline, outline_value_entry), update_subtitle_preview()))
+
+outline_value_entry = tk.Entry(outline_frame, width=4)
+outline_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
+outline_value_entry.insert(0, str(var_subtitle_outline.get()))
+outline_value_entry.bind("<Return>", lambda e: update_slider_from_entry(outline_value_entry, var_subtitle_outline, outline_slider, 0, 4))
+outline_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(outline_value_entry, var_subtitle_outline, outline_slider, 0, 4))
+
+tk.Label(subtitle_settings, text="Outline Color:").grid(row=7, column=0, sticky="w", padx=5, pady=5)
 outline_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_outlinecolor, width=10)
-outline_color_entry.grid(row=6, column=1, sticky="w", padx=5, pady=5)
+outline_color_entry.grid(row=7, column=1, sticky="w", padx=5, pady=5)
 outline_color_entry.bind("<KeyRelease>", update_subtitle_preview)
 
+# Initialize shadow controls state
+toggle_shadow_controls()
+
 # Position selection
-tk.Label(subtitle_settings, text="Position:").grid(row=7, column=0, sticky="w", padx=5, pady=5)
+tk.Label(subtitle_settings, text="Position:").grid(row=8, column=0, sticky="w", padx=5, pady=5)
 position_frame = tk.Frame(subtitle_settings)
-position_frame.grid(row=7, column=1, sticky="w", padx=5, pady=5)
+position_frame.grid(row=8, column=1, sticky="w", padx=5, pady=5)
 
 positions = [
-    (1, "Top Left"), (2, "Top Center"), (3, "Top Right"),
-    (4, "Middle Left"), (5, "Middle Center"), (6, "Middle Right"),
-    (7, "Bottom Left"), (8, "Bottom Center"), (9, "Bottom Right")
+    (5, "Top Left"), (6, "Top Center"), (7, "Top Right"),
+    (9, "Middle Left"), (10, "Middle Center"), (11, "Middle Right"),
+    (1, "Bottom Left"), (2, "Bottom Center"), (3, "Bottom Right")
 ]
 
 for pos, label in positions:

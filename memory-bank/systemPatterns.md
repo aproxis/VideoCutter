@@ -53,6 +53,7 @@ graph TD
 
 8. **Subscribe (`subscribe.py`)**: 
    - Adds branding and subscription overlays
+   - Adds subtitle rendering to videos
    - Finalizes the video for distribution
 
 ## Key Technical Decisions
@@ -117,6 +118,16 @@ graph TD
 - Maintains archive of original content
 - Supports audit trail of modifications
 
+### 7. ASS Subtitle Format for Advanced Styling
+
+**Decision**: Use Advanced SubStation Alpha (ASS) format for subtitle styling.
+
+**Rationale**:
+- Provides rich styling options (font, color, position, effects)
+- Supports shadow and outline effects
+- Allows precise control over subtitle appearance
+- Compatible with FFmpeg's subtitle rendering
+
 ## Design Patterns
 
 ### 1. Pipeline Pattern
@@ -171,6 +182,25 @@ graph TD
     SlideshowParams --> Audio
     SlideshowParams --> Subscribe
 ```
+
+## Subtitle Processing Architecture
+
+```mermaid
+graph TD
+    SRT[SRT File] --> Subscribe
+    SubtitleParams[Subtitle Parameters] --> Subscribe
+    Subscribe --> ASS[ASS Styling]
+    ASS --> FFmpegRender[FFmpeg Subtitle Rendering]
+    FFmpegRender --> FinalVideo[Final Video with Subtitles]
+```
+
+### Subtitle Styling Components
+
+1. **Font Selection**: Custom font loading from fonts/ directory
+2. **Color Management**: RGB to BGR conversion for ASS format
+3. **Shadow Effects**: Configurable shadow with opacity control
+4. **Outline Effects**: Variable thickness outline rendering
+5. **Positioning**: 9-point positioning system (1-9 ASS alignment)
 
 ## Error Handling
 

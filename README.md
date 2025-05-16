@@ -1,10 +1,10 @@
 # VideoCutter
 
-A comprehensive video processing toolkit for creating professional slideshows from images and videos with depth effects, audio processing, and custom overlays.
+A comprehensive video processing toolkit for creating professional slideshows from images and videos with depth effects, audio processing, custom overlays, and advanced subtitle support.
 
 ## Overview
 
-VideoCutter automates the process of creating engaging video content from images and video clips. It provides a complete pipeline from processing raw media to producing polished slideshows with depth effects, transitions, audio mixing, and custom branding.
+VideoCutter automates the process of creating engaging video content from images and video clips. It provides a complete pipeline from processing raw media to producing polished slideshows with depth effects, transitions, audio mixing, custom branding, and professional subtitles.
 
 ## Features
 
@@ -38,20 +38,28 @@ VideoCutter automates the process of creating engaging video content from images
   - Configurable font sizes and colors
   - Subscribe/like overlays for social media engagement
 
+- **Advanced Subtitle System**
+  - SRT subtitle integration with videos
+  - Custom font selection from fonts/ directory
+  - Advanced styling with shadow and outline effects
+  - Real-time preview in GUI
+  - Configurable positioning and colors
+
 - **User-Friendly Interface**
   - Graphical user interface for easy configuration
   - Save and load configuration presets
   - Real-time font size calculation based on text length
+  - Live subtitle preview with accurate rendering
 
 ## Directory Structure
 
 ```
 VideoCutter/
 ├── config/                  # Configuration presets
+├── fonts/                   # Custom fonts for text and subtitles
 ├── INPUT/                   # Input media files
-│   ├── DEPTH/               # Images for depth processing
 │   ├── RESULT/              # Processed output (date-time folders)
-│   └── SOURCE/              # Original files backup
+│   ├── SOURCE/              # Original files backup
 ├── TEMPLATE/                # Template files for overlays and audio
 ├── memory-bank/             # Project documentation and context
 ├── *.py                     # Python scripts
@@ -83,7 +91,7 @@ sudo chmod +x /usr/local/bin/ffmpeg
 sudo chmod +x /usr/local/bin/ffprobe
 
 brew install python-tk@3.11
-brew install python@3.11 
+brew install python@3.11 
 
 python3.11 -m venv venv
 source venv/bin/activate
@@ -119,10 +127,12 @@ pip install depthflow==0.8.0
 
 5. Set up directory structure:
    ```
-   mkdir -p config INPUT/DEPTH TEMPLATE
+   mkdir -p config INPUT/DEPTH INPUT/subs TEMPLATE fonts
    ```
 
 6. Add required template files to the TEMPLATE directory (see TEMPLATE/README.md for details)
+
+7. Add custom fonts to the fonts directory (optional, for subtitle and text styling)
 
 ## Core Components
 
@@ -134,6 +144,7 @@ The graphical user interface for configuring and starting the processing pipelin
 - Segment duration and time limit settings
 - Video orientation selection (vertical/horizontal)
 - DepthFlow and blur effect toggles
+- Subtitle styling and preview
 
 ### 2. Video Processing (`cutter.py`)
 The main entry point that orchestrates the entire workflow:
@@ -171,10 +182,11 @@ Handles all audio-related processing:
 - Adds transition sound effects
 - Applies audio effects and normalization
 
-### 8. Branding (`subscribe.py`)
-Adds final branding and subscription overlays:
+### 8. Branding & Subtitles (`subscribe.py`)
+Adds final branding, subscription overlays, and subtitles:
 - Integrates model name overlay
 - Adds subscribe/like animations
+- Applies subtitles with advanced styling
 - Finalizes the video for distribution
 
 ## Usage
@@ -195,13 +207,12 @@ Adds final branding and subscription overlays:
    pip install -r requirements.txt
    
    # Create necessary directories
-   mkdir -p INPUT/DEPTH INPUT/RESULT INPUT/SOURCE
+   mkdir -p INPUT/DEPTH INPUT/RESULT INPUT/SOURCE INPUT/subs fonts
    ```
 
 2. Prepare your media:
    - Place images and videos in the `INPUT` folder
-   - Add background music as `TEMPLATE/music.mp3` (optional)
-   - Add voiceover as `INPUT/voiceover.mp3` (optional)
+   - Add custom fonts to the `fonts` directory
 
 3. Launch the application:
    ```
@@ -211,11 +222,12 @@ Adds final branding and subscription overlays:
 ### GUI Mode
 
 1. Configure your settings:
-   - Set model name and watermark text
+   - Set title and watermark text
    - Adjust font size and segment duration
    - Choose video orientation (vertical/horizontal)
    - Enable/disable depth effects
    - Set time limits
+   - Configure subtitle styling (if using subtitles)
 
 2. Click "START" to begin processing
 
@@ -226,10 +238,10 @@ Adds final branding and subscription overlays:
 For batch processing or automation, you can use the command line interface:
 
 ```
-python cutter.py --n "Model Name" --w "Your Watermark" --d 6 --o vertical --z 1
+python cutter.py --n "Model Name" --w "Your Watermark" --d 6 --o vertical --z 1 --srt 1
 ```
 
-#### Parameters:
+#### Basic Parameters:
 
 - `--d`: Segment duration in seconds (default: 6)
 - `--tl`: Time limit in seconds (default: 595)
@@ -241,11 +253,27 @@ python cutter.py --n "Model Name" --w "Your Watermark" --d 6 --o vertical --z 1
 - `--o`: Video orientation (vertical/horizontal, default: vertical)
 - `--b`: Add blur (0/1, default: 0)
 
+#### Subtitle Parameters:
+
+- `--srt`: Add SRT subtitles (0/1, default: 0)
+- `--sf`: Font for subtitles (default: 'Arial')
+- `--sfs`: Subtitle font size (default: 24)
+- `--sfc`: Subtitle font color (hex without #, default: 'FFFFFF')
+- `--sbc`: Subtitle shadow color (hex without #, default: '000000')
+- `--sbo`: Subtitle shadow opacity (0-1, default: 0.5)
+- `--spos`: Subtitle position (1-9, ASS alignment, default: 2)
+- `--sout`: Subtitle outline thickness (default: 1)
+- `--soutc`: Subtitle outline color (hex without #, default: '000000')
+- `--shadow`: Enable subtitle shadow (0/1, default: 1)
+- `--smaxw`: Maximum characters per subtitle line (default: 21)
+
 ## Workflow
 
 1. **Input Preparation**:
    - Place your images and videos in the `INPUT` folder
    - Add voiceover as `voiceover.mp3` (optional)
+   - Add subtitle file as `subs/voiceover.srt` (optional)
+   - Add custom fonts to the `fonts` directory (optional)
 
 2. **Processing Pipeline**:
    - Videos are split into segments of specified duration
@@ -255,6 +283,7 @@ python cutter.py --n "Model Name" --w "Your Watermark" --d 6 --o vertical --z 1
    - Slideshow is created with transitions
    - Audio is added and mixed
    - Subscription overlays are added
+   - Subtitles are rendered with styling (if enabled)
 
 3. **Output**:
    - Final videos are saved in `INPUT/RESULT/[datetime]/`
@@ -266,15 +295,25 @@ The `config/` directory contains JSON configuration presets that can be loaded a
 
 ```json
 {
-  "model_name": "Model Name",
+  "title": "Model Name",
   "watermark": "Your Watermark Text",
-  "font_size": 90,
+  "title_font_size": 90,
   "segment_duration": 6,
   "input_folder": "INPUT",
   "depthflow": 0,
   "time_limit": 600,
   "video_orientation": "vertical",
-  "blur": 0
+  "blur": 0,
+  "generate_srt": false,
+  "subtitle_font": "Arial",
+  "subtitle_fontsize": 24,
+  "subtitle_fontcolor": "FFFFFF",
+  "subtitle_bgcolor": "000000",
+  "subtitle_bgopacity": 0.5,
+  "subtitle_position": 2,
+  "subtitle_outline": 1,
+  "subtitle_outlinecolor": "000000",
+  "subtitle_shadow": true
 }
 ```
 
@@ -318,6 +357,34 @@ The subscribe overlay adds:
 - Subscribe/like buttons
 - Custom colors and animations
 
+### Subtitle System
+
+The subtitle system provides advanced styling options:
+
+1. **Font Selection**: Choose from custom fonts in the fonts/ directory
+2. **Color Customization**: Set text, outline, and shadow colors
+3. **Shadow Effects**: Add drop shadows with configurable opacity
+4. **Outline Effects**: Add text outlines with configurable thickness
+5. **Positioning**: 9-point positioning system (1-9 ASS alignment)
+6. **Real-time Preview**: See exactly how subtitles will appear in the final video
+7. **SRT Integration**: Use standard SRT files for subtitle content
+
+## Subtitle Format
+
+The system uses SRT files for subtitle content:
+
+```
+1
+00:00:01,000 --> 00:00:04,000
+This is a subtitle
+
+2
+00:00:05,000 --> 00:00:08,000
+With multiple lines
+```
+
+SRT file will be generated in `INPUT/{datetime_folder}/subs/voiceover.srt` for automatic integration.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -326,6 +393,8 @@ The subscribe overlay adds:
 - **Missing files**: Check that all template files exist in the TEMPLATE directory
 - **Processing errors**: Verify input files are in supported formats (MP4, JPG)
 - **Audio sync issues**: Check that voiceover.mp3 exists in the INPUT folder
+- **Subtitle issues**: Verify SRT file format and placement in INPUT/subs directory
+- **Font issues**: Ensure custom fonts are in the fonts/ directory and in TTF or OTF format
 
 ### Logs
 
@@ -347,6 +416,10 @@ Planned enhancements include:
 - Additional transition types and effects
 - Direct social media publishing integration
 - Batch processing capabilities
+- Multiple subtitle track support
+- Subtitle timing adjustment
+- Advanced text formatting options
+- Subtitle editor with timeline
 
 ## License
 

@@ -37,11 +37,12 @@ parser.add_argument('--srt', type=str, default='0', dest='generate_srt', help='A
 parser.add_argument('--sf', type=str, default='Arial', dest='subtitle_font', help='Font for subtitles')
 parser.add_argument('--sfs', type=int, default=24, dest='subtitle_fontsize', help='Subtitle font size')
 parser.add_argument('--sfc', type=str, default='FFFFFF', dest='subtitle_fontcolor', help='Subtitle font color (hex without #)')
-parser.add_argument('--sbc', type=str, default='000000', dest='subtitle_bgcolor', help='Subtitle background color (hex without #)')
-parser.add_argument('--sbo', type=float, default=0.5, dest='subtitle_bgopacity', help='Subtitle background opacity (0-1)')
+parser.add_argument('--sbc', type=str, default='000000', dest='subtitle_bgcolor', help='Subtitle shadow color (hex without #)')
+parser.add_argument('--sbo', type=float, default=0.5, dest='subtitle_bgopacity', help='Subtitle shadow opacity (0-1)')
 parser.add_argument('--spos', type=int, default=2, dest='subtitle_position', help='Subtitle position (1-9, ASS alignment)')
 parser.add_argument('--sout', type=float, default=1, dest='subtitle_outline', help='Subtitle outline thickness')
 parser.add_argument('--soutc', type=str, default='000000', dest='subtitle_outlinecolor', help='Subtitle outline color (hex without #)')
+parser.add_argument('--shadow', type=int, default=1, dest='subtitle_shadow', help='Enable subtitle shadow (0/1)')
 
 parser.add_argument('--o', type=str, default='vertical', dest='orientation', help='Orientation (vertical or horizontal).')
 
@@ -148,16 +149,33 @@ if args.generate_srt == '1':
         print(f"No fonts found in fonts directory, using system font '{subtitle_font}'.")
     
     # Prepare subtitle styling
-    subtitle_style = (
-        f"FontName={subtitle_font},"
-        f"FontSize={args.subtitle_fontsize},"
-        f"PrimaryColour=&H00{args.subtitle_fontcolor},"
-        f"BackColour=&H{int(args.subtitle_bgopacity * 255):02X}{args.subtitle_bgcolor},"
-        f"OutlineColour=&H00{args.subtitle_outlinecolor},"
-        f"Outline={args.subtitle_outline},"
-        f"Shadow=1,"
+    # Base style parameters
+    # Convert RGB hex colors to BGR for ASS format
+    font_color_bgr = args.subtitle_fontcolor[4:6] + args.subtitle_fontcolor[2:4] + args.subtitle_fontcolor[0:2]
+    outline_color_bgr = args.subtitle_outlinecolor[4:6] + args.subtitle_outlinecolor[2:4] + args.subtitle_outlinecolor[0:2]
+    shadow_color_bgr = args.subtitle_bgcolor[4:6] + args.subtitle_bgcolor[2:4] + args.subtitle_bgcolor[0:2]
+    
+    style_params = [
+        f"FontName={subtitle_font}",
+        f"FontSize={args.subtitle_fontsize}",
+        f"PrimaryColour=&H00{font_color_bgr}",
+        f"OutlineColour=&H00{outline_color_bgr}",
+        f"Outline={args.subtitle_outline}",
         f"Alignment={args.subtitle_position}"
-    )
+    ]
+    
+    # Add shadow if enabled (shadow is text shadow, not background)
+    if hasattr(args, 'subtitle_shadow') and args.subtitle_shadow:
+        # Convert opacity from 0-1 to 00-FF hex (invert the opacity for ASS format)
+        opacity_value = int((1.0 - args.subtitle_bgopacity) * 255)
+        opacity_hex = format(opacity_value, '02X')
+        style_params.append(f"BackColour=&H{opacity_hex}{shadow_color_bgr}")
+        style_params.append("Shadow=1")
+    else:
+        style_params.append("Shadow=0")
+    
+    # Join all style parameters
+    subtitle_style = ",".join(style_params)
     
     srt_command = [
         'ffmpeg',

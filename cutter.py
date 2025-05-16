@@ -48,8 +48,9 @@ parser.add_argument('--smaxw', type=int, default=21, dest='subtitle_max_width', 
 parser.add_argument('--sf', type=str, default='Arial', dest='subtitle_font', help='Font for subtitles')
 parser.add_argument('--sfs', type=int, default=24, dest='subtitle_fontsize', help='Subtitle font size')
 parser.add_argument('--sfc', type=str, default='FFFFFF', dest='subtitle_fontcolor', help='Subtitle font color (hex without #)')
-parser.add_argument('--sbc', type=str, default='000000', dest='subtitle_bgcolor', help='Subtitle background color (hex without #)')
-parser.add_argument('--sbo', type=float, default=0.5, dest='subtitle_bgopacity', help='Subtitle background opacity (0-1)')
+parser.add_argument('--sbc', type=str, default='000000', dest='subtitle_bgcolor', help='Subtitle shadow color (hex without #)')
+parser.add_argument('--sbo', type=float, default=0.5, dest='subtitle_bgopacity', help='Subtitle shadow opacity (0-1)')
+parser.add_argument('--shadow', type=int, default=1, dest='subtitle_shadow', help='Enable subtitle shadow (0/1)')
 parser.add_argument('--spos', type=int, default=2, dest='subtitle_position', help='Subtitle position (1-9, ASS alignment)')
 parser.add_argument('--sout', type=float, default=1, dest='subtitle_outline', help='Subtitle outline thickness')
 parser.add_argument('--soutc', type=str, default='000000', dest='subtitle_outlinecolor', help='Subtitle outline color (hex without #)')
@@ -567,7 +568,8 @@ slideshow_args = [
     '--sbo', str(args.subtitle_bgopacity),
     '--spos', str(args.subtitle_position),
     '--sout', str(args.subtitle_outline),
-    '--soutc', args.subtitle_outlinecolor
+    '--soutc', args.subtitle_outlinecolor,
+    '--shadow', str(args.subtitle_shadow)
 ]
 
 # Construct the full command to run slideshow.py with arguments
