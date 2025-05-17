@@ -5,6 +5,25 @@ import argparse
 import time
 import json
 import glob
+from fontTools.ttLib import TTFont
+
+# Function to extract font name from font file
+def get_font_name(font_path):
+    try:
+        font = TTFont(font_path)
+        name = ''
+        for record in font['name'].names:
+            if record.nameID == 4:  # Full font name
+                try:
+                    name = record.string.decode(record.getEncoding())
+                except:
+                    name = record.string.decode('utf-8', errors='ignore')
+                break
+        font.close()
+        return name
+    except Exception as e:
+        print(f"Error extracting font name: {e}")
+        return os.path.basename(font_path).split('.')[0]  # Fallback to filename without extension
 
 # Start timing the entire process
 start_time = time.time()
@@ -105,48 +124,45 @@ title_end = title_start + title_visible_time
 title_x_offset = args.title_x_offset
 title_y_offset = args.title_y_offset
 
-overlay_command = [
-    'ffmpeg',
-    '-loglevel', 'error',
-    '-i', input_video,
-    '-i', overlay_video,
-    '-filter_complex', f"[1:a]adelay={delay*1000}|{delay*1000},volume=0.5[a1];[0:a]volume=1.0[a0];[a0][a1]amix=inputs=2:normalize=0[aout];[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS+{delay}/TB,chromakey=color=0x{chromakey_color}:similarity={chromakey_similarity}:blend={chromakey_blend}[ckout];[v0][ckout]overlay=enable='between(t\,{delay},{delay+overlay_duration})',drawtext=text='{title}':x=((w-tw)/2+{title_x_offset}):y=((h/2)+{title_y_offset}):enable='between(t\,{title_start},{title_end})':fontfile={fontfile}:fontsize={fontsize}:fontcolor=0x{fontcolor}:shadowcolor=black:shadowx=4:shadowy=2:alpha=0.8[out]",
-    '-map', '[out]', '-map', '[aout]',
-    '-c:v', 'libx264', '-c:a', 'aac', '-y', output_video
-]
-print(overlay_command)
-subprocess.run(overlay_command)
-
-print(f"Name + Subscribe: {time.time() - step_start:.2f} seconds.")
+# Prepare subtitle styling if needed
+srt_file = None
+subtitle_style = None
 
 if args.generate_srt == '1':
-    print("Adding subtitles...")
-    step_start = time.time()
+    print("Preparing subtitle styling...")
     srt_file = os.path.join(input_dir, 'subs/voiceover.srt')
-    srt_styled_output = output_video.replace('.mp4', '_styled.mp4')
     
     # Get subtitle font path
-    subtitle_font = args.subtitle_font
-    # Check if font exists in fonts directory
+    subtitle_font_arg = args.subtitle_font
+    # Define fonts directory
     fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
     font_files = glob.glob(os.path.join(fonts_dir, '*.[ot]tf'))
     font_names = [os.path.basename(f) for f in font_files]
     
+    # Font path and name variables
+    font_path = None
+    font_name = None
+    
     # If the specified font exists in the fonts directory, use it
-    if subtitle_font in font_names:
-        font_path = os.path.join(fonts_dir, subtitle_font)
+    if subtitle_font_arg in font_names:
+        font_path = os.path.join(fonts_dir, subtitle_font_arg)
     # If it's a font file that exists in the system, use it
-    elif os.path.exists(os.path.join('/Users/a/Library/Fonts', subtitle_font)):
-        font_path = os.path.join('/Users/a/Library/Fonts', subtitle_font)
+    elif os.path.exists(os.path.join('/Users/a/Library/Fonts', subtitle_font_arg)):
+        font_path = os.path.join('/Users/a/Library/Fonts', subtitle_font_arg)
     # Otherwise, use the first available font in the fonts directory
     elif font_files:
         font_path = font_files[0]
-        subtitle_font = os.path.basename(font_path)
-        print(f"Font '{args.subtitle_font}' not found, using '{subtitle_font}' instead.")
+        print(f"Font '{args.subtitle_font}' not found, using '{os.path.basename(font_path)}' instead.")
     else:
         # Fallback to Arial
-        subtitle_font = 'Arial'
-        print(f"No fonts found in fonts directory, using system font '{subtitle_font}'.")
+        font_path = None
+        font_name = "Arial"
+        print(f"No fonts found in fonts directory, using system font 'Arial'.")
+    
+    # Extract the actual font name if we have a font path
+    if font_path:
+        font_name = get_font_name(font_path)
+        print(f"Using font: {font_name} from {font_path}")
     
     # Prepare subtitle styling
     # Base style parameters
@@ -156,7 +172,7 @@ if args.generate_srt == '1':
     shadow_color_bgr = args.subtitle_bgcolor[4:6] + args.subtitle_bgcolor[2:4] + args.subtitle_bgcolor[0:2]
     
     style_params = [
-        f"FontName={subtitle_font}",
+        f"FontName={font_name}",
         f"FontSize={args.subtitle_fontsize}",
         f"PrimaryColour=&H00{font_color_bgr}",
         f"OutlineColour=&H00{outline_color_bgr}",
@@ -176,24 +192,33 @@ if args.generate_srt == '1':
     
     # Join all style parameters
     subtitle_style = ",".join(style_params)
-    
-    srt_command = [
-        'ffmpeg',
-        '-loglevel', 'error',
-        '-i', output_video,
-        '-vf', f"subtitles={srt_file}:force_style='{subtitle_style}'",
-        '-c:a', 'copy',
-        '-y', srt_styled_output
-    ]
-    
-    print(f"Applying subtitles with style: {subtitle_style}")
-    subprocess.run(srt_command)
-    
-    # If successful, replace the original output with the styled version
-    if os.path.exists(srt_styled_output):
-        os.replace(srt_styled_output, output_video)
-        print(f"Subtitles added successfully.")
-    
-    print(f"Subtitles: {time.time() - step_start:.2f} seconds.")
+    print(f"Subtitle style: {subtitle_style}")
+
+# Build the filter complex based on whether subtitles are needed
+filter_complex = f"[1:a]adelay={delay*1000}|{delay*1000},volume=0.5[a1];[0:a]volume=1.0[a0];[a0][a1]amix=inputs=2:normalize=0[aout];[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS+{delay}/TB,chromakey=color=0x{chromakey_color}:similarity={chromakey_similarity}:blend={chromakey_blend}[ckout];[v0][ckout]overlay=enable='between(t\,{delay},{delay+overlay_duration})',drawtext=text='{title}':x=((w-tw)/2+{title_x_offset}):y=((h/2)+{title_y_offset}):enable='between(t\,{title_start},{title_end})':fontfile={fontfile}:fontsize={fontsize}:fontcolor=0x{fontcolor}:shadowcolor=black:shadowx=4:shadowy=2:alpha=0.8"
+
+# Add subtitle filter if needed
+if args.generate_srt == '1' and os.path.exists(srt_file):
+    # Get absolute path to fonts directory
+    abs_fonts_dir = os.path.abspath('fonts')
+    filter_complex += f",subtitles={srt_file}:fontsdir='{abs_fonts_dir}':force_style='{subtitle_style}'"
+
+# Complete the filter complex
+filter_complex += "[out]"
+
+overlay_command = [
+    'ffmpeg',
+    '-loglevel', 'error',
+    '-i', input_video,
+    '-i', overlay_video,
+    '-filter_complex', filter_complex,
+    '-map', '[out]', '-map', '[aout]',
+    '-c:v', 'libx264', '-c:a', 'aac', '-y', output_video
+]
+print("Executing combined ffmpeg command...")
+print(overlay_command)
+subprocess.run(overlay_command)
+
+print(f"Processing completed: {time.time() - step_start:.2f} seconds.")
 
 print(f"Finished processing. Output video: {output_video}")

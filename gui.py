@@ -656,7 +656,7 @@ def update_subtitle_preview(*args):
     global preview_label
     try:
         # Create a blank image
-        img = Image.new('RGB', (400, 100), color=(50, 50, 50))
+        img = Image.new('RGB', (400, 100), color=(100, 100, 100))
         draw = ImageDraw.Draw(img)
         
         # Try to load the selected font
@@ -927,7 +927,7 @@ entry_title_fontcolor = tk.OptionMenu(title_frame, var_title_fontcolor, *font_co
 entry_title_fontcolor.config(width=10)
 entry_title_fontcolor.grid(row=2, column=1, padx=10, pady=5)
 
-tk.Label(title_frame, text="Size AUTO:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+tk.Label(title_frame, text="Size AUTO (Montserrat font):").grid(row=3, column=0, padx=10, pady=5, sticky="w")
 entry_calculated_title_font_size = tk.Entry(title_frame, width=30, state=tk.DISABLED)
 entry_calculated_title_font_size.grid(row=3, column=1, padx=10, pady=5)
 
@@ -941,22 +941,22 @@ entry_delay = tk.Entry(title_frame, width=30)
 entry_delay.insert(0, default_delay)
 entry_delay.grid(row=5, column=1, padx=10, pady=5)
 
-tk.Label(title_frame, text="Title Appearance Delay:").grid(row=6, column=0, padx=10, pady=5, sticky="w")
+tk.Label(title_frame, text="Appearance Delay (after overlay):").grid(row=6, column=0, padx=10, pady=5, sticky="w")
 entry_title_appearance_delay = tk.Entry(title_frame, width=30)
 entry_title_appearance_delay.insert(0, default_title_appearance_delay)
 entry_title_appearance_delay.grid(row=6, column=1, padx=10, pady=5)
 
-tk.Label(title_frame, text="Title Visible Time:").grid(row=7, column=0, padx=10, pady=5, sticky="w")
+tk.Label(title_frame, text="Visible Time:").grid(row=7, column=0, padx=10, pady=5, sticky="w")
 entry_title_visible_time = tk.Entry(title_frame, width=30)
 entry_title_visible_time.insert(0, default_title_visible_time)
 entry_title_visible_time.grid(row=7, column=1, padx=10, pady=5)
 
-tk.Label(title_frame, text="Title X Offset:").grid(row=8, column=0, padx=10, pady=5, sticky="w")
+tk.Label(title_frame, text="X Offset:").grid(row=8, column=0, padx=10, pady=5, sticky="w")
 entry_title_x_offset = tk.Entry(title_frame, width=30)
 entry_title_x_offset.insert(0, default_title_x_offset)
 entry_title_x_offset.grid(row=8, column=1, padx=10, pady=5)
 
-tk.Label(title_frame, text="Title Y Offset:").grid(row=9, column=0, padx=10, pady=5, sticky="w")
+tk.Label(title_frame, text="Y Offset:").grid(row=9, column=0, padx=10, pady=5, sticky="w")
 entry_title_y_offset = tk.Entry(title_frame, width=30)
 entry_title_y_offset.insert(0, default_title_y_offset)
 entry_title_y_offset.grid(row=9, column=1, padx=10, pady=5)
@@ -1008,22 +1008,22 @@ entry_segment_duration = tk.Entry(duration_frame, width=30)
 entry_segment_duration.insert(0, default_segment_duration)
 entry_segment_duration.grid(row=0, column=1, padx=10, pady=5)
 
-tk.Label(duration_frame, text="Time Limit (s):").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+tk.Label(duration_frame, text="MAX Length Limit (s):").grid(row=1, column=0, padx=10, pady=5, sticky="w")
 entry_time_limit = tk.Entry(duration_frame, width=30)
 entry_time_limit.insert(0, default_time_limit)
 entry_time_limit.grid(row=1, column=1, padx=10, pady=5)
 
 # Sound/Audio Section
-sound_frame = tk.LabelFrame(right_column, text="Sound/Audio Settings", padx=10, pady=5)
+sound_frame = tk.LabelFrame(right_column, text="Audio Settings", padx=10, pady=5)
 sound_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
 
-tk.Label(sound_frame, text="Voiceover Delay:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+tk.Label(sound_frame, text="Voiceover Start Delay (s):").grid(row=0, column=0, padx=10, pady=5, sticky="w")
 entry_voiceover_delay = tk.Entry(sound_frame, width=30)
 entry_voiceover_delay.insert(0, default_voiceover_delay)
 entry_voiceover_delay.grid(row=0, column=1, padx=10, pady=5)
 
 # Add Generate .srt checkbox
-tk.Checkbutton(sound_frame, text="Generate .srt", variable=var_generate_srt).grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+tk.Checkbutton(sound_frame, text="Generate Subtitles .srt", variable=var_generate_srt).grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 
 # Subtitle line max width
 tk.Label(sound_frame, text="Characters per line (max):").grid(row=2, column=0, padx=10, pady=5, sticky="w")
@@ -1057,7 +1057,7 @@ processing_frame.grid(row=4, column=0, padx=10, pady=5, sticky="ew")
 orientation_frame = tk.Frame(processing_frame)
 orientation_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 
-tk.Label(orientation_frame, text="Video Orientation:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+tk.Label(orientation_frame, text="Orientation:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
 # Create a StringVar for video orientation
 var_video_orientation = tk.StringVar(value='horizontal')  # Default to horizontal
 tk.Radiobutton(orientation_frame, text="Vertical", variable=var_video_orientation, value='vertical').grid(row=0, column=1, padx=5, pady=5)
