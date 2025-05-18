@@ -71,7 +71,7 @@ if not available_fonts:
 root = tk.Tk()
 root.title("Video Cutter GUI")
 # Set window size to use more screen space
-root.geometry("1400x900") # Adjusted size
+root.geometry("1160x850") # Adjusted size
 
 # Create StringVar for config selection
 var_config = tk.StringVar(root)
