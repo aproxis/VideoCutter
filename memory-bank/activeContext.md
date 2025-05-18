@@ -47,6 +47,13 @@ The current focus for VideoCutter is on enhancing subtitle functionality and imp
 - Fixed shadow controls state management
 - Enhanced preview rendering with alpha compositing
 - Implemented proper masking for complex text shapes with outlines
+- **Reorganized GUI layout for better user experience:**
+    - Increased window size to 1400x900.
+    - Restructured tabs into "Main Settings", "Subtitles", and "Advanced Effects".
+    - Relocated settings to more logical tabs:
+        - "Generate Subtitles .srt" and "Characters per line (max)" moved to "Subtitles" tab.
+        - "Effect Overlay" and "Chromakey Settings" moved to "Advanced Effects" tab.
+    - Adjusted internal frame parenting to match new tab structure.
 
 ### FFmpeg Integration
 
@@ -187,7 +194,12 @@ The current focus for VideoCutter is on enhancing subtitle functionality and imp
 
 ## Recent Insights
 
-1. **Layer Management Importance**
+1.  **GUI Reorganization Benefits**:
+    - The new tab structure ("Main Settings", "Subtitles", "Advanced Effects") provides a clearer separation of concerns.
+    - Grouping related settings (e.g., all subtitle-specific options under the "Subtitles" tab, and visual effects under "Advanced Effects") improves navigability and reduces clutter in each tab.
+    - This reorganization is expected to make the GUI more intuitive for users.
+
+2. **Layer Management Importance**
    - Proper layer ordering is critical for subtitle appearance
    - Shadow must appear behind text with outline
    - Alpha compositing is necessary for accurate preview

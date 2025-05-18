@@ -94,7 +94,7 @@
    - ⬜ Progress indicators during processing
    - ⬜ Preview functionality for configuration
    - ⬜ Drag-and-drop file input
-   - ⬜ More intuitive parameter organization
+   - ✅ More intuitive parameter organization (Achieved through tab restructuring)
 
 ### New Features
 
@@ -200,6 +200,14 @@ The current focus is on documentation, organization, and preparing for version c
    - Enhanced font management system
    - Standardized color conversion across components
 
+4. **GUI Reorganization**
+   - ✅ Increased window size to 1400x900 for better layout.
+   - ✅ Restructured GUI tabs into "Main Settings", "Subtitles", and "Advanced Effects".
+   - ✅ Relocated settings to more logical tabs for improved user experience:
+       - "Generate Subtitles .srt" and "Characters per line (max)" moved to "Subtitles" tab.
+       - "Effect Overlay" and "Chromakey Settings" moved to "Advanced Effects" tab.
+   - ✅ Adjusted internal frame parenting and layout to support the new tab structure.
+
 ## Known Issues
 
 1. **Performance**
@@ -276,6 +284,10 @@ The current focus is on documentation, organization, and preparing for version c
 - ✅ Fixed shadow controls state management
 - ✅ Enhanced preview rendering with alpha compositing
 - ✅ Implemented proper masking for complex text shapes with outlines
+- ✅ **Reorganized GUI layout for better user experience:**
+    - Increased window size to 1400x900.
+    - Restructured tabs into "Main Settings", "Subtitles", and "Advanced Effects".
+    - Relocated settings to more logical tabs.
 
 ### FFmpeg Integration
 

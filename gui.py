@@ -71,7 +71,7 @@ if not available_fonts:
 root = tk.Tk()
 root.title("Video Cutter GUI")
 # Set window size to use more screen space
-root.geometry("1200x800")
+root.geometry("1400x900") # Adjusted size
 
 # Create StringVar for config selection
 var_config = tk.StringVar(root)
@@ -618,28 +618,34 @@ root.grid_rowconfigure(1, weight=1)
 root.grid_columnconfigure(0, weight=1)
 
 # Create tabs
-tab_general = ttk.Frame(notebook)
-tab_subtitles = ttk.Frame(notebook)
+tab_main_settings = ttk.Frame(notebook)
+tab_subtitles_new = ttk.Frame(notebook) 
+tab_advanced_effects = ttk.Frame(notebook)
 
 # Add tabs to notebook
-notebook.add(tab_general, text="General Settings")
-notebook.add(tab_subtitles, text="Subtitles")
+notebook.add(tab_main_settings, text="Main Settings")
+notebook.add(tab_subtitles_new, text="Subtitles")
+notebook.add(tab_advanced_effects, text="Advanced Effects")
 
-# Main layout - create a frame for the left and right columns in the general tab
-main_frame = tk.Frame(tab_general)
-main_frame.pack(fill="both", expand=True)
+# Main layout - create a frame for the left and right columns in the MAIN SETTINGS tab
+main_settings_content_frame = tk.Frame(tab_main_settings)
+main_settings_content_frame.pack(fill="both", expand=True)
 
-# Left column frame
-left_column = tk.Frame(main_frame)
+# Frame to hold the two columns within the main_settings_content_frame
+main_settings_columns_frame = tk.Frame(main_settings_content_frame)
+main_settings_columns_frame.pack(fill="both", expand=True)
+
+# Left column frame (parent is now main_settings_columns_frame)
+left_column = tk.Frame(main_settings_columns_frame)
 left_column.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-# Right column frame
-right_column = tk.Frame(main_frame)
+# Right column frame (parent is now main_settings_columns_frame)
+right_column = tk.Frame(main_settings_columns_frame)
 right_column.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
 
 # Configure the columns to expand
-main_frame.grid_columnconfigure(0, weight=1)
-main_frame.grid_columnconfigure(1, weight=1)
+main_settings_columns_frame.grid_columnconfigure(0, weight=1)
+main_settings_columns_frame.grid_columnconfigure(1, weight=1)
 
 # Default subtitle settings
 default_subtitle_font = available_fonts[0] if available_fonts else "Arial"
@@ -697,6 +703,7 @@ def update_slider_from_entry(entry, var, slider, min_val, max_val):
 
 # Create a global variable for the preview label
 preview_label = None
+preview_frame = None # Initialize preview_frame globally
 
 # Function to update subtitle preview
 def update_subtitle_preview(*args):
@@ -825,36 +832,48 @@ def update_subtitle_preview(*args):
         # Convert to PhotoImage
         photo = ImageTk.PhotoImage(img)
         
-        # Check if preview_label exists and create it if needed
-        if preview_label is None:
-            preview_label = tk.Label(preview_frame)
-            preview_label.pack(padx=10, pady=10)
-        
-        # Update the image
-        preview_label.config(image=photo)
-        preview_label.image = photo  # Keep a reference
+        # Check if preview_label and preview_frame exist and create them if needed
+        if preview_frame is not None: # Ensure preview_frame exists
+            if preview_label is None:
+                preview_label = tk.Label(preview_frame)
+                preview_label.pack(padx=10, pady=10)
+            
+            # Update the image
+            preview_label.config(image=photo)
+            preview_label.image = photo  # Keep a reference: This line should only run if preview_label is a widget
+        # If preview_frame was None, preview_label might also be None, so we shouldn't try to set .image on it.
     except Exception as e:
         print(f"Error updating preview: {e}")
 
-# Subtitles tab layout
-subtitle_frame = tk.Frame(tab_subtitles, padx=10, pady=10)
+# Subtitles tab layout (parent is now tab_subtitles_new)
+subtitle_frame = tk.Frame(tab_subtitles_new, padx=10, pady=10)
 subtitle_frame.pack(fill="both", expand=True)
 
 # Left column for settings
 subtitle_settings = tk.LabelFrame(subtitle_frame, text="Subtitle Settings", padx=10, pady=10)
 subtitle_settings.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
+# Add Generate .srt checkbox to subtitle_settings
+tk.Checkbutton(subtitle_settings, text="Generate Subtitles .srt", variable=var_generate_srt).grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+
+# Subtitle line max width
+tk.Label(subtitle_settings, text="Characters per line (max):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+entry_subtitle_max_width = tk.Entry(subtitle_settings, width=10) # Adjusted width
+entry_subtitle_max_width.insert(0, default_subtitle_maxwidth)
+entry_subtitle_max_width.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+
+
 # Font settings
-tk.Label(subtitle_settings, text="Font:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+tk.Label(subtitle_settings, text="Font:").grid(row=2, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 font_dropdown = ttk.Combobox(subtitle_settings, textvariable=var_subtitle_font, values=available_fonts, width=25)
-font_dropdown.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+font_dropdown.grid(row=2, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
 font_dropdown.bind("<<ComboboxSelected>>", update_subtitle_preview)
 
 # Font size with slider and numeric display
 font_size_frame = tk.Frame(subtitle_settings)
-font_size_frame.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+font_size_frame.grid(row=3, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
 
-tk.Label(subtitle_settings, text="Font Size:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+tk.Label(subtitle_settings, text="Font Size:").grid(row=3, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 font_size_slider = ttk.Scale(font_size_frame, from_=12, to=48, variable=var_subtitle_fontsize, orient="horizontal")
 font_size_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
 font_size_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_fontsize, font_size_value_entry), update_subtitle_preview()))
@@ -865,27 +884,27 @@ font_size_value_entry.insert(0, str(var_subtitle_fontsize.get()))
 font_size_value_entry.bind("<Return>", lambda e: update_slider_from_entry(font_size_value_entry, var_subtitle_fontsize, font_size_slider, 12, 48))
 font_size_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(font_size_value_entry, var_subtitle_fontsize, font_size_slider, 12, 48))
 
-tk.Label(subtitle_settings, text="Text Color:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+tk.Label(subtitle_settings, text="Text Color:").grid(row=4, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 text_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_fontcolor, width=10)
-text_color_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+text_color_entry.grid(row=4, column=1, sticky="w", padx=5, pady=5) # Adjusted row
 text_color_entry.bind("<KeyRelease>", update_subtitle_preview)
 
 # Shadow checkbox
 shadow_frame = tk.Frame(subtitle_settings)
-shadow_frame.grid(row=3, column=0, columnspan=2, sticky="w", padx=5, pady=5)
+shadow_frame.grid(row=5, column=0, columnspan=2, sticky="w", padx=5, pady=5) # Adjusted row
 shadow_checkbox = tk.Checkbutton(shadow_frame, text="Enable Text Shadow", variable=var_subtitle_shadow, command=toggle_shadow_controls)
 shadow_checkbox.pack(anchor="w")
 
-tk.Label(subtitle_settings, text="Shadow Color:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
+tk.Label(subtitle_settings, text="Shadow Color:").grid(row=6, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 bg_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_bgcolor, width=10)
-bg_color_entry.grid(row=4, column=1, sticky="w", padx=5, pady=5)
+bg_color_entry.grid(row=6, column=1, sticky="w", padx=5, pady=5) # Adjusted row
 bg_color_entry.bind("<KeyRelease>", update_subtitle_preview)
 
 # Background opacity with slider and numeric display
 bg_opacity_frame = tk.Frame(subtitle_settings)
-bg_opacity_frame.grid(row=5, column=1, sticky="ew", padx=5, pady=5)
+bg_opacity_frame.grid(row=7, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
 
-tk.Label(subtitle_settings, text="Shadow Opacity:").grid(row=5, column=0, sticky="w", padx=5, pady=5)
+tk.Label(subtitle_settings, text="Shadow Opacity:").grid(row=7, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 bg_opacity_slider = ttk.Scale(bg_opacity_frame, from_=0, to=1, variable=var_subtitle_bgopacity, orient="horizontal")
 bg_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
 bg_opacity_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_bgopacity, bg_opacity_value_entry), update_subtitle_preview()))
@@ -898,9 +917,9 @@ bg_opacity_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(bg_
 
 # Outline thickness with slider and numeric display
 outline_frame = tk.Frame(subtitle_settings)
-outline_frame.grid(row=6, column=1, sticky="ew", padx=5, pady=5)
+outline_frame.grid(row=8, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
 
-tk.Label(subtitle_settings, text="Outline Thickness:").grid(row=6, column=0, sticky="w", padx=5, pady=5)
+tk.Label(subtitle_settings, text="Outline Thickness:").grid(row=8, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 outline_slider = ttk.Scale(outline_frame, from_=0, to=4, variable=var_subtitle_outline, orient="horizontal")
 outline_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
 outline_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_outline, outline_value_entry), update_subtitle_preview()))
@@ -911,18 +930,18 @@ outline_value_entry.insert(0, str(var_subtitle_outline.get()))
 outline_value_entry.bind("<Return>", lambda e: update_slider_from_entry(outline_value_entry, var_subtitle_outline, outline_slider, 0, 4))
 outline_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(outline_value_entry, var_subtitle_outline, outline_slider, 0, 4))
 
-tk.Label(subtitle_settings, text="Outline Color:").grid(row=7, column=0, sticky="w", padx=5, pady=5)
+tk.Label(subtitle_settings, text="Outline Color:").grid(row=9, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 outline_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_outlinecolor, width=10)
-outline_color_entry.grid(row=7, column=1, sticky="w", padx=5, pady=5)
+outline_color_entry.grid(row=9, column=1, sticky="w", padx=5, pady=5) # Adjusted row
 outline_color_entry.bind("<KeyRelease>", update_subtitle_preview)
 
 # Initialize shadow controls state
 toggle_shadow_controls()
 
 # Position selection
-tk.Label(subtitle_settings, text="Position:").grid(row=8, column=0, sticky="w", padx=5, pady=5)
+tk.Label(subtitle_settings, text="Position:").grid(row=10, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 position_frame = tk.Frame(subtitle_settings)
-position_frame.grid(row=8, column=1, sticky="w", padx=5, pady=5)
+position_frame.grid(row=10, column=1, sticky="w", padx=5, pady=5) # Adjusted row
 
 positions = [
     (5, "Top Left"), (6, "Top Center"), (7, "Top Right"),
@@ -940,12 +959,16 @@ for pos, label in positions:
     ).pack(anchor="w")
 
 # Right column for preview
+# preview_frame is now initialized globally, just configure it here.
+# No 'global' keyword needed here as this is top-level module code.
 preview_frame = tk.LabelFrame(subtitle_frame, text="Preview", padx=10, pady=10)
 preview_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
 
-# Preview label
-preview_label = tk.Label(preview_frame)
-preview_label.pack(padx=10, pady=10)
+# Preview label (already initialized globally or within update_subtitle_preview)
+# Ensure preview_label is created if it's None and preview_frame exists
+if preview_frame is not None and preview_label is None: # preview_frame will be a widget here
+    preview_label = tk.Label(preview_frame)
+    preview_label.pack(padx=10, pady=10)
 
 # Initialize preview
 update_subtitle_preview()
@@ -1069,18 +1092,13 @@ entry_voiceover_delay = tk.Entry(sound_frame, width=30)
 entry_voiceover_delay.insert(0, default_voiceover_delay)
 entry_voiceover_delay.grid(row=0, column=1, padx=10, pady=5)
 
-# Add Generate .srt checkbox
-tk.Checkbutton(sound_frame, text="Generate Subtitles .srt", variable=var_generate_srt).grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+# Advanced Effects Tab Content Frame
+advanced_effects_content_frame = tk.Frame(tab_advanced_effects)
+advanced_effects_content_frame.pack(fill="both", expand=True)
 
-# Subtitle line max width
-tk.Label(sound_frame, text="Characters per line (max):").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-entry_subtitle_max_width = tk.Entry(sound_frame, width=30)
-entry_subtitle_max_width.insert(0, default_subtitle_maxwidth)
-entry_subtitle_max_width.grid(row=2, column=1, padx=10, pady=5)
-
-# Effect Overlay Section
-effect_frame = tk.LabelFrame(right_column, text="Effect Overlay", padx=10, pady=5)
-effect_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+# Effect Overlay Section (parent is now advanced_effects_content_frame)
+effect_frame = tk.LabelFrame(advanced_effects_content_frame, text="Effect Overlay", padx=10, pady=5)
+effect_frame.grid(row=0, column=0, padx=10, pady=5, sticky="ew", columnspan=2) 
 
 # Create variables for effect settings
 var_effect_overlay = tk.StringVar(root, value="None")
@@ -1130,9 +1148,9 @@ effect_opacity_value.insert(0, f"{var_effect_opacity.get():.2f}")
 effect_opacity_value.bind("<Return>", update_effect_opacity_from_entry)
 effect_opacity_value.bind("<FocusOut>", update_effect_opacity_from_entry)
 
-# Chromakey Section
-chromakey_frame = tk.LabelFrame(right_column, text="Chromakey Settings", padx=10, pady=5)
-chromakey_frame.grid(row=4, column=0, padx=10, pady=5, sticky="ew")
+# Chromakey Section (parent is now advanced_effects_content_frame)
+chromakey_frame = tk.LabelFrame(advanced_effects_content_frame, text="Chromakey Settings", padx=10, pady=5)
+chromakey_frame.grid(row=1, column=0, padx=10, pady=5, sticky="ew", columnspan=2) 
 
 tk.Label(chromakey_frame, text="Color:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
 entry_chromakey_color = tk.Entry(chromakey_frame, width=30, textvariable=var_chromakey_color)
@@ -1148,9 +1166,9 @@ entry_chromakey_blend = tk.Entry(chromakey_frame, width=30)
 entry_chromakey_blend.insert(0, default_chromakey_blend)
 entry_chromakey_blend.grid(row=2, column=1, padx=10, pady=5)
 
-# Video Processing Section (Last Group in Right Column)
+# Video Processing Section (Last Group in Right Column of Main Settings Tab)
 processing_frame = tk.LabelFrame(right_column, text="Video Processing", padx=10, pady=5)
-processing_frame.grid(row=4, column=0, padx=10, pady=5, sticky="ew")
+processing_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew") # Adjusted row
 
 # Create a frame for orientation
 orientation_frame = tk.Frame(processing_frame)
