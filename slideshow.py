@@ -56,6 +56,11 @@ parser.add_argument('--spos', type=int, default=2, dest='subtitle_position', hel
 parser.add_argument('--sout', type=float, default=1, dest='subtitle_outline', help='Subtitle outline thickness')
 parser.add_argument('--soutc', type=str, default='000000', dest='subtitle_outlinecolor', help='Subtitle outline color (hex without #)')
 
+# Effect overlay arguments
+parser.add_argument('--effect', type=str, default=None, dest='effect_overlay', help='Effect overlay file (dust/scratches) from effects/ folder')
+parser.add_argument('--effect-opacity', type=float, default=0.2, dest='effect_opacity', help='Opacity of the effect overlay (0-1)')
+parser.add_argument('--effect-blend', type=str, default='overlay', dest='effect_blend', help='Blend mode for effect (overlay, screen, etc.)')
+
 
 # Parse the command-line arguments
 args = parser.parse_args()
@@ -297,7 +302,7 @@ def create_slideshow(folder_path):
         print(f"##### Adding name, watermark, subscribe overlay")
 
         
-        subscribe_script = 'subscribe.py' 
+        subscribe_script = 'subscribe_new.py' 
         subscribe_args = [
             '--i', folder_path, 
             '--tpl', args.template_folder,
@@ -329,6 +334,15 @@ def create_slideshow(folder_path):
             '--shadow', str(args.subtitle_shadow),
         ]
         
+        # Add effect overlay parameters if specified
+        if args.effect_overlay:
+            subscribe_args.extend([
+                '--effect', args.effect_overlay,
+                '--effect-opacity', str(args.effect_opacity),
+                '--effect-blend', args.effect_blend
+            ])
+        
+        print(f"***** Subscribe args: {subscribe_args}")
         subscribe_command = ['python3', subscribe_script]  + subscribe_args
         subprocess.run(subscribe_command, check=True)
 

@@ -45,6 +45,22 @@ watermark_types = ['ccw', 'random']
 # Define font color options
 font_colors = ['random', 'FF00B4', 'ff6600', '0b4178', 'FFFFFF', '000000', '00FF00', '0000FF', 'FFFF00']
 
+# Define supported blend modes for effects
+SUPPORTED_BLEND_MODES = [
+    'normal',     # Default, no special blending
+    'overlay',    # Combines multiply and screen blend modes
+    'screen',     # Lightens the base color
+    'multiply',   # Darkens the base color
+    'addition',   # Adds pixel values
+    'difference', # Subtracts pixel values
+    'dodge',      # Brightens base color based on blend color
+    'burn',       # Darkens base color based on blend color
+    'softlight',  # Subtle light/dark effect
+    'hardlight',  # Dramatic contrast effect
+    'divide',     # Divides pixel values
+    'subtract',   # Subtracts pixel values
+]
+
 # Get available fonts from the fonts directory
 fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
 available_fonts = [f for f in os.listdir(fonts_dir) if f.endswith('.ttf') or f.endswith('.otf')]
@@ -109,6 +125,11 @@ def start_process():
     chromakey_color = var_chromakey_color.get()
     chromakey_similarity = entry_chromakey_similarity.get()
     chromakey_blend = entry_chromakey_blend.get()
+    
+    # Get effect overlay parameters
+    effect_overlay = var_effect_overlay.get()
+    effect_opacity = var_effect_opacity.get()
+    effect_blend = var_effect_blend.get()
     
     # Get .srt generation parameter
     generate_srt = var_generate_srt.get()
@@ -182,6 +203,14 @@ def start_process():
         '--srt', '1' if generate_srt else '0',
         '--smaxw', str(subtitle_max_width),
     ]
+    
+    # Add effect overlay parameters if an effect is selected
+    if effect_overlay != "None":
+        command.extend([
+            '--effect', effect_overlay,
+            '--effect-opacity', str(effect_opacity),
+            '--effect-blend', effect_blend
+        ])
     
     # Add subtitle styling parameters only if SRT generation is enabled
     if generate_srt:
@@ -260,7 +289,11 @@ def create_default_config():
         'subtitle_position': default_subtitle_position,
         'subtitle_outline': default_subtitle_outline,
         'subtitle_outlinecolor': default_subtitle_outlinecolor,
-        'subtitle_shadow': default_subtitle_shadow
+        'subtitle_shadow': default_subtitle_shadow,
+        # Effect overlay parameters
+        'effect_overlay': 'None',
+        'effect_opacity': 0.2,
+        'effect_blend': 'overlay'
     }
     default_filename = "default_config.json"
     config_file = os.path.join(config_folder, default_filename)
@@ -340,6 +373,12 @@ def load_config():
     
     entry_chromakey_blend.delete(0, tk.END)
     entry_chromakey_blend.insert(0, config.get('chromakey_blend', default_chromakey_blend))
+    
+    # Load effect overlay parameters
+    var_effect_overlay.set(config.get('effect_overlay', 'None'))
+    var_effect_opacity.set(config.get('effect_opacity', 0.2))
+    var_effect_blend.set(config.get('effect_blend', 'overlay'))
+    update_effect_opacity_value()
     
     # Load .srt generation setting
     var_generate_srt.set(config.get('generate_srt', default_generate_srt))
@@ -446,7 +485,11 @@ def save_config():
             'subtitle_position': var_subtitle_position.get(),
             'subtitle_outline': var_subtitle_outline.get(),
             'subtitle_outlinecolor': var_subtitle_outlinecolor.get(),
-            'subtitle_shadow': var_subtitle_shadow.get()
+            'subtitle_shadow': var_subtitle_shadow.get(),
+            # Effect overlay parameters
+            'effect_overlay': var_effect_overlay.get(),
+            'effect_opacity': var_effect_opacity.get(),
+            'effect_blend': var_effect_blend.get()
         }, f)
     messagebox.showinfo("Success", "Config saved successfully!")
 
@@ -495,7 +538,11 @@ def save_new_config():
             'subtitle_position': var_subtitle_position.get(),
             'subtitle_outline': var_subtitle_outline.get(),
             'subtitle_outlinecolor': var_subtitle_outlinecolor.get(),
-            'subtitle_shadow': var_subtitle_shadow.get()
+            'subtitle_shadow': var_subtitle_shadow.get(),
+            # Effect overlay parameters
+            'effect_overlay': var_effect_overlay.get(),
+            'effect_opacity': var_effect_opacity.get(),
+            'effect_blend': var_effect_blend.get()
         }, f)
     messagebox.showinfo("Success", "New config saved successfully!")
     
@@ -1031,9 +1078,61 @@ entry_subtitle_max_width = tk.Entry(sound_frame, width=30)
 entry_subtitle_max_width.insert(0, default_subtitle_maxwidth)
 entry_subtitle_max_width.grid(row=2, column=1, padx=10, pady=5)
 
+# Effect Overlay Section
+effect_frame = tk.LabelFrame(right_column, text="Effect Overlay", padx=10, pady=5)
+effect_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+
+# Create variables for effect settings
+var_effect_overlay = tk.StringVar(root, value="None")
+var_effect_opacity = tk.DoubleVar(root, value=0.2)
+var_effect_blend = tk.StringVar(root, value="overlay")
+
+# Function to update effect opacity value display
+def update_effect_opacity_value(*args):
+    effect_opacity_value.delete(0, tk.END)
+    effect_opacity_value.insert(0, f"{var_effect_opacity.get():.2f}")
+
+# Function to update effect opacity from entry
+def update_effect_opacity_from_entry(*args):
+    try:
+        value = float(effect_opacity_value.get())
+        if 0 <= value <= 1:
+            var_effect_opacity.set(value)
+    except ValueError:
+        pass
+
+# Get available effect files
+effects_dir = os.path.join(os.path.dirname(__file__), 'effects')
+if not os.path.exists(effects_dir):
+    os.makedirs(effects_dir)
+effect_files = ["None"] + [f for f in os.listdir(effects_dir) if f.endswith('.mp4')]
+
+tk.Label(effect_frame, text="Effect:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+effect_dropdown = ttk.Combobox(effect_frame, textvariable=var_effect_overlay, values=effect_files, width=25)
+effect_dropdown.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+
+tk.Label(effect_frame, text="Blend Mode:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+blend_dropdown = ttk.Combobox(effect_frame, textvariable=var_effect_blend, values=SUPPORTED_BLEND_MODES, width=25)
+blend_dropdown.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+
+# Opacity with slider and numeric display
+tk.Label(effect_frame, text="Opacity:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+effect_opacity_frame = tk.Frame(effect_frame)
+effect_opacity_frame.grid(row=2, column=1, sticky="ew", padx=10, pady=5)
+
+effect_opacity_slider = ttk.Scale(effect_opacity_frame, from_=0, to=1, variable=var_effect_opacity, orient="horizontal")
+effect_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
+effect_opacity_slider.bind("<ButtonRelease-1>", update_effect_opacity_value)
+
+effect_opacity_value = tk.Entry(effect_opacity_frame, width=5)
+effect_opacity_value.pack(side=tk.RIGHT, padx=(5, 0))
+effect_opacity_value.insert(0, f"{var_effect_opacity.get():.2f}")
+effect_opacity_value.bind("<Return>", update_effect_opacity_from_entry)
+effect_opacity_value.bind("<FocusOut>", update_effect_opacity_from_entry)
+
 # Chromakey Section
 chromakey_frame = tk.LabelFrame(right_column, text="Chromakey Settings", padx=10, pady=5)
-chromakey_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+chromakey_frame.grid(row=4, column=0, padx=10, pady=5, sticky="ew")
 
 tk.Label(chromakey_frame, text="Color:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
 entry_chromakey_color = tk.Entry(chromakey_frame, width=30, textvariable=var_chromakey_color)

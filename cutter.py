@@ -57,6 +57,11 @@ parser.add_argument('--soutc', type=str, default='000000', dest='subtitle_outlin
 
 parser.add_argument('--b', type=str, default='0', dest='blur', help='Add blur? 0/1')
 
+# Effect overlay arguments
+parser.add_argument('--effect', type=str, default=None, dest='effect_overlay', help='Effect overlay file (dust/scratches) from effects/ folder')
+parser.add_argument('--effect-opacity', type=float, default=0.2, dest='effect_opacity', help='Opacity of the effect overlay (0-1)')
+parser.add_argument('--effect-blend', type=str, default='overlay', dest='effect_blend', help='Blend mode for effect (overlay, screen, etc.)')
+
 args = parser.parse_args()
 
 video_orientation = args.video_orientation
@@ -571,6 +576,14 @@ slideshow_args = [
     '--soutc', args.subtitle_outlinecolor,
     '--shadow', str(args.subtitle_shadow)
 ]
+
+# Add effect overlay parameters if specified
+if args.effect_overlay:
+    slideshow_args.extend([
+        '--effect', args.effect_overlay,
+        '--effect-opacity', str(args.effect_opacity),
+        '--effect-blend', args.effect_blend
+    ])
 
 # Construct the full command to run slideshow.py with arguments
 slideshow_command = ['python3', slideshow_script]  + slideshow_args
