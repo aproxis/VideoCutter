@@ -4,7 +4,7 @@ A comprehensive video processing toolkit for creating professional slideshows fr
 
 ## Overview
 
-VideoCutter automates the process of creating engaging video content from images and video clips. It provides a complete pipeline from processing raw media to producing polished slideshows with depth effects, transitions, audio mixing, custom branding, and professional subtitles.
+VideoCutter automates the process of creating engaging video content from images and video clips. It provides a complete pipeline from processing raw media to producing polished slideshows with depth effects, transitions, audio mixing, custom branding, and professional subtitles. The project is currently in a functional beta state and is preparing for a significant refactoring of its core scripts to enhance modularity and maintainability.
 
 ## Features
 
@@ -409,7 +409,9 @@ Check the terminal output for detailed processing logs and error messages. The d
 
 ## Future Development
 
-Planned enhancements include:
+The immediate next major step is a **Core Script Refactoring** to improve modularity, maintainability, and scalability by breaking down main processing scripts into smaller, specialized modules managed by a central controller.
+
+Planned enhancements also include:
 
 - Comprehensive error handling throughout the pipeline
 - Progress indicators during processing

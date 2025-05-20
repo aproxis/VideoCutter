@@ -2,7 +2,7 @@
 
 ## System Architecture
 
-VideoCutter follows a modular architecture with a clear separation of concerns. The system is organized into distinct components that handle specific aspects of the video processing pipeline:
+VideoCutter follows a modular architecture with a clear separation of concerns. The system is organized into distinct components that handle specific aspects of the video processing pipeline. A significant refactoring is planned to further enhance this modularity, particularly by evolving the orchestration currently managed by `cutter.py` into a more centralized main controller and breaking down core scripts into more specialized modules.
 
 ```mermaid
 graph TD
@@ -225,3 +225,8 @@ The system implements a progressive error handling approach:
 2. **Plugin Architecture**: Framework for extending with additional effects or processors
 3. **Web Interface**: Possibility of web-based control interface
 4. **Distributed Processing**: Potential for distributing processing across multiple machines
+
+5. **Core Script Refactoring**:
+   - **Goal**: To improve maintainability, testability, and scalability by refactoring `cutter.py` and potentially other scripts like `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, and `depth.py`.
+   - **Approach**: Identify and extract cohesive functionalities into separate, well-defined modules. Introduce a dedicated main controller script (e.g., `main.py` or a refactored `cutter.py`) to manage the overall workflow and coordinate these modules.
+   - **Impact**: This will lead to a more granular and robust architecture, making future development and enhancements easier.

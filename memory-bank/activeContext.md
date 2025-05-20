@@ -2,7 +2,9 @@
 
 ## Current Work Focus
 
-The current focus for VideoCutter is on enhancing subtitle functionality and improving the user experience. Recent work has centered on optimizing subtitle rendering, fixing color conversion issues, and ensuring consistent appearance between preview and final output.
+The primary focus for VideoCutter is now shifting towards a significant **refactoring of core scripts** (`cutter.py`, `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, `depth.py`, and `audio.py`) to improve modularity, maintainability, and scalability. This will involve creating a central controller and breaking down existing scripts into more specialized modules.
+
+Alongside this, ongoing work includes documentation updates and potential further enhancements to subtitle functionality and user experience as identified.
 
 ### Subtitle Enhancement Priorities
 
@@ -64,25 +66,43 @@ The current focus for VideoCutter is on enhancing subtitle functionality and imp
 
 ## Next Steps
 
-### Short-term Tasks
+### Immediate Priority: Core Script Refactoring
 
-1. **Subtitle Feature Expansion**
-   - Add support for multiple subtitle tracks
-   - Implement subtitle timing adjustment
-   - Add more positioning options
-   - Enhance text formatting options (bold, italic, etc.)
+1.  **Detailed Analysis of Core Scripts**:
+    *   Thoroughly examine `cutter.py`, `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, `depth.py`, and `audio.py`.
+    *   Identify current responsibilities, functions, classes, and dependencies.
+    *   Pinpoint areas with mixed concerns, high complexity, or potential for generalization.
+2.  **Design New Modular Architecture**:
+    *   Define logical modules/components to be extracted from the existing scripts.
+    *   Propose a new directory structure if necessary (e.g., `videocutter_core/`, `videocutter_utils/`).
+    *   Outline the responsibilities of a new central `main.py` (or a heavily refactored `cutter.py`) orchestrator.
+3.  **Define Interfaces and Data Flow**:
+    *   Specify how modules will communicate with the main controller and each other.
+    *   Plan how configuration data and application state will be managed and passed.
+4.  **Develop Implementation Plan**:
+    *   Break down the refactoring process into smaller, manageable steps.
+    *   Consider the impact on `gui.py` and how it will interact with the new structure.
+    *   Establish a testing strategy for the refactored components.
 
-2. **Preview Enhancements**
-   - Add video-based subtitle preview
-   - Implement timeline-based subtitle editing
-   - Add real-time preview updates during typing
-   - Enhance preview scaling for different resolutions
+### Short-term Tasks (Post-Refactoring Planning / Parallel if possible)
 
-3. **Configuration Management**
-   - Add subtitle preset management
-   - Implement style templates for quick application
-   - Enhance parameter validation
-   - Add more detailed tooltips and help text
+1.  **Subtitle Feature Expansion**
+    *   Add support for multiple subtitle tracks
+    *   Implement subtitle timing adjustment
+    *   Add more positioning options
+    *   Enhance text formatting options (bold, italic, etc.)
+
+2.  **Preview Enhancements**
+    *   Add video-based subtitle preview
+    *   Implement timeline-based subtitle editing
+    *   Add real-time preview updates during typing
+    *   Enhance preview scaling for different resolutions
+
+3.  **Configuration Management**
+    *   Add subtitle preset management
+    *   Implement style templates for quick application
+    *   Enhance parameter validation
+    *   Add more detailed tooltips and help text
 
 ### Medium-term Tasks
 
@@ -166,6 +186,24 @@ The current focus for VideoCutter is on enhancing subtitle functionality and imp
 - Alpha compositing provides accurate shadow and outline effects
 - Real-time updates enhance user experience
 
+### Refactoring Core Scripts
+
+**Decision**: Undertake a significant refactoring of core processing scripts to improve modularity, maintainability, and prepare for future scalability. A central controller will orchestrate more specialized modules.
+
+**Rationale**:
+-   **Maintainability**: Smaller, focused modules are easier to understand, debug, and modify.
+-   **Testability**: Independent modules can be unit-tested more effectively.
+-   **Scalability**: A modular design makes it easier to add new features or modify existing ones without impacting unrelated parts of the system.
+-   **Usability/Reusability**: Well-defined modules can potentially be reused in other contexts or by other tools.
+-   **Reduced Technical Debt**: Addresses current complexities and mixed concerns in scripts like `cutter.py`.
+
+**Key Architectural Considerations**:
+-   **Module Granularity**: Finding the right balance for the size and scope of new modules.
+-   **Inter-Module Communication**: Defining clear and efficient interfaces (e.g., function calls, data objects).
+-   **Configuration Management**: How global and module-specific configurations will be handled and passed.
+-   **State Management**: How state is maintained and shared (or isolated) across the pipeline.
+-   **Impact on GUI**: Ensuring `gui.py` can seamlessly integrate with the new backend structure.
+
 ## Current Challenges
 
 1. **ASS Format Complexity**
@@ -191,6 +229,12 @@ The current focus for VideoCutter is on enhancing subtitle functionality and imp
    - Providing meaningful error messages
    - Preventing invalid combinations
    - Maintaining backward compatibility
+
+5.  **Refactoring Complexity**:
+    *   Managing dependencies between newly created modules.
+    *   Ensuring backward compatibility of existing configuration files if possible, or providing a clear migration path.
+    *   Thoroughly testing the refactored system to ensure no regressions in functionality.
+    *   Potential for unforeseen complexities when untangling existing script logic.
 
 ## Recent Insights
 

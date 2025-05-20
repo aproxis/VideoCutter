@@ -96,6 +96,15 @@
    - ⬜ Drag-and-drop file input
    - ✅ More intuitive parameter organization (Achieved through tab restructuring)
 
+### Refactoring (Major Upcoming Task)
+- ⬜ **Refactor Core Scripts (`cutter.py`, `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, `depth.py`, `audio.py`)**:
+    - ⬜ Analyze existing scripts for responsibilities and complexities.
+    - ⬜ Design a modular architecture with a central controller (e.g., `main.py`).
+    - ⬜ Define clear interfaces and data flow between new modules.
+    - ⬜ Implement the refactoring in stages.
+    - ⬜ Develop a testing strategy for refactored components.
+    - ⬜ Update `gui.py` to integrate with the new backend structure.
+
 ### New Features
 
 1. **Advanced Effects**
@@ -151,11 +160,11 @@
 
 ## Current Status
 
-### Project Status: Beta
+### Project Status: Beta (Preparing for Major Refactoring)
 
-VideoCutter is currently in a functional beta state. The core functionality is complete and working, with a usable GUI interface and configuration system. The system can process images and videos, create slideshows with depth effects, add audio, and apply branding overlays. Subtitle functionality has been enhanced with advanced styling options and accurate preview rendering.
+VideoCutter is currently in a functional beta state. The core functionality is complete and working, with a usable GUI interface and configuration system, including recently enhanced subtitle features.
 
-The current focus is on documentation, organization, and preparing for version control. This includes creating comprehensive documentation in both README and memory bank formats, and setting up a Git repository for future development.
+The **primary focus is now shifting to a significant refactoring of the core processing scripts**. This aims to improve modularity, maintainability, testability, and scalability, establishing a more robust foundation for future development. Documentation updates will continue alongside this effort.
 
 ### Key Metrics
 
@@ -241,12 +250,21 @@ The current focus is on documentation, organization, and preparing for version c
    - No subtitle editor with timeline
    - ASS format complexity requires careful parameter handling
 
+6.  **Script Architecture**:
+    *   `cutter.py` currently handles too much orchestration and direct processing, making it complex.
+    *   Some other scripts (`sorter.py`, `cleaner.py`, etc.) might have mixed concerns or could be further modularized for clarity and reusability. This is a key driver for the planned refactoring.
+
 ## Next Immediate Steps
 
-1. **Complete Memory Bank**
-   - Create .clinerules file
-   - Review and refine existing documentation
-   - Ensure all key decisions are documented
+1.  **Core Script Refactoring - Phase 1 (Analysis & Design)**:
+    *   Detailed analysis of `cutter.py`, `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, `depth.py`, and `audio.py`.
+    *   Propose a new modular architecture and a plan for the main controller.
+    *   Document this plan in `activeContext.md` and `systemPatterns.md`.
+
+2.  **Complete Memory Bank Updates**:
+    *   ✅ Create `.clinerules` file.
+    *   Review and refine existing documentation to reflect the refactoring plan.
+    *   Ensure all key decisions regarding the refactoring approach are documented.
 
 2. **Git Repository Setup**
    - Initialize repository
