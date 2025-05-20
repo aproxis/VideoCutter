@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
-import subprocess
+# import subprocess # No longer calling cutter.py directly
+# Instead, import the new pipeline orchestrator
+from videocutter.main import run_pipeline
 import os
 import json
 import glob
@@ -232,8 +234,84 @@ def start_process():
         
         command.extend(subtitle_params)
 
-    print(command)
-    subprocess.run(command)
+    # print(command) # Old command list
+    # subprocess.run(command) # Old way of running
+
+    # --- New way: Prepare settings dictionary and call run_pipeline ---
+    gui_settings = {
+        'title': title, # Also used for title_overlay.text by config_manager
+        'watermark': watermark.replace('\\n', '\n'), # config_manager will handle internal newlines if needed
+        'watermark_type': watermark_type,
+        'watermark_speed': watermark_speed, # config_manager will convert to int
+        'title_font_size': str(title_font_size), # Pass as string, config_manager converts
+        'segment_duration': segment_duration, # config_manager will convert to int
+        'input_folder': input_folder,
+        'template_folder': template_folder,
+        'depthflow': depthflow_tf, # Boolean
+        'time_limit': time_limit, # config_manager will convert to int
+        'video_orientation': video_orientation,
+        'blur': blur_checkbox, # Boolean, for image processing (original blur arg)
+        'watermark_font': watermark_font, # Filename, resolver in config_manager or font_utils
+        
+        # Title Overlay specific (some overlap with general title, config_manager can reconcile)
+        'overlay_start_delay': delay, # Used for both title and subscribe overlay start
+        'title_fontcolor': title_fontcolor,
+        'title_font': title_font, # Filename
+        'title_appearance_delay': title_appearance_delay,
+        'title_visible_time': title_visible_time,
+        'title_x_offset': title_x_offset,
+        'title_y_offset': title_y_offset,
+
+        # Audio specific
+        'vo_delay': voiceover_delay, # For audio_processor
+
+        # Chromakey (for subscribe_overlay)
+        'chromakey_color': chromakey_color,
+        'chromakey_similarity': chromakey_similarity,
+        'chromakey_blend': chromakey_blend,
+
+        # Effects Overlay
+        'effect_overlay': effect_overlay if effect_overlay != "None" else None,
+        'effect_opacity': effect_opacity,
+        'effect_blend': effect_blend,
+
+        # Subtitles
+        'generate_srt': generate_srt, # Boolean for enabling subtitles end-to-end
+        'subtitle_max_width': subtitle_max_width, # For srt_generator
+        'subtitle_font': subtitle_font, # For overlay_compositor (ASS styling)
+        'subtitle_fontsize': subtitle_fontsize,
+        'subtitle_fontcolor': subtitle_fontcolor,
+        'subtitle_bgcolor': subtitle_bgcolor, # For shadow color
+        'subtitle_bgopacity': subtitle_bgopacity, # For shadow opacity
+        'subtitle_position': subtitle_position,
+        'subtitle_outline': subtitle_outline,
+        'subtitle_outlinecolor': subtitle_outlinecolor,
+        'subtitle_shadow': var_subtitle_shadow.get() # Boolean
+    }
+
+    selected_config_file = var_config.get()
+    config_file_path = None
+    if selected_config_file:
+        config_file_path = os.path.join(config_folder, selected_config_file)
+        if not os.path.exists(config_file_path):
+            messagebox.showerror("Error", f"Selected config file not found: {config_file_path}")
+            return
+            
+    try:
+        print("Starting VideoCutter pipeline via main.run_pipeline...")
+        print(f"Using config file: {config_file_path}")
+        print(f"GUI settings to merge/override: {json.dumps(gui_settings, indent=2)}")
+        
+        # Call the new main pipeline function
+        # This will run in the same process, so GUI might freeze.
+        # For a non-freezing GUI, this should be run in a separate thread.
+        # TODO: Implement threading for run_pipeline to keep GUI responsive.
+        run_pipeline(config_path=config_file_path, gui_settings=gui_settings)
+        
+        messagebox.showinfo("Success", "Video processing pipeline finished!")
+    except Exception as e:
+        messagebox.showerror("Pipeline Error", f"An error occurred: {e}")
+        print(f"Pipeline execution error: {e}")
     
 
 def update_font_size(event):
