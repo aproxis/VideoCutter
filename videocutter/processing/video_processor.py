@@ -10,43 +10,85 @@ from PIL import Image, ImageFilter, ImageDraw
 # --- Video Utilities ---
 
 def get_video_metadata(video_path: str) -> dict | None:
-    """Gets video metadata (width, height, duration) using ffprobe."""
+    """Gets video metadata (width, height, duration) using ffprobe, focusing on stream data."""
     try:
         cmd = [
             "ffprobe", "-v", "error",
-            "-show_entries", "stream=width,height", 
-            "-show_entries", "format=duration",
+            "-select_streams", "v:0", # Explicitly select the first video stream
+            "-show_entries", "stream=width,height,duration,r_frame_rate,avg_frame_rate", # Get duration from stream
             "-of", "json", video_path
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        # print(f"Executing ffprobe for metadata: {' '.join(cmd)}") # For debugging
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+
+        if result.returncode != 0:
+            print(f"ffprobe for {video_path} failed with exit code {result.returncode}")
+            print(f"ffprobe stderr: {result.stderr}")
+            return None
+        
+        if not result.stdout:
+            print(f"ffprobe for {video_path} produced no output.")
+            return None
+            
         metadata = json.loads(result.stdout)
         
-        video_stream = None
-        for stream in metadata.get("streams", []):
-            if stream.get("codec_type") == "video":
-                video_stream = stream
-                break
-        
-        if not video_stream:
-            print(f"No video stream found in {video_path}")
+        if not metadata.get("streams") or not metadata["streams"][0]:
+            print(f"No video stream data found in ffprobe JSON output for {video_path}")
+            # Fallback: try to get format duration if stream duration is missing
+            cmd_format_duration = [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "json", video_path
+            ]
+            result_format = subprocess.run(cmd_format_duration, capture_output=True, text=True, check=False)
+            if result_format.returncode == 0 and result_format.stdout:
+                format_meta = json.loads(result_format.stdout)
+                if format_meta.get("format", {}).get("duration"):
+                     print(f"Using format duration for {video_path} as stream duration was not found.")
+                     # We don't have width/height here, so this is only partial.
+                     # This function primarily needs width/height for video processing.
+                     # For now, if stream info is missing, we can't proceed with width/height dependent ops.
+                     # Let's return at least duration if found this way.
+                     # However, the caller (convert_to_horizontal_with_blur_bg) needs width/height.
+                     # So, if primary stream info fails, it's better to return None or incomplete.
+                     # For now, let's stick to requiring stream info for width/height.
+                     return {"duration": float(format_meta["format"]["duration"])} # No width/height
             return None
 
+        video_stream_data = metadata["streams"][0]
+        
+        duration_str = video_stream_data.get("duration")
+        if duration_str is None: # Duration might be in format section for some containers
+            duration_str = metadata.get("format", {}).get("duration", "0")
+
+        # Frame rate can be 'num/den' or a float string
+        r_frame_rate_str = video_stream_data.get("r_frame_rate", "0/1")
+        avg_frame_rate_str = video_stream_data.get("avg_frame_rate", "0/1")
+        
+        def parse_frame_rate(fr_str):
+            if "/" in fr_str:
+                num, den = map(float, fr_str.split('/'))
+                return num / den if den else 0
+            return float(fr_str)
+
+        r_frame_rate = parse_frame_rate(r_frame_rate_str)
+        avg_frame_rate = parse_frame_rate(avg_frame_rate_str)
+
         return {
-            "width": video_stream.get("width"),
-            "height": video_stream.get("height"),
-            "duration": float(metadata.get("format", {}).get("duration", 0))
+            "width": int(video_stream_data.get("width", 0)),
+            "height": int(video_stream_data.get("height", 0)),
+            "duration": float(duration_str),
+            "r_frame_rate": r_frame_rate,
+            "avg_frame_rate": avg_frame_rate
         }
-    except subprocess.CalledProcessError as e:
-        print(f"Error getting metadata for {video_path} with ffprobe: {e}")
-        print(f"ffprobe stderr: {e.stderr}")
     except json.JSONDecodeError:
-        print(f"Error decoding JSON from ffprobe output for {video_path}.")
+        print(f"Error decoding JSON from ffprobe output for {video_path}. Output: {result.stdout}")
     except Exception as e:
         print(f"An unexpected error occurred while getting metadata for {video_path}: {e}")
     return None
 
 def get_video_duration(video_path: str) -> float | None:
-    """Get the duration of the video in seconds using ffprobe (more robust)."""
+    """Get the duration of the video in seconds using ffprobe, preferring stream duration."""
     metadata = get_video_metadata(video_path)
     return metadata["duration"] if metadata else None
 
@@ -73,10 +115,11 @@ def split_video_into_segments(input_file: str, output_prefix: str, segment_durat
     except Exception as e:
         print(f"Failed to split video {input_file}: {e}")
 
-def convert_to_horizontal_with_blur_bg(input_path: str, output_path: str, target_output_height: int = 1080):
+def convert_to_horizontal_with_blur_bg(input_path: str, output_path: str, target_output_height: int = 1080, apply_blur: bool = True):
     """
-    Converts a vertical video to a horizontal format by adding a blurred background
-    of the video itself, scaled to fit 16:9.
+    Converts a vertical video to a horizontal 16:9 format.
+    If apply_blur is True, it adds a blurred background of the video itself.
+    If apply_blur is False, it scales the video to fit and pads with black.
     """
     metadata = get_video_metadata(input_path)
     if not metadata or not metadata.get("width") or not metadata.get("height"):
@@ -86,36 +129,50 @@ def convert_to_horizontal_with_blur_bg(input_path: str, output_path: str, target
     original_width = metadata["width"]
     original_height = metadata["height"]
 
-    if original_height <= original_width: # Already horizontal or square
-        print(f"{input_path} is not a vertical video. Skipping conversion to horizontal.")
+    if not original_width or not original_height:
+        print(f"Invalid dimensions from metadata for {input_path}. Skipping conversion.")
         return False
 
-    print(f"Processing vertical video {input_path} to horizontal format with blur.")
-    
-    target_output_width = target_output_height * 16 // 9
-    
-    # Calculate dimensions for the resized foreground video maintaining aspect ratio
-    # The foreground video will be scaled to fit within target_output_height
-    scaled_fg_width = int(original_width * target_output_height / original_height)
-    scaled_fg_height = target_output_height # Foreground video fills the height
+    if original_height <= original_width:
+        print(f"{input_path} is not a vertical video. Skipping conversion to horizontal.")
+        if input_path != output_path:
+            try:
+                shutil.copy(input_path, output_path)
+                print(f"Copied {input_path} to {output_path} as no conversion needed.")
+            except Exception as e:
+                print(f"Error copying {input_path} to {output_path}: {e}")
+                return False
+        return False
 
-    filter_complex = (
-        f"[0:v]scale={target_output_width}:{target_output_height},boxblur=20:5[bg];"
-        f"[0:v]scale={scaled_fg_width}:{scaled_fg_height}[fg];"
-        f"[bg][fg]overlay=(W-w)/2:(H-h)/2:format=auto[outv]"
-    )
+    target_output_width = target_output_height * 16 // 9
+    scaled_fg_width = int(original_width * target_output_height / original_height)
+    scaled_fg_height = target_output_height
+    
+    filter_complex_parts = []
+    filter_complex_parts.append(f"[0:v]scale={scaled_fg_width}:{scaled_fg_height}[fg]")
+
+    if apply_blur:
+        print(f"Processing vertical video {input_path} to horizontal format with blur.")
+        filter_complex_parts.insert(0, f"[0:v]scale={target_output_width}:{target_output_height},boxblur=20:5[bg]")
+        filter_complex_parts.append(f"[bg][fg]overlay=(W-w)/2:(H-h)/2:format=auto[outv]")
+    else:
+        print(f"Processing vertical video {input_path} to horizontal format with black padding.")
+        # Pad the 'fg' stream directly
+        filter_complex_parts.append(f"[fg]pad={target_output_width}:{target_output_height}:(ow-iw)/2:(oh-ih)/2:color=black[outv]")
+
+    final_filter_complex = ";".join(filter_complex_parts)
     
     temp_output = os.path.join(os.path.dirname(output_path), "temp_conversion_" + os.path.basename(output_path))
     
-    cmd = (
-        f"ffmpeg -hide_banner -loglevel error -i \"{input_path}\" "
-        f"-filter_complex \"{filter_complex}\" "
-        f"-map \"[outv]\" -c:v libx264 -crf 22 -preset medium "
-        f"-r 30 -an \"{temp_output}\"" # Audio is removed here, will be re-added later
-    )
-    print(f"Executing conversion: {cmd}")
+    ffmpeg_cmd_parts = [
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-i", input_path,
+        "-filter_complex", final_filter_complex,
+        "-map", "[outv]", "-c:v", "libx264", "-crf", "22", "-preset", "medium",
+        "-r", "30", "-an", temp_output
+    ]
+    print(f"Executing conversion: {' '.join(ffmpeg_cmd_parts)}")
     try:
-        subprocess.run(cmd, shell=True, check=True)
+        subprocess.run(ffmpeg_cmd_parts, shell=False, check=True)
         shutil.move(temp_output, output_path)
         print(f"Successfully converted {input_path} to {output_path}")
         return True
@@ -131,101 +188,131 @@ def convert_to_horizontal_with_blur_bg(input_path: str, output_path: str, target
 
 # --- Image Utilities ---
 
-def process_image_for_video(image_path: str, target_final_height: int, target_video_orientation: str):
+def process_image_for_video(image_path: str, target_final_height: int, target_video_orientation: str, apply_blur: bool):
     """
     Processes an image to fit the target video orientation and dimensions,
-    applying blur and gradient effects as needed.
+    applying blur and gradient effects as needed if apply_blur is True.
     The processed image overwrites the original image_path.
     """
     try:
         original_image = Image.open(image_path)
         original_width, original_height = original_image.size
-        print(f"Processing image: {image_path} ({original_width}x{original_height}) for {target_video_orientation} output ({target_final_height}p)")
+        print(f"Processing image: {image_path} ({original_width}x{original_height}) for {target_video_orientation} output ({target_final_height}p), Blur: {apply_blur}")
 
         is_vertical_image = original_height > original_width
+        final_image = None
 
         if target_video_orientation == 'vertical': # Target is 9:16
             target_final_width = target_final_height * 9 // 16
             
-            if is_vertical_image: # Vertical image for vertical video
-                # Scale to fit width, then crop height if necessary, or add blurred bg
+            if is_vertical_image: 
                 scaled_to_width = original_image.resize(
                     (target_final_width, int(original_height * target_final_width / original_width)), 
                     Image.Resampling.LANCZOS
                 )
-                if scaled_to_width.height >= target_final_height: # Crop
+                if scaled_to_width.height >= target_final_height: 
                     top = (scaled_to_width.height - target_final_height) // 2
                     final_image = scaled_to_width.crop((0, top, target_final_width, top + target_final_height))
-                else: # Add blurred background (pillarbox)
+                elif apply_blur: 
                     bg = original_image.resize((target_final_width, target_final_height), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(radius=20))
                     y_offset = (target_final_height - scaled_to_width.height) // 2
                     bg.paste(scaled_to_width, (0, y_offset))
                     final_image = bg
-            else: # Horizontal image for vertical video (pillarbox with blur and gradient)
+                else: # No blur, just scale and pad with black (or center)
+                    final_image = Image.new('RGB', (target_final_width, target_final_height), (0,0,0))
+                    y_offset = (target_final_height - scaled_to_width.height) // 2
+                    final_image.paste(scaled_to_width, (0, y_offset))
+
+            else: # Horizontal image for vertical video
                 scaled_to_height = original_image.resize(
                     (int(original_width * target_final_height / original_height), target_final_height),
                     Image.Resampling.LANCZOS
                 )
-                # Create blurred background
-                bg = original_image.resize((target_final_width, target_final_height), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(radius=20))
-                # Create gradient for fg
-                fg_w, fg_h = scaled_to_height.size
-                border_w = int(fg_w * 0.1)
-                gradient = Image.new('L', (fg_w, fg_h), color=255)
-                draw = ImageDraw.Draw(gradient)
-                for x_grad in range(border_w):
-                    fade = int(255 * (x_grad / border_w))
-                    draw.rectangle([x_grad, 0, x_grad + 1, fg_h], fill=fade)
-                    draw.rectangle([fg_w - x_grad - 1, 0, fg_w - x_grad, fg_h], fill=fade)
-                scaled_to_height.putalpha(gradient)
-                # Paste fg onto bg
-                x_offset = (target_final_width - fg_w) // 2
-                bg.paste(scaled_to_height, (x_offset, 0), mask=scaled_to_height)
-                final_image = bg
+                if apply_blur: # Horizontal image for vertical video (pillarbox with blur)
+                    bg = original_image.resize((target_final_width, target_final_height), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(radius=20))
+                    fg_w, fg_h = scaled_to_height.size
+                    # CORRECTED: Gradient on TOP and BOTTOM for pillarbox
+                    border_fraction = int(fg_h * 0.1) 
+                    gradient = Image.new('L', (fg_w, fg_h), color=255)
+                    draw = ImageDraw.Draw(gradient)
+                    for y_coord in range(border_fraction):
+                        alpha = int(255 * (y_coord / border_fraction))
+                        draw.line([(0, y_coord), (fg_w - 1, y_coord)], fill=alpha)  # Top fade
+                        draw.line([(0, fg_h - 1 - y_coord), (fg_w - 1, fg_h - 1 - y_coord)], fill=alpha)  # Bottom fade
+                    scaled_to_height.putalpha(gradient)
+                    x_offset = (target_final_width - fg_w) // 2
+                    y_offset = (target_final_height - fg_h) // 2 # Center vertically too
+                    bg.paste(scaled_to_height, (x_offset, y_offset), mask=scaled_to_height)
+                    final_image = bg
+                else: # No blur, just scale and pad with black (or center)
+                    final_image = Image.new('RGB', (target_final_width, target_final_height), (0,0,0))
+                    x_offset = (target_final_width - scaled_to_height.width) // 2
+                    final_image.paste(scaled_to_height, (x_offset, 0))
+
 
         elif target_video_orientation == 'horizontal': # Target is 16:9
             target_final_width = target_final_height * 16 // 9
 
-            if not is_vertical_image: # Horizontal image for horizontal video
+            if not is_vertical_image: 
                 scaled_to_height = original_image.resize(
                     (int(original_width * target_final_height / original_height), target_final_height),
                     Image.Resampling.LANCZOS
                 )
-                if scaled_to_height.width >= target_final_width: # Crop
+                if scaled_to_height.width >= target_final_width: 
                     left = (scaled_to_height.width - target_final_width) // 2
                     final_image = scaled_to_height.crop((left, 0, left + target_final_width, target_final_height))
-                else: # Add blurred background (letterbox)
+                elif apply_blur: 
                     bg = original_image.resize((target_final_width, target_final_height), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(radius=20))
                     x_offset = (target_final_width - scaled_to_height.width) // 2
                     bg.paste(scaled_to_height, (x_offset, 0))
                     final_image = bg
-            else: # Vertical image for horizontal video (letterbox with blur and gradient)
-                scaled_to_width = original_image.resize(
-                    (target_final_width, int(original_height * target_final_width / original_width)),
+                else: # No blur, just scale and pad with black (or center)
+                    final_image = Image.new('RGB', (target_final_width, target_final_height), (0,0,0))
+                    x_offset = (target_final_width - scaled_to_height.width) // 2
+                    final_image.paste(scaled_to_height, (x_offset, 0))
+            else: # Vertical image for horizontal video
+                scaled_to_width = original_image.resize( # This was scaled_to_width in original, but logic implies scaling to fit width of horizontal frame
+                    (target_final_width, int(original_height * target_final_width / original_width)), # This seems wrong, should be scaled to fit height first
                     Image.Resampling.LANCZOS
                 )
-                 # Create blurred background
-                bg = original_image.resize((target_final_width, target_final_height), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(radius=20))
-                # Create gradient for fg
-                fg_w, fg_h = scaled_to_width.size
-                border_h = int(fg_h * 0.1)
-                gradient = Image.new('L', (fg_w, fg_h), color=255)
-                draw = ImageDraw.Draw(gradient)
-                for y_grad in range(border_h):
-                    fade = int(255 * (y_grad / border_h))
-                    draw.rectangle([0, y_grad, fg_w, y_grad + 1], fill=fade)
-                    draw.rectangle([0, fg_h - y_grad - 1, fg_w, fg_h - y_grad], fill=fade)
-                scaled_to_width.putalpha(gradient)
-                # Paste fg onto bg
-                y_offset = (target_final_height - fg_h) // 2
-                bg.paste(scaled_to_width, (0, y_offset), mask=scaled_to_width)
-                final_image = bg
+                # Corrected logic for vertical image in horizontal frame:
+                # Scale to fit height of horizontal frame first
+                scaled_to_fit_height = original_image.resize(
+                    (int(original_width * target_final_height / original_height), target_final_height),
+                    Image.Resampling.LANCZOS
+                )
+                if apply_blur: # Vertical image in horizontal frame (letterbox with blur)
+                    bg = original_image.resize((target_final_width, target_final_height), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(radius=20))
+                    fg_w, fg_h = scaled_to_fit_height.size 
+                    
+                    # CORRECTED: Gradient should be on LEFT and RIGHT for a vertical image being letterboxed
+                    border_fraction = int(fg_w * 0.1) # Fade 10% of the image width from left and right
+                    gradient = Image.new('L', (fg_w, fg_h), color=255) 
+                    draw = ImageDraw.Draw(gradient)
+                    for x_coord in range(border_fraction):
+                        alpha = int(255 * (x_coord / border_fraction))
+                        draw.line([(x_coord, 0), (x_coord, fg_h - 1)], fill=alpha)  # Left fade
+                        draw.line([(fg_w - 1 - x_coord, 0), (fg_w - 1 - x_coord, fg_h - 1)], fill=alpha)  # Right fade
+                    
+                    scaled_to_fit_height.putalpha(gradient)
+                    x_offset = (target_final_width - fg_w) // 2 
+                    y_offset = (target_final_height - fg_h) // 2 # Center vertically
+                    bg.paste(scaled_to_fit_height, (x_offset, y_offset), mask=scaled_to_fit_height)
+                    final_image = bg
+                else: # No blur, just scale and pad with black (or center)
+                    final_image = Image.new('RGB', (target_final_width, target_final_height), (0,0,0))
+                    x_offset = (target_final_width - scaled_to_fit_height.width) // 2
+                    final_image.paste(scaled_to_fit_height, (x_offset, 0))
         else:
             print(f"Unsupported target_video_orientation: {target_video_orientation}")
             return
 
-        final_image.save(image_path)
-        print(f"Processed and saved image: {image_path}")
+        if final_image:
+            final_image.save(image_path)
+            print(f"Processed and saved image: {image_path}")
+        else:
+            print(f"Image processing resulted in no final image for {image_path}")
+
 
     except Exception as e:
         print(f"Error processing image {image_path}: {e}")

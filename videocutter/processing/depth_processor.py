@@ -39,10 +39,70 @@ class DefaultDepthScene(DepthScene): # Renamed from YourScene for clarity
         self.state.zoom = 0.7 + 0.2 * math.sin(self.cycle * 2) # Example
 
 @define
-class ConfigurableDepthManager(DepthManager): # Renamed from YourManager/DepthManager
-    config: DotMap = Factory(DotMap) # To hold segment_duration, output_path_str etc.
+class ConfigurableDepthManager: # No longer inherits from a local DepthManager
+    # Fields from original DepthManager
+    estimator: DepthEstimator = Factory(DepthAnythingV2)
+    upscaler: BrokenUpscaler = Factory(NoUpscaler)
+    threads: List[Thread] = Factory(list)
+    outputs: List[Path] = Factory(list)
     
-    # Override filename to use config for output path construction if needed,
+    # New config attribute
+    config: DotMap = Factory(DotMap) 
+    
+    # Concurrency can be part of config or initialized
+    concurrency: int = 1 # Default, will be set from config in __attrs_post_init__
+
+    def __attrs_post_init__(self):
+        self.estimator.load_torch()
+        self.estimator.load_model()
+        self.upscaler.load_model()
+        # Set concurrency from config, falling back to env var then 1
+        self.concurrency = self.config.get('workers', int(os.getenv("WORKERS", 1)))
+
+    def __enter__(self): # Python 3.11+ can use -> Self:
+        self.outputs = list()
+        return self
+
+    def __exit__(self, *ignore) -> None:
+        self.join()
+
+    def parallax(self, scene_class: Type[DepthScene], image_path: Path) -> None:
+        while len(self.threads) >= self.concurrency:
+            self.threads = [t for t in self.threads if t.is_alive()]
+            time.sleep(0.05)
+
+        thread = Thread(target=self._worker, args=(scene_class, image_path), daemon=True)
+        self.threads.append(thread)
+        thread.start()
+
+    def _worker(self, scene_class: Type[DepthScene], image_path: Path):
+        scene_instance = scene_class(backend="headless")
+        scene_instance.estimator = self.estimator
+        scene_instance.set_upscaler(self.upscaler)
+        scene_instance.input(image=image_path)
+
+        for data_combination in _combinations(**self.variants(image_path)):
+            data_combination.update(scene=scene_instance, image=image_path)
+            
+            output_file = self.filename(data_combination)
+            scene_instance.clear_animations()
+            self.animate(data_combination) # Pass the combined data
+
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            video_result = scene_instance.main(output=output_file, **data_combination.render)
+            if video_result and video_result[0]:
+                self.outputs.append(video_result[0])
+        
+        scene_instance.window.destroy()
+
+    def join(self):
+        for thread in self.threads:
+            thread.join()
+            
+    # filename, animate, variants methods remain largely the same,
+    # but ensure they use self.config where appropriate.
+    # Original filename to use config for output path construction if needed,
     # or ensure data.image.parent is correctly set to the working datetime_folder.
     # The original filename method seems to save in the same parent as the image.
     def filename(self, data: DotMap) -> Path:
@@ -79,9 +139,13 @@ class ConfigurableDepthManager(DepthManager): # Renamed from YourManager/DepthMa
 
         data.scene.add_animation(Components.Set(target=Target.Isometric, value=isometric_value))
         data.scene.add_animation(Components.Set(target=Target.Height, value=height_value))
-        data.scene.add_animation(Presets.Zoom(intensity=zoom_value, loop=True))
+        
+        # Apply the base zoom, make its loop configurable, default to False to avoid "too much looping"
+        # if other looping animations are added.
+        zoom_loops = self.config.get('depthflow.base_zoom_loops', False)
+        data.scene.add_animation(Presets.Zoom(intensity=zoom_value, loop=zoom_loops))
 
-        applied_animations_log = []
+        applied_animations_log = [f"BaseZoom: intensity={zoom_value}, loop={zoom_loops}"]
         applied_names = set()
         num_animations_to_apply = random.randint(self.config.get('depthflow.min_effects_per_image', 1), self.config.get('depthflow.max_effects_per_image', 2))
 
@@ -108,15 +172,18 @@ class ConfigurableDepthManager(DepthManager): # Renamed from YourManager/DepthMa
 
     def variants(self, image: Path) -> DotMap:
         # segment_duration should come from the main config
-        segment_duration = self.config.get('depthflow.segment_duration', 5)
+        # If DepthFlow produces videos 1s shorter, let's try adding 1 to the time passed to it.
+        segment_duration_for_df = self.config.get('depthflow.segment_duration', 5) + 1 
         render_height = self.config.get('depthflow.render_height', 1920)
         render_fps = self.config.get('depthflow.render_fps', 25)
+        
+        print(f"DepthFlow variants: Requesting time={segment_duration_for_df}s for output (target segment duration {self.config.get('depthflow.segment_duration', 5)}s)")
 
         return DotMap(
             variation=[0], # From original YourManager
             render=_combinations(
                 height=[render_height],
-                time=[segment_duration],
+                time=[segment_duration_for_df], # Use adjusted time
                 loop=[1], # From original YourManager
                 fps=[render_fps],
             )

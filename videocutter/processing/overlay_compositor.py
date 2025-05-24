@@ -6,6 +6,9 @@ import os
 import random
 import json # For ffprobe
 import glob # For font fallback
+import tempfile # For creating temporary files
+from typing import Optional # For Optional type hint
+
 # Assuming font_utils is in videocutter.utils
 from videocutter.utils.font_utils import get_font_name
 # Assuming video_processor has get_video_duration or similar
@@ -62,16 +65,6 @@ def apply_final_overlays(
     video_orientation = config.get('video_orientation', 'vertical')
     template_folder = config.get('template_folder', 'TEMPLATE')
     
-    # Determine subscribe overlay video
-    if video_orientation == 'vertical':
-        subscribe_video_template = os.path.join(template_folder, 'name_subscribe_like.mp4')
-    else:
-        subscribe_video_template = os.path.join(template_folder, 'name_subscribe_like_horizontal.mp4')
-
-    if not os.path.exists(subscribe_video_template):
-        print(f"Error: Subscribe overlay template not found: {subscribe_video_template}")
-        return None
-
     # Title properties
     title_text_val = title_cfg.get('text', 'Model Name').strip('"')
     title_font_filename = title_cfg.get('font_file', 'Montserrat-SemiBold.otf')
@@ -88,20 +81,37 @@ def apply_final_overlays(
     if title_font_color_hex.lower() == 'random':
         title_font_color_hex = random.choice(['FF00B4', 'ff6600', '0b4178'])
     
-    title_overlay_start_delay = sub_ov_cfg.get('start_delay', 21) # From original subscribe_new args.osd
+    # Title text timing properties
     title_appearance_delay = title_cfg.get('appearance_delay', 1)
     title_visible_time = title_cfg.get('visible_time', 5)
-    title_start_time = title_overlay_start_delay + title_appearance_delay
-    title_end_time = title_start_time + title_visible_time
     title_x_offset = title_cfg.get('x_offset', 110)
     title_y_offset = title_cfg.get('y_offset', -35)
+    enable_title = title_cfg.get('enable_title', True) # Get enable status
+    title_opacity = title_cfg.get('opacity', 1.0) # Get title opacity
+    enable_title_background = title_cfg.get('enable_background', False) # New: Get enable status for background
+    title_background_color = title_cfg.get('background_color', '000000') # New: Get background color
+    title_background_opacity = title_cfg.get('background_opacity', 0.5) # New: Get background opacity
+
+    print(f"DEBUG: enable_title_background: {enable_title_background}")
+    print(f"DEBUG: title_background_color: {title_background_color}")
+    print(f"DEBUG: title_background_opacity: {title_background_opacity}")
 
     # Subscribe overlay properties
+    enable_subscribe_overlay = sub_ov_cfg.get('enabled', True) # New: Get enable status
+    subscribe_appearance_delay = sub_ov_cfg.get('subscribe_delay', 21) # New: Separate delay for subscribe
     chromakey_color_hex = sub_ov_cfg.get('chromakey_color', '65db41')
     chromakey_similarity = sub_ov_cfg.get('similarity', 0.18)
     chromakey_blend = sub_ov_cfg.get('blend', 0.0)
     
-    subscribe_overlay_duration = _get_overlay_video_duration(subscribe_video_template)
+    # Title Video Overlay properties
+    title_video_overlay_cfg = config.get('title_video_overlay', {})
+    enable_title_video_overlay = title_video_overlay_cfg.get('enabled', False)
+    title_video_overlay_file = title_video_overlay_cfg.get('overlay_file')
+    title_video_overlay_delay = title_video_overlay_cfg.get('appearance_delay', 0)
+    title_video_chromakey_color = title_video_overlay_cfg.get('chromakey_color', '65db41')
+    title_video_chromakey_similarity = title_video_overlay_cfg.get('chromakey_similarity', 0.18)
+    title_video_chromakey_blend = title_video_overlay_cfg.get('chromakey_blend', 0.0)
+
     main_video_duration = get_video_duration(input_video_path)
     if main_video_duration is None:
         print(f"Could not get duration for main video {input_video_path}. Aborting.")
@@ -109,35 +119,63 @@ def apply_final_overlays(
 
     # --- Build Filter Complex ---
     filter_complex_parts = []
-    ffmpeg_inputs = ['-i', input_video_path, '-i', subscribe_video_template]
-    input_stream_indices = {"main_video": 0, "subscribe_overlay": 1}
-    next_input_idx = 2 # For optional effect overlay
+    ffmpeg_inputs = ['-i', input_video_path]
+    input_stream_indices = {"main_video": 0}
+    next_input_idx = 1 # For optional subscribe/effect/title_video overlay
 
-    # 1. Audio Mix (main video audio + subscribe overlay audio)
-    # Subscribe overlay audio is delayed and volume adjusted.
-    audio_mix = (
-        f"[{input_stream_indices['subscribe_overlay']}:a]adelay={title_overlay_start_delay*1000}|{title_overlay_start_delay*1000},"
-        f"volume=0.5[a_sub];"
-        f"[{input_stream_indices['main_video']}:a]volume=1.0[a_main];"
-        f"[a_main][a_sub]amix=inputs=2:normalize=0[aout]"
-    )
-    filter_complex_parts.append(audio_mix)
+    # Conditionally add subscribe overlay input and filters
+    subscribe_overlay_file = sub_ov_cfg.get('overlay_file')
+    print(f"DEBUG: enable_subscribe_overlay: {enable_subscribe_overlay}")
+    print(f"DEBUG: subscribe_overlay_file: {subscribe_overlay_file}")
 
-    # 2. Video Base (main video + chromakeyed subscribe overlay)
-    video_base = (
-        f"[{input_stream_indices['main_video']}:v]setpts=PTS-STARTPTS[v_main];"
-        f"[{input_stream_indices['subscribe_overlay']}:v]setpts=PTS-STARTPTS+{title_overlay_start_delay}/TB,"
-        f"chromakey=color=0x{chromakey_color_hex}:similarity={chromakey_similarity}:blend={chromakey_blend}[v_sub_ck];"
-        f"[v_main][v_sub_ck]overlay=enable='between(t,{title_overlay_start_delay},{title_overlay_start_delay+subscribe_overlay_duration})'[v_with_sub]"
-    )
-    filter_complex_parts.append(video_base)
-    current_video_stream = "v_with_sub"
+    if enable_subscribe_overlay and subscribe_overlay_file:
+        subscribe_video_full_path = os.path.join(config.get('subscribe_folder', 'effects/subscribe'), subscribe_overlay_file)
+        print(f"DEBUG: subscribe_video_full_path: {subscribe_video_full_path}")
+        print(f"DEBUG: os.path.exists(subscribe_video_full_path): {os.path.exists(subscribe_video_full_path)}")
+
+        if os.path.exists(subscribe_video_full_path):
+            ffmpeg_inputs.extend(['-i', subscribe_video_full_path])
+            subscribe_input_idx = input_stream_indices["subscribe_overlay"] = next_input_idx
+            next_input_idx += 1
+            
+            subscribe_overlay_duration = _get_overlay_video_duration(subscribe_video_full_path)
+            
+            # 1. Audio Mix (main video audio + subscribe overlay audio)
+            audio_mix = (
+                f"[{subscribe_input_idx}:a]adelay={subscribe_appearance_delay*1000}|{subscribe_appearance_delay*1000},"
+                f"volume=0.5[a_sub];"
+                f"[{input_stream_indices['main_video']}:a]volume=1.0[a_main];"
+                f"[a_main][a_sub]amix=inputs=2:normalize=0[aout]"
+            )
+            filter_complex_parts.append(audio_mix)
+
+            # 2. Video Base (main video + chromakeyed subscribe overlay)
+            video_base = (
+                f"[{input_stream_indices['main_video']}:v]setpts=PTS-STARTPTS[v_main];"
+                f"[{subscribe_input_idx}:v]setpts=PTS-STARTPTS+{subscribe_appearance_delay}/TB,"
+                f"chromakey=color=0x{chromakey_color_hex}:similarity={chromakey_similarity}:blend={chromakey_blend}[v_sub_ck];"
+                f"[v_main][v_sub_ck]overlay=enable='between(t,{subscribe_appearance_delay},{subscribe_appearance_delay+subscribe_overlay_duration})'[v_with_sub]"
+            )
+            filter_complex_parts.append(video_base)
+            current_video_stream = "v_with_sub"
+        else:
+            print(f"Warning: Subscribe overlay file '{subscribe_video_full_path}' not found. Skipping subscribe overlay.")
+            filter_complex_parts.append(f"[{input_stream_indices['main_video']}:a]volume=1.0[aout]")
+            filter_complex_parts.append(f"[{input_stream_indices['main_video']}:v]setpts=PTS-STARTPTS[v_main]")
+            current_video_stream = "v_main"
+    else:
+        print(f"Info: Subscribe overlay disabled or no file selected. Skipping subscribe overlay.")
+        # If subscribe overlay is disabled, audio is just main video's audio, and video stream is just main video
+        filter_complex_parts.append(f"[{input_stream_indices['main_video']}:a]volume=1.0[aout]")
+        filter_complex_parts.append(f"[{input_stream_indices['main_video']}:v]setpts=PTS-STARTPTS[v_main]")
+        current_video_stream = "v_main"
 
     # 3. Optional Effect Overlay
     effect_overlay_file = effects_cfg.get('overlay_file')
+    enable_effect_overlay = effects_cfg.get('enabled', False) # Get enable status
     has_effect = False
-    if effect_overlay_file:
-        effect_path = os.path.join(config.get('effects_folder', 'effects'), effect_overlay_file)
+    if enable_effect_overlay and effect_overlay_file: # Check enable flag
+        effect_path = os.path.join(config.get('effects_folder', 'effects/overlays'), effect_overlay_file) # Use new effects_folder
         if os.path.exists(effect_path):
             has_effect = True
             ffmpeg_inputs.extend(['-i', effect_path])
@@ -164,92 +202,162 @@ def apply_final_overlays(
                 )
             current_video_stream = effect_stream_label
         else:
-            print(f"Warning: Effect overlay file '{effect_path}' not found.")
-
-    # 4. Title Text Overlay
-    # Ensure title_font_path is correctly escaped for ffmpeg if it contains spaces or special chars
-    # On macOS/Linux, direct path usually works. Windows might need more care.
-    escaped_title_font_path = title_font_path.replace("\\", "/") # Basic normalization
-    
-    title_drawtext = (
-        f"drawtext=text='{title_text_val.replace(':','\\\\:')}':" # Escape colons in text
-        f"x=((w-tw)/2+{title_x_offset}):y=((h/2)+{title_y_offset}):"
-        f"enable='between(t,{title_start_time},{title_end_time})':"
-        f"fontfile='{escaped_title_font_path}':fontsize={title_font_size}:fontcolor=0x{title_font_color_hex}:"
-        f"shadowcolor=black:shadowx=4:shadowy=2:alpha=0.8" # Original alpha was 0.8
-    )
-    filter_complex_parts.append(f"[{current_video_stream}]{title_drawtext}[v_with_title]")
-    current_video_stream = "v_with_title"
-
-    # 5. Subtitle Rendering
-    if subtitle_cfg.get('enabled', False) and srt_file_path and os.path.exists(srt_file_path):
-        print(f"Preparing subtitle styling for {srt_file_path}...")
-        
-        # Resolve subtitle font name (using font_utils if available, or simple name)
-        sub_font_name_arg = subtitle_cfg.get('font_name', 'Arial')
-        sub_font_path_local = os.path.join(config.get('fonts_folder','fonts'), sub_font_name_arg) # Check local 'fonts'
-        
-        actual_sub_font_name = sub_font_name_arg # Default to arg
-        if os.path.exists(sub_font_path_local):
-            actual_sub_font_name = get_font_name(sub_font_path_local) # From font_utils
-        # Add more robust system font path resolution here if needed via font_utils
-
-        fc_bgr = subtitle_cfg.get('font_color_hex', 'FFFFFF')[4:6] + subtitle_cfg.get('font_color_hex', 'FFFFFF')[2:4] + subtitle_cfg.get('font_color_hex', 'FFFFFF')[0:2]
-        oc_bgr = subtitle_cfg.get('outline_color_hex', '000000')[4:6] + subtitle_cfg.get('outline_color_hex', '000000')[2:4] + subtitle_cfg.get('outline_color_hex', '000000')[0:2]
-        sc_bgr = subtitle_cfg.get('shadow_color_hex', '000000')[4:6] + subtitle_cfg.get('shadow_color_hex', '000000')[2:4] + subtitle_cfg.get('shadow_color_hex', '000000')[0:2]
-        
-        style_parts = [
-            f"FontName={actual_sub_font_name}",
-            f"FontSize={subtitle_cfg.get('font_size', 24)}",
-            f"PrimaryColour=&H00{fc_bgr}",
-            f"OutlineColour=&H00{oc_bgr}",
-            f"Outline={subtitle_cfg.get('outline_thickness', 1)}",
-            f"Alignment={subtitle_cfg.get('position_ass', 2)}"
-        ]
-        if subtitle_cfg.get('shadow_enabled', True):
-            opacity_val = int((1.0 - subtitle_cfg.get('shadow_opacity', 0.5)) * 255)
-            opacity_hex = format(opacity_val, '02X')
-            style_parts.append(f"BackColour=&H{opacity_hex}{sc_bgr}")
-            style_parts.append("Shadow=1") # Shadow distance, not just on/off
-        else:
-            style_parts.append("Shadow=0")
-        
-        ass_style = ",".join(style_parts)
-        abs_fonts_dir = os.path.abspath(config.get('fonts_folder','fonts'))
-        
-        # Ensure srt_file_path is correctly escaped for ffmpeg filter
-        escaped_srt_path = srt_file_path.replace("\\", "/").replace(":", "\\\\:")
-
-        filter_complex_parts.append(
-            f"[{current_video_stream}]subtitles='{escaped_srt_path}':fontsdir='{abs_fonts_dir}':force_style='{ass_style}'[v_final]"
-        )
-        current_video_stream = "v_final"
+            print(f"Warning: Effect overlay file '{effect_path}' not found. Skipping effect overlay.")
     else:
-        filter_complex_parts.append(f"[{current_video_stream}]null[v_final]") # Ensure v_final is always defined
+        print(f"Info: Effect overlay disabled or no file selected. Skipping effect overlay.")
 
-    # --- Execute FFmpeg Command ---
-    final_filter_complex_str = ";".join(filter_complex_parts)
-    
-    ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error']
-    ffmpeg_cmd.extend(ffmpeg_inputs)
-    ffmpeg_cmd.extend([
-        '-filter_complex', final_filter_complex_str,
-        '-map', f"[{current_video_stream}]", 
-        '-map', '[aout]', # From audio_mix
-        '-c:v', 'libx264', '-crf', str(config.get('video_crf', 22)), '-preset', config.get('video_preset', 'medium'),
-        '-c:a', 'aac', '-b:a', config.get('audio_bitrate', '192k'),
-        output_video_path
-    ])
-
-    print(f"Executing final overlay composition: {' '.join(ffmpeg_cmd)}")
+    # 4. Title Video Overlay (Conditional)
+    temp_title_video_overlay_file: Optional[str] = None
     try:
-        subprocess.run(ffmpeg_cmd, check=True)
-        print(f"Final video saved: {output_video_path}")
-        return output_video_path
-    except subprocess.CalledProcessError as e:
-        print(f"Error during final overlay composition: {e}")
-        print(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
-        return None
+        if enable_title_video_overlay and title_video_overlay_file:
+            title_video_overlay_full_path = os.path.join(config.get('title_folder', 'effects/title'), title_video_overlay_file) # Use new title_folder
+            if os.path.exists(title_video_overlay_full_path):
+                ffmpeg_inputs.extend(['-i', title_video_overlay_full_path])
+                title_video_input_idx = input_stream_indices["title_video_overlay"] = next_input_idx
+                next_input_idx += 1
+
+                title_video_overlay_duration = _get_overlay_video_duration(title_video_overlay_full_path)
+
+                title_video_base = (
+                    f"[{current_video_stream}]setpts=PTS-STARTPTS[v_prev];"
+                    f"[{title_video_input_idx}:v]setpts=PTS-STARTPTS+{title_video_overlay_delay}/TB,"
+                    f"chromakey=color=0x{title_video_chromakey_color}:similarity={title_video_chromakey_similarity}:blend={title_video_chromakey_blend}[v_title_ov_ck];"
+                    f"[v_prev][v_title_ov_ck]overlay=enable='between(t,{title_video_overlay_delay},{title_video_overlay_delay+title_video_overlay_duration})'[v_with_title_video_ov]"
+                )
+                filter_complex_parts.append(title_video_base)
+                current_video_stream = "v_with_title_video_ov"
+            else:
+                print(f"Warning: Title video overlay file '{title_video_overlay_full_path}' not found.")
+        
+        # 5. Title Text Overlay (Conditional)
+        temp_title_file: Optional[str] = None
+        if enable_title:
+            # Determine title text start time based on title video overlay
+            if enable_title_video_overlay:
+                title_text_start_time = title_video_overlay_delay + title_appearance_delay
+            else:
+                title_text_start_time = title_appearance_delay
+
+            # Ensure title_font_path is correctly escaped for ffmpeg if it contains spaces or special chars
+            escaped_title_font_path = title_font_path.replace("\\", "/") # Basic normalization
+            
+            # Write title text to a temporary file
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8') as f:
+                f.write(title_text_val)
+                temp_title_file = f.name
+
+            # Base drawtext options
+            drawtext_options = [
+                f"textfile='{temp_title_file}'",
+                f"x=((w-tw)/2+{title_x_offset})",
+                f"y=((h/2)+{title_y_offset})",
+                f"enable='between(t,{title_text_start_time},{title_text_start_time+title_visible_time})'",
+                f"fontfile='{escaped_title_font_path}'",
+                f"fontsize={title_font_size}",
+                f"fontcolor=0x{title_font_color_hex}",
+                f"alpha={title_opacity}",
+                f"shadowcolor=black",
+                f"shadowx=4",
+                f"shadowy=2"
+            ]
+
+            if enable_title_background:
+                # Add background color and opacity
+                drawtext_options.append(f"box=1")
+                drawtext_options.append(f"boxcolor=0x{title_background_color}@{title_background_opacity}")
+                drawtext_options.append(f"boxborderw=30") # Add some padding around the text
+
+            title_drawtext = f"drawtext={':'.join(drawtext_options)}"
+            filter_complex_parts.append(f"[{current_video_stream}]{title_drawtext}[v_with_title]")
+            current_video_stream = "v_with_title"
+        # If title is not enabled, current_video_stream remains unchanged, effectively skipping this overlay.
+
+        # 6. Subtitle Rendering
+        if subtitle_cfg.get('enabled', False) and srt_file_path and os.path.exists(srt_file_path):
+            print(f"Preparing subtitle styling for {srt_file_path}...")
+            
+            # Resolve subtitle font name (using font_utils if available, or simple name)
+            sub_font_name_arg = subtitle_cfg.get('font_name', 'Arial')
+            sub_font_path_local = os.path.join(config.get('fonts_folder','fonts'), sub_font_name_arg) # Check local 'fonts'
+            
+            actual_sub_font_name = sub_font_name_arg # Default to arg
+            if os.path.exists(sub_font_path_local):
+                actual_sub_font_name = get_font_name(sub_font_path_local) # From font_utils
+            # Add more robust system font path resolution here if needed via font_utils
+
+            fc_bgr = subtitle_cfg.get('font_color_hex', 'FFFFFF')[4:6] + subtitle_cfg.get('font_color_hex', 'FFFFFF')[2:4] + subtitle_cfg.get('font_color_hex', 'FFFFFF')[0:2]
+            oc_bgr = subtitle_cfg.get('outline_color_hex', '000000')[4:6] + subtitle_cfg.get('outline_color_hex', '000000')[2:4] + subtitle_cfg.get('outline_color_hex', '000000')[0:2]
+            sc_bgr = subtitle_cfg.get('shadow_color_hex', '000000')[4:6] + subtitle_cfg.get('shadow_color_hex', '000000')[2:4] + subtitle_cfg.get('shadow_color_hex', '000000')[0:2]
+            
+            style_parts = [
+                f"FontName={actual_sub_font_name}",
+                f"FontSize={subtitle_cfg.get('font_size', 24)}",
+                f"PrimaryColour=&H00{fc_bgr}",
+                f"OutlineColour=&H00{oc_bgr}",
+                f"Outline={subtitle_cfg.get('outline_thickness', 1)}",
+                f"Alignment={subtitle_cfg.get('position_ass', 2)}"
+            ]
+            if subtitle_cfg.get('shadow_enabled', True):
+                opacity_val = int((1.0 - subtitle_cfg.get('shadow_opacity', 0.5)) * 255)
+                opacity_hex = format(opacity_val, '02X')
+                style_parts.append(f"BackColour=&H{opacity_hex}{sc_bgr}")
+                style_parts.append("Shadow=1") # Shadow distance, not just on/off
+            else:
+                style_parts.append("Shadow=0")
+            
+            ass_style = ",".join(style_parts)
+            abs_fonts_dir = os.path.abspath(config.get('fonts_folder','fonts'))
+            
+            # Ensure srt_file_path is correctly escaped for ffmpeg filter
+            # Colons in paths (e.g., C:\...) need to be escaped for FFmpeg filters on Windows.
+            # Backslashes should be converted to forward slashes for cross-platform compatibility in FFmpeg paths.
+            ffmpeg_safe_srt_path = srt_file_path.replace("\\", "/")
+            if os.name == 'nt': # On Windows, escape colons in paths
+                ffmpeg_safe_srt_path = ffmpeg_safe_srt_path.replace(":", "\\\\:")
+            else: # On Unix-like, only escape if it's not part of a protocol (unlikely for local files)
+                # For simplicity, let's assume local paths won't have problematic colons needing escape here,
+                # but be mindful if srt_file_path could contain them.
+                # The original code did `replace(":", "\\\\:")` universally.
+                ffmpeg_safe_srt_path = ffmpeg_safe_srt_path.replace(":", "\\\\:")
+
+
+            filter_complex_parts.append(
+                f"[{current_video_stream}]subtitles='{ffmpeg_safe_srt_path}':fontsdir='{abs_fonts_dir}':force_style='{ass_style}'[v_final]"
+            )
+            current_video_stream = "v_final" # Update current_video_stream after applying subtitles
+        else:
+            # If subtitles are not enabled/applied, the stream before this block is effectively the final one for mapping.
+            # However, to ensure the -map directive always uses [v_final], we create a null filter to [v_final].
+            filter_complex_parts.append(f"[{current_video_stream}]null[v_final]") 
+            current_video_stream = "v_final" # Explicitly set current_video_stream to "v_final"
+
+        # --- Execute FFmpeg Command ---
+        final_filter_complex_str = ";".join(filter_complex_parts)
+        
+        ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error']
+        ffmpeg_cmd.extend(ffmpeg_inputs)
+        ffmpeg_cmd.extend([
+            '-filter_complex', final_filter_complex_str,
+            '-map', '[v_final]', # Explicitly map [v_final] as it's always the last video stream label
+            '-map', '[aout]', # From audio_mix
+            '-c:v', 'libx264', '-crf', str(config.get('video_crf', 22)), '-preset', config.get('video_preset', 'medium'),
+            '-c:a', 'aac', '-b:a', config.get('audio_bitrate', '192k'),
+            output_video_path
+        ])
+
+        print(f"Executing final overlay composition: {' '.join(ffmpeg_cmd)}")
+        try:
+            subprocess.run(ffmpeg_cmd, check=True)
+            print(f"Final video saved: {output_video_path}")
+            return output_video_path
+        except subprocess.CalledProcessError as e:
+            print(f"Error during final overlay composition: {e}")
+            print(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
+            return None
+    finally:
+        if temp_title_file and os.path.exists(temp_title_file):
+            os.remove(temp_title_file)
+            print(f"Cleaned up temporary title file: {temp_title_file}")
 
 if __name__ == "__main__":
     print("overlay_compositor.py executed directly (for testing).")

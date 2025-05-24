@@ -15,6 +15,7 @@
    - ✅ Format adaptation for vertical/horizontal output
    - ✅ Gradient effects for smooth edges
    - ✅ Blur effects for background enhancement
+   - ✅ Enhanced `zoompan` effects for images, including pre-scaling for smoother results, dynamic corner-anchored zooming (top-left, top-right, bottom-left, bottom-right, center), and the addition of random zoom-out functionality.
 
 3. **DepthFlow Integration**
    - ✅ 3D parallax effect generation from static images
@@ -26,7 +27,7 @@
    - ✅ Combining processed media into cohesive slideshow
    - ✅ Random transition effects between segments
    - ✅ Configurable slide duration
-   - ✅ Watermark text overlay with customizable font size
+   - ✅ Watermark text overlay with customizable font, size, opacity, and color. Conditional application via GUI checkbox. Watermark speed control made more intuitive with a slider. (Fixed missing arguments in `_apply_watermark_filter` call).
 
 5. **Audio Processing**
    - ✅ Soundtrack integration with fade in/out
@@ -94,7 +95,9 @@
    - ⬜ Progress indicators during processing
    - ⬜ Preview functionality for configuration
    - ⬜ Drag-and-drop file input
-   - ✅ More intuitive parameter organization (Achieved through tab restructuring)
+   - ✅ More intuitive parameter organization (Achieved through tab restructuring, including renaming "Advanced Effects" to "Overlay Effects" and moving watermark settings).
+   - ✅ Improved GUI responsiveness by debouncing subtitle preview updates.
+   - ✅ Subtitle position selection changed from radio buttons to a dropdown for better usability.
 
 ### Refactoring (Major Upcoming Task)
 - ⬜ **Refactor Core Scripts (`cutter.py`, `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, `depth.py`, `audio.py`)**:
@@ -208,14 +211,21 @@ The **primary focus is now shifting to a significant refactoring of the core pro
    - Improved parameter handling between components
    - Enhanced font management system
    - Standardized color conversion across components
+   - Refactored `slideshow_generator.py` by extracting helper functions for video dimension calculation, media input preparation, and watermark application, improving modularity and readability.
 
 4. **GUI Reorganization**
    - ✅ Increased window size to 1400x900 for better layout.
-   - ✅ Restructured GUI tabs into "Main Settings", "Subtitles", and "Advanced Effects".
+   - ✅ Restructured GUI tabs into "Main Settings", "Subtitles", and "Overlay Effects" (renamed from "Advanced Effects").
    - ✅ Relocated settings to more logical tabs for improved user experience:
        - "Generate Subtitles .srt" and "Characters per line (max)" moved to "Subtitles" tab.
-       - "Effect Overlay" and "Chromakey Settings" moved to "Advanced Effects" tab.
-   - ✅ Adjusted internal frame parenting and layout to support the new tab structure.
+       - "Effect Overlay" and "Chromakey Settings" moved to the left column of "Overlay Effects" tab.
+       - Watermark settings section moved from "Main Settings" to the right column of "Overlay Effects" tab.
+   - ✅ Adjusted internal frame parenting and layout to support the new tab structure and two-column layout within "Overlay Effects" tab.
+   - ✅ Implemented new overlay directory structure (`effects/overlays`, `effects/subscribe`, `effects/title`).
+   - ✅ Added dropdowns in GUI for selecting subscribe and title video overlay files from their respective directories.
+   - ✅ Added "Enable" checkbox for Effect Overlay in GUI, with state saving/loading and control enabling/disabling.
+   - ✅ Implemented GUI control disabling (greying out) for Watermark, Subscribe Overlay, and Title Overlay sections based on their respective "Enable" checkboxes, ensuring all relevant widgets are correctly enabled/disabled.
+   - ✅ Ensured all GUI controls for Watermark, Subscribe Overlay, and Title Video Overlay are properly greyed out when their respective "Enable" checkboxes are unchecked.
 
 ## Known Issues
 
@@ -242,6 +252,7 @@ The **primary focus is now shifting to a significant refactoring of the core pro
    - Inconsistent error handling across scripts
    - Limited inline documentation
    - Duplicate code in some processing functions
+   - Assumption that the last file in `media_file_paths` is always the outro video, which could lead to issues if the input list convention changes.
 
 5. **Subtitle System**
    - Limited to single subtitle track
@@ -289,7 +300,7 @@ The **primary focus is now shifting to a significant refactoring of the core pro
 
 ### Subtitle Rendering Improvements
 
-- ✅ Fixed RGB to BGR color conversion for ASS subtitle format
+- ✅ Fixed RGB to BGR color conversion for ASS subtitles
 - ✅ Corrected opacity handling by inverting values for ASS format
 - ✅ Implemented proper alpha compositing for shadow effects
 - ✅ Fixed the drawing order to ensure shadows appear behind text with outlines
@@ -306,6 +317,8 @@ The **primary focus is now shifting to a significant refactoring of the core pro
     - Increased window size to 1400x900.
     - Restructured tabs into "Main Settings", "Subtitles", and "Advanced Effects".
     - Relocated settings to more logical tabs.
+    - Added separate controls for title video chromakey color, similarity, and blend, and moved them to a dedicated section.
+    - Added a checkbox to enable/disable title background with configurable color and opacity.
 
 ### FFmpeg Integration
 

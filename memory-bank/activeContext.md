@@ -56,6 +56,10 @@ Alongside this, ongoing work includes documentation updates and potential furthe
         - "Generate Subtitles .srt" and "Characters per line (max)" moved to "Subtitles" tab.
         - "Effect Overlay" and "Chromakey Settings" moved to "Advanced Effects" tab.
     - Adjusted internal frame parenting to match new tab structure.
+    - Added separate controls for title video chromakey color, similarity, and blend, and moved them to a dedicated section.
+    - Added a checkbox to enable/disable title background with configurable color and opacity.
+    - Implemented new overlay directory structure (`effects/overlays`, `effects/subscribe`, `effects/title`).
+    - Added dropdowns in GUI for selecting subscribe and title video overlay files from their respective directories.
 
 ### FFmpeg Integration
 
@@ -239,9 +243,13 @@ Alongside this, ongoing work includes documentation updates and potential furthe
 ## Recent Insights
 
 1.  **GUI Reorganization Benefits**:
-    - The new tab structure ("Main Settings", "Subtitles", "Advanced Effects") provides a clearer separation of concerns.
-    - Grouping related settings (e.g., all subtitle-specific options under the "Subtitles" tab, and visual effects under "Advanced Effects") improves navigability and reduces clutter in each tab.
-    - This reorganization is expected to make the GUI more intuitive for users.
+- The new tab structure ("Main Settings", "Subtitles", "Advanced Effects") provides a clearer separation of concerns.
+- Grouping related settings (e.g., all subtitle-specific options under the "Subtitles" tab, and visual effects under "Advanced Effects") improves navigability and reduces clutter in each tab.
+- This reorganization is expected to make the GUI more intuitive for users.
+- The addition of dedicated controls for title video chromakey and title background further enhances user control and customization.
+- The new overlay directory structure and GUI dropdowns provide more organized and flexible management of visual effects.
+- Added an "Enable" checkbox for the Effect Overlay, allowing users to easily toggle its application and manage associated settings.
+- Implemented GUI control disabling (greying out) for Watermark, Subscribe Overlay, and Title Overlay sections based on their respective "Enable" checkboxes, ensuring all relevant widgets are correctly enabled/disabled, improving usability and clarity.
 
 2. **Layer Management Importance**
    - Proper layer ordering is critical for subtitle appearance

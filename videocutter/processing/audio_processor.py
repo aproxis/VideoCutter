@@ -6,7 +6,30 @@ import os
 import shutil # For cleaning up temp files
 
 # Assuming video_processor contains get_video_duration or similar
-from .video_processor import get_video_duration 
+from .video_processor import get_video_duration # This is for VIDEO duration
+
+# For audio duration, mutagen is more direct for mp3
+from mutagen.mp3 import MP3
+
+def get_mp3_duration(file_path: str) -> float | None:
+    """Determine the duration of an MP3 file using mutagen."""
+    try:
+        audio = MP3(file_path)
+        return audio.info.length
+    except Exception as e:
+        print(f"Could not determine audio duration for {file_path} using mutagen: {e}")
+        # Fallback to ffprobe format duration if mutagen fails
+        try:
+            cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", file_path]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            if result.returncode == 0 and result.stdout:
+                metadata = json.loads(result.stdout)
+                if metadata.get("format", {}).get("duration"):
+                    return float(metadata["format"]["duration"])
+            print(f"ffprobe fallback for duration of {file_path} also failed.")
+        except Exception as fe:
+            print(f"ffprobe fallback for duration of {file_path} failed: {fe}")
+        return None
 
 def process_audio(
     base_video_path: str, 
@@ -40,13 +63,25 @@ def process_audio(
         str | None: Path to the output video with audio, or None on failure.
     """
     print(f"Processing audio for {base_video_path}...")
+    print(f"Working directory for audio processing: {working_directory}")
     
     audio_cfg = config.get('audio', {})
-    template_folder = config.get('template_folder', 'TEMPLATE')
+    # Resolve template_folder to an absolute path if it's relative
+    # Assuming config.template_folder is relative to project root if not absolute
+    # For robustness, main.py should resolve this and pass an absolute path in cfg.
+    # For now, let's assume it's either absolute or correctly relative.
+    template_folder_path = config.get('template_folder', 'TEMPLATE')
+    if not os.path.isabs(template_folder_path):
+        # This assumes audio_processor.py is in videocutter/processing/
+        # Project root is two levels up from videocutter/processing/
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        template_folder_path = os.path.join(project_root, template_folder_path)
+    
+    print(f"Using template folder for audio: {template_folder_path}")
 
-    soundtrack_path = os.path.join(template_folder, 'soundtrack.mp3')
-    transition_sound_path = os.path.join(template_folder, 'transition_long.mp3')
-    voiceover_end_path = os.path.join(template_folder, 'voiceover_end.mp3')
+    soundtrack_path = os.path.join(template_folder_path, 'soundtrack.mp3')
+    transition_sound_path = os.path.join(template_folder_path, 'transition_long.mp3') # Use template_folder_path
+    voiceover_end_path = os.path.join(template_folder_path, 'voiceover_end.mp3') # Use template_folder_path
     voiceover_path = os.path.join(working_directory, 'voiceover.mp3') # Assumes voiceover.mp3 is in the working dir
 
     # Intermediate file paths
@@ -67,9 +102,17 @@ def process_audio(
 
     try:
         video_duration = get_video_duration(base_video_path)
-        if video_duration is None:
-            print(f"Could not get duration for {base_video_path}. Aborting audio processing.")
+        if video_duration is None or video_duration <= 0: # Added check for <= 0
+            print(f"Could not get valid duration for {base_video_path} (duration: {video_duration}). Aborting audio processing.")
             return None
+        print(f"Base video duration for audio processing: {video_duration:.2f}s")
+
+        # Verify template files exist
+        required_templates = [soundtrack_path, transition_sound_path, voiceover_end_path]
+        for t_path in required_templates:
+            if not os.path.exists(t_path):
+                print(f"Error: Required audio template not found: {t_path}. Aborting audio processing.")
+                return None
 
         # 1. Prepare Soundtrack
         cmd_soundtrack = [
@@ -109,10 +152,15 @@ def process_audio(
             print(f"3. Main voiceover initial delay added: {vo_adj_path}")
 
             # 4. Pad Main Voiceover with silence at the end
-            vo_adj_duration = get_video_duration(vo_adj_path) # Using ffprobe for audio duration
-            if vo_adj_duration is None: raise Exception("Could not get duration for adjusted voiceover.")
-            
-            main_vo_silence_needed = video_duration - vo_adj_duration
+            vo_adj_duration = get_mp3_duration(vo_adj_path) # Use get_mp3_duration for audio file
+            if vo_adj_duration is None: 
+                print(f"Error: Could not get duration for adjusted voiceover {vo_adj_path}. Aborting audio processing for voiceover.")
+                # Fallback: treat as if no voiceover, copy soundtrack_adj to compressed_final_soundtrack
+                shutil.copy(soundtrack_adj_path, compressed_final_soundtrack_path)
+                print("Skipped further voiceover processing due to duration error.")
+                # Jump to step 8 (mix with transitions)
+            else:
+                main_vo_silence_needed = video_duration - vo_adj_duration
             if main_vo_silence_needed < 0: main_vo_silence_needed = 0 # Ensure not negative
 
             cmd_vo_pad = [
@@ -140,7 +188,6 @@ def process_audio(
             print(f"5. Soundtrack compressed with main voiceover: {compressed_main_soundtrack_path}")
 
             # 6. Prepare End Voiceover (add initial silence)
-            # Original logic: silence_end_duration = video_duration - 15. Using outro_duration for flexibility.
             vo_end_silence_needed = video_duration - audio_cfg.get('outro_duration', 14) 
             if vo_end_silence_needed < 0: vo_end_silence_needed = 0
 
@@ -163,8 +210,20 @@ def process_audio(
             ]
             subprocess.run(cmd_sc_end, check=True)
             print(f"7. Soundtrack compressed with end voiceover: {compressed_final_soundtrack_path}")
+        # End of "if os.path.exists(voiceover_path):" else block
         
         # 8. Mix Final Compressed Soundtrack with Transitions
+        # Ensure compressed_final_soundtrack_path exists (it would if voiceover processing was skipped)
+        if not os.path.exists(compressed_final_soundtrack_path):
+            print(f"Error: {compressed_final_soundtrack_path} not found before final mix. This shouldn't happen.")
+            # As a fallback, try to use the adjusted_soundtrack if voiceover processing failed catastrophically
+            if os.path.exists(soundtrack_adj_path):
+                compressed_final_soundtrack_path = soundtrack_adj_path
+                print(f"Fallback: Using {soundtrack_adj_path} for final mix.")
+            else:
+                print("Cannot proceed with final audio mix, essential soundtrack component missing.")
+                return None
+
         vol_main = audio_cfg.get('final_mix_main_volume', 2.0)
         vol_trans = audio_cfg.get('final_mix_transition_volume', 2.0)
         cmd_mix_final = [

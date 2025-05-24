@@ -1,8 +1,8 @@
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, filedialog
 # import subprocess # No longer calling cutter.py directly
 # Instead, import the new pipeline orchestrator
-from videocutter.main import run_pipeline
+from videocutter.main import run_pipeline_for_project, run_batch_pipeline # Updated import
 import os
 import json
 import glob
@@ -17,21 +17,40 @@ default_input_folder = 'INPUT'
 default_template_folder = 'TEMPLATE'
 
 default_title = 'Model Name'
-default_title_font = 'Montserrat-SemiBold.otf'  # Default title font
+default_title_font = 'Montserrat-Semi-Bold.otf'  # Default font
 default_title_font_size = 90
 default_title_fontcolor = 'random'  # Default font color
-default_delay = 21  # Default delay for subscribe overlay
 default_title_appearance_delay = 1  # Default delay before title appears
 default_title_visible_time = 5  # Default time title remains visible
 default_title_x_offset = 110  # Default X offset for title positioning
 default_title_y_offset = -35  # Default Y offset for title positioning
+default_enable_title = True # New default for enabling title
+default_title_opacity = 1.0 # New default for title opacity (1.0 = fully opaque)
+default_enable_title_background = False # New default for enabling title background
+default_title_background_color = '000000' # New default for title background color (black)
+default_title_background_opacity = 0.5 # New default for title background opacity
+
+default_subscribe_delay = 21 # Default delay for subscribe overlay (renamed from default_delay)
+default_enable_subscribe_overlay = True # New default for enabling subscribe overlay
+
+default_title_video_overlay_file = 'None' # New default for title video overlay file
+default_enable_title_video_overlay = False # New default for enabling title video overlay
+default_title_video_overlay_delay = 0 # New default for title video overlay appearance delay
+default_title_video_chromakey_color = '65db41' # New default for title video chromakey color
+default_title_video_chromakey_similarity = 0.18 # New default for title video chromakey similarity
+default_title_video_chromakey_blend = 0 # New default for title video chromakey blend
 
 default_voiceover_delay = 5
 
 default_watermark = 'Today is a\n Plus Day'
 default_watermark_type = 'random'
-default_watermark_speed = 50
+default_watermark_speed = 50 # Old default, will be derived from intuitive speed
 default_watermark_font = 'Nexa Bold.otf'  # Default font
+default_enable_watermark = True # New default for watermark
+default_watermark_font_size = 40 # New default
+default_watermark_opacity = 0.7 # New default
+default_watermark_fontcolor = 'random' # New default
+default_watermark_speed_intuitive = 5 # New default (1-10 scale)
 
 default_chromakey_color = '65db41'
 default_chromakey_similarity = 0.18
@@ -51,16 +70,16 @@ font_colors = ['random', 'FF00B4', 'ff6600', '0b4178', 'FFFFFF', '000000', '00FF
 SUPPORTED_BLEND_MODES = [
     'normal',     # Default, no special blending
     'overlay',    # Combines multiply and screen blend modes
-    'screen',     # Lightens the base color
-    'multiply',   # Darkens the base color
-    'addition',   # Adds pixel values
-    'difference', # Subtracts pixel values
-    'dodge',      # Brightens base color based on blend color
-    'burn',       # Darkens base color based on blend color
-    'softlight',  # Subtle light/dark effect
-    'hardlight',  # Dramatic contrast effect
-    'divide',     # Divides pixel values
-    'subtract',   # Subtracts pixel values
+    # 'screen',     # Lightens the base color
+    # 'multiply',   # Darkens the base color
+    # 'addition',   # Adds pixel values
+    # 'difference', # Subtracts pixel values
+    # 'dodge',      # Brightens base color based on blend color
+    # 'burn',       # Darkens base color based on blend color
+    # 'softlight',  # Subtle light/dark effect
+    # 'hardlight',  # Dramatic contrast effect
+    # 'divide',     # Divides pixel values
+    # 'subtract',   # Subtracts pixel values
 ]
 
 # Get available fonts from the fonts directory
@@ -68,6 +87,94 @@ fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
 available_fonts = [f for f in os.listdir(fonts_dir) if f.endswith('.ttf') or f.endswith('.otf')]
 if not available_fonts:
     available_fonts = ['Nexa Bold.otf']  # Fallback if no fonts found
+
+# Define overlay directories
+overlays_dir = os.path.join(os.path.dirname(__file__), 'effects', 'overlays')
+subscribe_dir = os.path.join(os.path.dirname(__file__), 'effects', 'subscribe')
+title_dir = os.path.join(os.path.dirname(__file__), 'effects', 'title')
+
+# Function to toggle background color and opacity controls based on shadow checkbox
+def toggle_shadow_controls(*args):
+    if var_subtitle_shadow.get():
+        bg_color_entry.config(state=tk.NORMAL)
+        bg_opacity_slider.config(state=tk.NORMAL)
+        bg_opacity_value_entry.config(state=tk.NORMAL)
+    else:
+        bg_color_entry.config(state=tk.DISABLED)
+        bg_opacity_slider.config(state=tk.DISABLED)
+        bg_opacity_value_entry.config(state=tk.DISABLED)
+    schedule_subtitle_preview_update() # Use debounced update
+
+# Function to toggle title controls based on enable_title checkbox
+def toggle_title_controls(*args):
+    state = tk.NORMAL if var_enable_title.get() else tk.DISABLED
+    entry_title.config(state=state)
+    entry_title_font.config(state=state)
+    entry_title_fontcolor.config(state=state)
+    entry_calculated_title_font_size.config(state=state)
+    entry_title_font_size.config(state=state)
+    entry_title_appearance_delay.config(state=state)
+    entry_title_visible_time.config(state=state)
+    entry_title_x_offset.config(state=state)
+    entry_title_y_offset.config(state=state)
+    title_opacity_slider.config(state=state)
+    title_opacity_value_entry.config(state=state)
+    title_background_checkbox.config(state=state)
+    title_background_color_entry.config(state=state)
+    title_background_opacity_slider.config(state=state)
+    title_background_opacity_value_entry.config(state=state)
+    enable_title_video_overlay_checkbox.config(state=state) # New: Enable/disable the checkbox itself
+    entry_title_video_overlay_file.config(state=state)
+    entry_title_video_overlay_delay.config(state=state)
+    entry_title_video_chromakey_color.config(state=state)
+    entry_title_video_chromakey_similarity.config(state=state)
+    entry_title_video_chromakey_blend.config(state=state)
+
+    # For ttk.Combobox, 'state' is the correct attribute. For tk.Entry, 'state'.
+    # For tk.Text, 'state' is also correct.
+    # For OptionMenu, it's a bit trickier, need to configure the menu button.
+    entry_title_font['state'] = state
+    entry_title_fontcolor['state'] = state
+    entry_title_video_overlay_file['state'] = state # New
+
+# Function to toggle subscribe overlay controls based on enable_subscribe_overlay checkbox
+def toggle_subscribe_overlay_controls(*args):
+    state = tk.NORMAL if var_enable_subscribe_overlay.get() else tk.DISABLED
+    enable_subscribe_overlay_checkbox.config(state=state) # Ensure the checkbox itself is enabled/disabled
+    entry_subscribe_overlay_file.config(state=state)
+    entry_subscribe_delay.config(state=state)
+    entry_chromakey_color.config(state=state)
+    entry_chromakey_similarity.config(state=state)
+    entry_chromakey_blend.config(state=state)
+    entry_subscribe_overlay_file['state'] = state # Combobox
+
+# Function to toggle watermark controls based on enable_watermark checkbox
+def toggle_watermark_controls(*args):
+    state = tk.NORMAL if var_enable_watermark.get() else tk.DISABLED
+    text_watermark.config(state=state) # tk.Text
+    entry_font.config(state=state) # tk.OptionMenu
+    entry_watermark_font_size.config(state=state) # tk.Entry
+    watermark_opacity_slider.config(state=state) # ttk.Scale
+    entry_watermark_fontcolor.config(state=state) # tk.OptionMenu
+    entry_watermark_type.config(state=state) # tk.OptionMenu
+    watermark_speed_slider.config(state=state) # ttk.Scale
+
+    # Explicitly set state for OptionMenu widgets
+    entry_font['state'] = state
+    entry_watermark_fontcolor['state'] = state
+    entry_watermark_type['state'] = state
+    text_watermark.config(state=state) # New: Ensure text widget is also updated
+    entry_watermark_font_size.config(state=state) # New: Ensure entry widget is also updated
+    watermark_opacity_slider.config(state=state) # New: Ensure scale widget is also updated
+    watermark_speed_slider.config(state=state) # New: Ensure scale widget is also updated
+
+# Function to toggle effect overlay controls based on enable_effect_overlay checkbox
+def toggle_effect_overlay_controls(*args):
+    state = tk.NORMAL if var_enable_effect_overlay.get() else tk.DISABLED
+    effect_dropdown.config(state=state)
+    blend_dropdown.config(state=state)
+    effect_opacity_slider.config(state=state)
+    effect_opacity_value.config(state=state)
 
 # Create the main window
 root = tk.Tk()
@@ -81,12 +188,46 @@ var_watermark_type = tk.StringVar(root)
 var_watermark_type.set(default_watermark_type)  # Set default value
 var_watermark_font = tk.StringVar(root)
 var_watermark_font.set(default_watermark_font)  # Set default font
+var_enable_watermark = tk.BooleanVar() # New BooleanVar for watermark
+var_enable_watermark.set(default_enable_watermark) # Set default value
+var_watermark_font_size = tk.IntVar(root, value=default_watermark_font_size) # New IntVar
+var_watermark_opacity = tk.DoubleVar(root, value=default_watermark_opacity) # New DoubleVar
+var_watermark_fontcolor = tk.StringVar(root, value=default_watermark_fontcolor) # New StringVar
+var_watermark_speed_intuitive = tk.IntVar(root, value=default_watermark_speed_intuitive) # New IntVar
 var_title_fontcolor = tk.StringVar(root)
 var_title_fontcolor.set(default_title_fontcolor)  # Set default font color
 var_title_font = tk.StringVar(root)
 var_title_font.set(default_title_font)  # Set default title font
+var_enable_title = tk.BooleanVar() # New BooleanVar for enabling title
+var_enable_title.set(default_enable_title) # Set default value
+var_title_opacity = tk.DoubleVar(root, value=default_title_opacity) # New DoubleVar for title opacity
+var_enable_title_background = tk.BooleanVar() # New BooleanVar for enabling title background
+var_enable_title_background.set(default_enable_title_background) # Set default value
+var_title_background_color = tk.StringVar(root, value=default_title_background_color) # New StringVar for title background color
+var_title_background_opacity = tk.DoubleVar(root, value=default_title_background_opacity) # New DoubleVar for title background opacity
 
-# Create StringVar for chromakey color
+# New variables for subscribe overlay
+var_enable_subscribe_overlay = tk.BooleanVar()
+var_enable_subscribe_overlay.set(default_enable_subscribe_overlay)
+var_subscribe_delay = tk.IntVar(root, value=default_subscribe_delay) # Renamed from var_delay
+
+# New variables for title video overlay
+var_enable_title_video_overlay = tk.BooleanVar()
+var_enable_title_video_overlay.set(default_enable_title_video_overlay)
+var_title_video_overlay_file = tk.StringVar(root, value=default_title_video_overlay_file)
+var_title_video_overlay_delay = tk.IntVar(root, value=default_title_video_overlay_delay)
+var_title_video_chromakey_color = tk.StringVar(root, value=default_title_video_chromakey_color)
+var_title_video_chromakey_similarity = tk.DoubleVar(root, value=default_title_video_chromakey_similarity)
+var_title_video_chromakey_blend = tk.DoubleVar(root, value=default_title_video_chromakey_blend)
+
+# New variable for subscribe overlay file
+var_subscribe_overlay_file = tk.StringVar(root, value="None")
+
+# New variable for enabling effect overlay
+var_enable_effect_overlay = tk.BooleanVar(root, value=True)
+
+
+# Create StringVar for chromakey color (this is now for subscribe overlay)
 var_chromakey_color = tk.StringVar(root)
 var_chromakey_color.set(default_chromakey_color)  # Set default chromakey color
 
@@ -98,12 +239,45 @@ var_generate_srt.set(default_generate_srt)  # Default to not generating .srt
 config_folder = os.path.join(os.path.dirname(__file__), 'config')
 config_files = [file for file in os.listdir(config_folder) if file.endswith(".json")]
 
+# Variable for batch input folder
+var_batch_input_folder = tk.StringVar(root)
+
+def browse_batch_folder():
+    folder_selected = filedialog.askdirectory()
+    if folder_selected:
+        var_batch_input_folder.set(folder_selected)
+        entry_input_folder.config(state=tk.DISABLED) # Disable single input if batch is chosen
+        entry_input_folder.delete(0, tk.END)
+        entry_input_folder.insert(0, "BATCH MODE ACTIVE")
+    else: # User cancelled or selected nothing
+        if not var_batch_input_folder.get(): # If it was already empty
+            entry_input_folder.config(state=tk.NORMAL)
+            entry_input_folder.delete(0, tk.END)
+            entry_input_folder.insert(0, default_input_folder)
+
+
+def clear_batch_folder():
+    var_batch_input_folder.set("")
+    entry_input_folder.config(state=tk.NORMAL)
+    entry_input_folder.delete(0, tk.END)
+    entry_input_folder.insert(0, default_input_folder)
+
+
 def start_process():
     # Get values from the entry fields
     title = entry_title.get()
-    watermark = text_watermark.get("1.0", tk.END).strip()
+    watermark = text_watermark.get("1.0", tk.END).rstrip('\n') # Removed .strip(), use rstrip to remove only trailing newline
     watermark_type = var_watermark_type.get()
-    watermark_speed = entry_watermark_speed.get()
+    enable_watermark = var_enable_watermark.get() # Get new watermark enable status
+    watermark_font_size = var_watermark_font_size.get() # Get new watermark font size
+    watermark_opacity = var_watermark_opacity.get() # Get new watermark opacity
+    watermark_fontcolor = var_watermark_fontcolor.get() # Get new watermark font color
+    watermark_speed_intuitive = var_watermark_speed_intuitive.get() # Get new intuitive speed
+
+    # Convert intuitive speed (1-10) to FFmpeg frames (e.g., 100 to 19)
+    # 1 (slowest) -> 100 frames, 10 (fastest) -> 19 frames
+    watermark_speed = int(100 - (watermark_speed_intuitive - 1) * 9)
+
     manual_font_size = entry_title_font_size.get()
     segment_duration = entry_segment_duration.get()
     input_folder = entry_input_folder.get()
@@ -113,8 +287,13 @@ def start_process():
     video_orientation = var_video_orientation.get()
     blur_checkbox = var_add_blur.get()
     
-    # Get subscribe.py parameters
-    delay = entry_delay.get()
+    # Get subscribe overlay parameters
+    subscribe_delay = var_subscribe_delay.get()
+    enable_subscribe_overlay = var_enable_subscribe_overlay.get()
+    chromakey_color = var_chromakey_color.get()
+    chromakey_similarity = entry_chromakey_similarity.get()
+    chromakey_blend = entry_chromakey_blend.get()
+
     title_fontcolor = var_title_fontcolor.get()
     title_font = var_title_font.get()
     voiceover_delay = entry_voiceover_delay.get()
@@ -123,15 +302,26 @@ def start_process():
     title_x_offset = entry_title_x_offset.get()
     title_y_offset = entry_title_y_offset.get()
     
-    # Get chromakey parameters
-    chromakey_color = var_chromakey_color.get()
-    chromakey_similarity = entry_chromakey_similarity.get()
-    chromakey_blend = entry_chromakey_blend.get()
+    # Get new title parameters
+    enable_title = var_enable_title.get()
+    title_opacity = var_title_opacity.get()
+    enable_title_background = var_enable_title_background.get() # New
+    title_background_color = var_title_background_color.get() # New
+    title_background_opacity = var_title_background_opacity.get() # New
+
+    # Get title video overlay parameters
+    enable_title_video_overlay = var_enable_title_video_overlay.get()
+    title_video_overlay_file = var_title_video_overlay_file.get()
+    title_video_overlay_delay = var_title_video_overlay_delay.get()
+    title_video_chromakey_color = var_title_video_chromakey_color.get()
+    title_video_chromakey_similarity = var_title_video_chromakey_similarity.get()
+    title_video_chromakey_blend = var_title_video_chromakey_blend.get()
     
     # Get effect overlay parameters
     effect_overlay = var_effect_overlay.get()
     effect_opacity = var_effect_opacity.get()
     effect_blend = var_effect_blend.get()
+    enable_effect_overlay = var_enable_effect_overlay.get() # New
     
     # Get .srt generation parameter
     generate_srt = var_generate_srt.get()
@@ -158,6 +348,7 @@ def start_process():
         blur = '0'
     
     # Replace newlines with the appropriate escaped character
+    # The .rstrip('\n') above handles the trailing newline from tk.Text
     watermark = watermark.replace('\n', '\\n')
 
     # Determine font size to use
@@ -184,7 +375,7 @@ def start_process():
         '--tf', title_font,
         '--tad', str(title_appearance_delay),
         '--tvt', str(title_visible_time),
-        '--osd', str(delay),
+        '--osd', str(subscribe_delay), # Use subscribe_delay
         '--vd', str(voiceover_delay),
         '--txo', str(title_x_offset),
         '--tyo', str(title_y_offset),
@@ -242,7 +433,12 @@ def start_process():
         'title': title, # Also used for title_overlay.text by config_manager
         'watermark': watermark.replace('\\n', '\n'), # config_manager will handle internal newlines if needed
         'watermark_type': watermark_type,
-        'watermark_speed': watermark_speed, # config_manager will convert to int
+        'watermark_speed': watermark_speed, # Converted to FFmpeg frames
+        'enable_watermark': enable_watermark, # Add new watermark enable status
+        'watermark_font_size': watermark_font_size, # Add new watermark font size
+        'watermark_opacity': watermark_opacity, # Add new watermark opacity
+        'watermark_fontcolor': watermark_fontcolor, # Add new watermark font color
+        'watermark_speed_intuitive': watermark_speed_intuitive, # Add new intuitive speed
         'title_font_size': str(title_font_size), # Pass as string, config_manager converts
         'segment_duration': segment_duration, # config_manager will convert to int
         'input_folder': input_folder,
@@ -254,26 +450,41 @@ def start_process():
         'watermark_font': watermark_font, # Filename, resolver in config_manager or font_utils
         
         # Title Overlay specific (some overlap with general title, config_manager can reconcile)
-        'overlay_start_delay': delay, # Used for both title and subscribe overlay start
         'title_fontcolor': title_fontcolor,
         'title_font': title_font, # Filename
         'title_appearance_delay': title_appearance_delay,
         'title_visible_time': title_visible_time,
         'title_x_offset': title_x_offset,
         'title_y_offset': title_y_offset,
+        'enable_title': enable_title, # Add new title enable status
+        'title_opacity': title_opacity, # Add new title opacity
+        'enable_title_background': enable_title_background, # New
+        'title_background_color': title_background_color, # New
+        'title_background_opacity': title_background_opacity, # New
 
-        # Audio specific
-        'vo_delay': voiceover_delay, # For audio_processor
-
-        # Chromakey (for subscribe_overlay)
+        # Subscribe Overlay specific
+        'enable_subscribe_overlay': enable_subscribe_overlay,
+        'subscribe_delay': subscribe_delay,
         'chromakey_color': chromakey_color,
         'chromakey_similarity': chromakey_similarity,
         'chromakey_blend': chromakey_blend,
+
+        # Title Video Overlay specific
+        'enable_title_video_overlay': enable_title_video_overlay,
+        'title_video_overlay_file': title_video_overlay_file,
+        'title_video_overlay_delay': title_video_overlay_delay,
+        'title_video_chromakey_color': title_video_chromakey_color,
+        'title_video_chromakey_similarity': title_video_chromakey_similarity,
+        'title_video_chromakey_blend': title_video_chromakey_blend,
+
+        # Audio specific
+        'vo_delay': voiceover_delay, # For audio_processor
 
         # Effects Overlay
         'effect_overlay': effect_overlay if effect_overlay != "None" else None,
         'effect_opacity': effect_opacity,
         'effect_blend': effect_blend,
+        'enable_effect_overlay': enable_effect_overlay, # New
 
         # Subtitles
         'generate_srt': generate_srt, # Boolean for enabling subtitles end-to-end
@@ -306,7 +517,41 @@ def start_process():
         # This will run in the same process, so GUI might freeze.
         # For a non-freezing GUI, this should be run in a separate thread.
         # TODO: Implement threading for run_pipeline to keep GUI responsive.
-        run_pipeline(config_path=config_file_path, gui_settings=gui_settings)
+        
+        batch_folder_path = var_batch_input_folder.get()
+        if batch_folder_path and os.path.isdir(batch_folder_path):
+            print(f"Starting BATCH processing for folder: {batch_folder_path}")
+            # In batch mode, gui_settings act as global overrides.
+            # config_file_path is the global config. Project-specific configs are handled by main.py.
+            run_batch_pipeline(
+                batch_root_folder=batch_folder_path,
+                global_config_path=config_file_path, # This is the selected JSON from GUI
+                gui_settings=gui_settings # These are overrides from GUI fields
+            )
+        elif input_folder and input_folder != "BATCH MODE ACTIVE":
+             print(f"Starting SINGLE project processing for folder: {input_folder}")
+             # For a single run, the input_folder from GUI is the project itself.
+             # The config_manager will use input_folder to look for _project_config.json if we want that,
+             # or we can assume for single run, the selected JSON is the primary one.
+             
+             # The run_pipeline_for_project expects a fully resolved cfg.
+             # So, load_config needs to be called first.
+             cfg_single_project = videocutter.config_manager.load_config(
+                 global_config_path=config_file_path, # Selected JSON from GUI
+                 project_folder_path=input_folder, # The single input folder can also have a _project_config.json
+                 runtime_settings=gui_settings
+             )
+             if cfg_single_project.title == 'Default Model Name' or cfg_single_project.title == '':
+                 cfg_single_project.title = os.path.basename(input_folder) if os.path.basename(input_folder) else "SingleProject"
+
+             run_pipeline_for_project(
+                 project_name=cfg_single_project.title, # Use resolved title or folder name
+                 project_input_folder=input_folder, # This is the direct input folder
+                 cfg=cfg_single_project
+             )
+        else:
+            messagebox.showerror("Error", "Please specify a valid Input Folder or Batch Input Folder.")
+            return
         
         messagebox.showinfo("Success", "Video processing pipeline finished!")
     except Exception as e:
@@ -330,6 +575,14 @@ def update_font_size(event):
     entry_calculated_title_font_size.insert(0, calculated_title_font_size)
     entry_calculated_title_font_size.config(state=tk.DISABLED)
 
+# Debounce mechanism for preview updates
+_after_id = None
+def schedule_subtitle_preview_update():
+    global _after_id
+    if _after_id:
+        root.after_cancel(_after_id)
+    _after_id = root.after(200, update_subtitle_preview) # 200ms delay
+
 def create_default_config():
     default_config = {
         'title': default_title,
@@ -345,7 +598,12 @@ def create_default_config():
         'video_orientation': 'vertical',
         'blur': 0,
         'watermark_font': default_watermark_font,
-        'delay': default_delay,
+        'enable_watermark': default_enable_watermark, # Add to default config
+        'watermark_font_size': default_watermark_font_size, # Add to default config
+        'watermark_opacity': default_watermark_opacity, # Add to default config
+        'watermark_fontcolor': default_watermark_fontcolor, # Add to default config
+        'watermark_speed_intuitive': default_watermark_speed_intuitive, # Add to default config
+        'subscribe_delay': default_subscribe_delay, # Renamed from delay
         'title_fontcolor': default_title_fontcolor,
         'title_font': default_title_font,
         'voiceover_delay': default_voiceover_delay,
@@ -353,6 +611,18 @@ def create_default_config():
         'title_visible_time': default_title_visible_time,
         'title_x_offset': default_title_x_offset,
         'title_y_offset': default_title_y_offset,
+        'enable_title': default_enable_title, # Add to default config
+        'title_opacity': default_title_opacity, # Add to default config
+        'enable_title_background': default_enable_title_background, # New
+        'title_background_color': default_title_background_color, # New
+        'title_background_opacity': default_title_background_opacity, # New
+        'enable_subscribe_overlay': default_enable_subscribe_overlay, # New
+        'title_video_overlay_file': default_title_video_overlay_file, # New
+        'enable_title_video_overlay': default_enable_title_video_overlay, # New
+        'title_video_overlay_delay': default_title_video_overlay_delay, # New
+        'title_video_chromakey_color': default_title_video_chromakey_color, # New
+        'title_video_chromakey_similarity': default_title_video_chromakey_similarity, # New
+        'title_video_chromakey_blend': default_title_video_chromakey_blend, # New
         'chromakey_color': default_chromakey_color,
         'chromakey_similarity': default_chromakey_similarity,
         'chromakey_blend': default_chromakey_blend,
@@ -418,19 +688,28 @@ def load_config():
     var_video_orientation.set(config['video_orientation'])
     var_add_blur.set(config['blur'])
     var_watermark_type.set(config.get('watermark_type', default_watermark_type))
-    entry_watermark_speed.delete(0, tk.END)
-    entry_watermark_speed.insert(0, config.get('watermark_speed', default_watermark_speed))
+    # entry_watermark_speed.delete(0, tk.END) # Old entry, no longer needed
+    # entry_watermark_speed.insert(0, config.get('watermark_speed', default_watermark_speed)) # Old entry
+    var_enable_watermark.set(config.get('enable_watermark', default_enable_watermark)) # Load new setting
+    var_watermark_font_size.set(config.get('watermark_font_size', default_watermark_font_size)) # Load new setting
+    var_watermark_opacity.set(config.get('watermark_opacity', default_watermark_opacity)) # Load new setting
+    var_watermark_fontcolor.set(config.get('watermark_fontcolor', default_watermark_fontcolor)) # Load new setting
+    var_watermark_speed_intuitive.set(config.get('watermark_speed_intuitive', default_watermark_speed_intuitive)) # Load new setting
     
-    # Set font if it exists in config, otherwise use default
-    if 'font' in config and config['font'] in available_fonts:
-        var_watermark_font.set(config['font'])
-    else:
-        # If the configured font is not available, use the first available font
-        var_watermark_font.set(available_fonts[0] if available_fonts else default_watermark_font)
+    # Set watermark font if it exists in config, otherwise use default
+    loaded_watermark_font = config.get('watermark_font', default_watermark_font)
+    if loaded_watermark_font in available_fonts:
+        var_watermark_font.set(loaded_watermark_font)
+    elif available_fonts: # If configured font not found, use first available
+        var_watermark_font.set(available_fonts[0])
+        print(f"Warning: Watermark font '{loaded_watermark_font}' not found. Defaulting to '{available_fonts[0]}'.")
+    else: # No fonts available at all
+        var_watermark_font.set(default_watermark_font) # Fallback to a hardcoded default name
+        print(f"Warning: No fonts available in fonts directory. Watermark font set to '{default_watermark_font}'.")
     
     # Load subscribe.py parameters
-    entry_delay.delete(0, tk.END)
-    entry_delay.insert(0, config.get('delay', default_delay))
+    # entry_delay.delete(0, tk.END)
+    # entry_delay.insert(0, config.get('delay', default_delay))
     
     # Load voiceover delay
     entry_voiceover_delay.delete(0, tk.END)
@@ -443,7 +722,27 @@ def load_config():
     entry_title_y_offset.delete(0, tk.END)
     entry_title_y_offset.insert(0, config.get('title_y_offset', default_title_y_offset))
     
-    # Load chromakey parameters
+    # Load new title parameters
+    var_enable_title.set(config.get('enable_title', default_enable_title))
+    var_title_opacity.set(config.get('title_opacity', default_title_opacity))
+    var_enable_title_background.set(config.get('enable_title_background', default_enable_title_background)) # New
+    var_title_background_color.set(config.get('title_background_color', default_title_background_color)) # New
+    var_title_background_opacity.set(config.get('title_background_opacity', default_title_background_opacity)) # New
+    
+    # Load new subscribe overlay parameters
+    var_enable_subscribe_overlay.set(config.get('enable_subscribe_overlay', default_enable_subscribe_overlay))
+    var_subscribe_delay.set(config.get('subscribe_delay', default_subscribe_delay))
+    var_subscribe_overlay_file.set(config.get('subscribe_overlay_file', "None")) # Load subscribe overlay file
+
+    # Load new title video overlay parameters
+    var_enable_title_video_overlay.set(config.get('enable_title_video_overlay', default_enable_title_video_overlay))
+    var_title_video_overlay_file.set(config.get('title_video_overlay_file', default_title_video_overlay_file))
+    var_title_video_overlay_delay.set(config.get('title_video_overlay_delay', default_title_video_overlay_delay))
+    var_title_video_chromakey_color.set(config.get('title_video_chromakey_color', default_title_video_chromakey_color))
+    var_title_video_chromakey_similarity.set(config.get('title_video_chromakey_similarity', default_title_video_chromakey_similarity))
+    var_title_video_chromakey_blend = tk.DoubleVar(root, value=default_title_video_chromakey_blend)
+
+    # Load chromakey parameters (now for subscribe overlay)
     var_chromakey_color.set(config.get('chromakey_color', default_chromakey_color))
     
     entry_chromakey_similarity.delete(0, tk.END)
@@ -456,6 +755,7 @@ def load_config():
     var_effect_overlay.set(config.get('effect_overlay', 'None'))
     var_effect_opacity.set(config.get('effect_opacity', 0.2))
     var_effect_blend.set(config.get('effect_blend', 'overlay'))
+    var_enable_effect_overlay.set(config.get('enable_effect_overlay', True)) # New
     update_effect_opacity_value()
     
     # Load .srt generation setting
@@ -481,11 +781,9 @@ def load_config():
     update_slider_value(var_subtitle_bgopacity, bg_opacity_value_entry)
     update_slider_value(var_subtitle_outline, outline_value_entry)
     
-    # Update shadow controls state
-    toggle_shadow_controls()
     
     # Update subtitle preview
-    update_subtitle_preview()
+    schedule_subtitle_preview_update() # Use debounced update
     
     # Load title appearance parameters
     entry_title_appearance_delay.delete(0, tk.END)
@@ -523,15 +821,21 @@ def load_config():
     entry_calculated_title_font_size.delete(0, tk.END)
     entry_calculated_title_font_size.insert(0, calculated_title_font_size)
     entry_calculated_title_font_size.config(state=tk.DISABLED)
+    
 
 def save_config():
     config_file = os.path.join(config_folder, var_config.get())
     with open(config_file, 'w') as f:
         json.dump({
             'title': entry_title.get(),
-            'watermark': text_watermark.get("1.0", tk.END).strip(),
+            'watermark': text_watermark.get("1.0", tk.END).rstrip('\n'), # Removed .strip(), use rstrip
             'watermark_type': var_watermark_type.get(),
-            'watermark_speed': entry_watermark_speed.get(),
+            # 'watermark_speed': entry_watermark_speed.get(), # Old entry, no longer needed
+            'enable_watermark': var_enable_watermark.get(), # Save new setting
+            'watermark_font_size': var_watermark_font_size.get(), # Save new setting
+            'watermark_opacity': var_watermark_opacity.get(), # Save new setting
+            'watermark_fontcolor': var_watermark_fontcolor.get(), # Save new setting
+            'watermark_speed_intuitive': var_watermark_speed_intuitive.get(), # Save new setting
             'title_font_size': entry_title_font_size.get(),
             'segment_duration': entry_segment_duration.get(),
             'input_folder': entry_input_folder.get(),
@@ -541,7 +845,7 @@ def save_config():
             'video_orientation': var_video_orientation.get(),
             'blur': var_add_blur.get(),
             'watermark_font': var_watermark_font.get(),
-            'delay': entry_delay.get(),
+            'subscribe_delay': var_subscribe_delay.get(), # Renamed from delay
             'title_fontcolor': var_title_fontcolor.get(),
             'title_font': var_title_font.get(),
             'voiceover_delay': entry_voiceover_delay.get(),
@@ -549,6 +853,19 @@ def save_config():
             'title_visible_time': entry_title_visible_time.get(),
             'title_x_offset': entry_title_x_offset.get(),
             'title_y_offset': entry_title_y_offset.get(),
+            'enable_title': var_enable_title.get(), # Save new setting
+            'title_opacity': var_title_opacity.get(), # Save new setting
+            'enable_title_background': var_enable_title_background.get(), # New
+            'title_background_color': var_title_background_color.get(), # New
+            'title_background_opacity': var_title_background_opacity.get(), # New
+            'enable_subscribe_overlay': var_enable_subscribe_overlay.get(), # New
+            'subscribe_overlay_file': var_subscribe_overlay_file.get(), # New: Save subscribe overlay file
+            'title_video_overlay_file': var_title_video_overlay_file.get(), # New
+            'enable_title_video_overlay': var_enable_title_video_overlay.get(), # New
+            'title_video_overlay_delay': var_title_video_overlay_delay.get(), # New
+            'title_video_chromakey_color': var_title_video_chromakey_color.get(), # New
+            'title_video_chromakey_similarity': var_title_video_chromakey_similarity.get(), # New
+            'title_video_chromakey_blend': var_title_video_chromakey_blend.get(), # New
             'chromakey_color': var_chromakey_color.get(),
             'chromakey_similarity': entry_chromakey_similarity.get(),
             'chromakey_blend': entry_chromakey_blend.get(),
@@ -567,7 +884,8 @@ def save_config():
             # Effect overlay parameters
             'effect_overlay': var_effect_overlay.get(),
             'effect_opacity': var_effect_opacity.get(),
-            'effect_blend': var_effect_blend.get()
+            'effect_blend': var_effect_blend.get(),
+            'enable_effect_overlay': var_enable_effect_overlay.get() # New
         }, f)
     messagebox.showinfo("Success", "Config saved successfully!")
 
@@ -582,9 +900,13 @@ def save_new_config():
     with open(config_file, 'w') as f:
         json.dump({
             'title': entry_title.get(),
-            'watermark': text_watermark.get("1.0", tk.END).strip(),
+            'watermark': text_watermark.get("1.0", tk.END).rstrip('\n'), # Removed .strip(), use rstrip
             'watermark_type': var_watermark_type.get(),
-            'watermark_speed': entry_watermark_speed.get(),
+            # 'watermark_speed': entry_watermark_speed.get(), # Old entry, no longer needed
+            'watermark_font_size': var_watermark_font_size.get(), # Save new setting
+            'watermark_opacity': var_watermark_opacity.get(), # Save new setting
+            'watermark_fontcolor': var_watermark_fontcolor.get(), # Save new setting
+            'watermark_speed_intuitive': var_watermark_speed_intuitive.get(), # Save new setting
             'title_font_size': entry_title_font_size.get(),
             'segment_duration': entry_segment_duration.get(),
             'input_folder': entry_input_folder.get(),
@@ -594,7 +916,7 @@ def save_new_config():
             'video_orientation': var_video_orientation.get(),
             'blur': var_add_blur.get(),
             'watermark_font': var_watermark_font.get(),
-            'delay': entry_delay.get(),
+            'subscribe_delay': var_subscribe_delay.get(), # Renamed from delay
             'title_fontcolor': var_title_fontcolor.get(),
             'title_font': var_title_font.get(),
             'voiceover_delay': entry_voiceover_delay.get(),
@@ -602,6 +924,19 @@ def save_new_config():
             'title_visible_time': entry_title_visible_time.get(),
             'title_x_offset': entry_title_x_offset.get(),
             'title_y_offset': entry_title_y_offset.get(),
+            'enable_title': var_enable_title.get(), # Save new setting
+            'title_opacity': var_title_opacity.get(), # Save new setting
+            'enable_title_background': var_enable_title_background.get(), # New
+            'title_background_color': var_title_background_color.get(), # New
+            'title_background_opacity': var_title_background_opacity.get(), # New
+            'enable_subscribe_overlay': var_enable_subscribe_overlay.get(), # New
+            'subscribe_overlay_file': var_subscribe_overlay_file.get(), # New: Save subscribe overlay file
+            'title_video_overlay_file': var_title_video_overlay_file.get(), # New
+            'enable_title_video_overlay': var_enable_title_video_overlay.get(), # New
+            'title_video_overlay_delay': var_title_video_overlay_delay.get(), # New
+            'title_video_chromakey_color': var_title_video_chromakey_color.get(), # New
+            'title_video_chromakey_similarity': var_title_video_chromakey_similarity.get(), # New
+            'title_video_chromakey_blend': var_title_video_chromakey_blend.get(), # New
             'chromakey_color': var_chromakey_color.get(),
             'chromakey_similarity': entry_chromakey_similarity.get(),
             'chromakey_blend': entry_chromakey_blend.get(),
@@ -620,7 +955,8 @@ def save_new_config():
             # Effect overlay parameters
             'effect_overlay': var_effect_overlay.get(),
             'effect_opacity': var_effect_opacity.get(),
-            'effect_blend': var_effect_blend.get()
+            'effect_blend': var_effect_blend.get(),
+            'enable_effect_overlay': var_enable_effect_overlay.get() # New
         }, f)
     messagebox.showinfo("Success", "New config saved successfully!")
     
@@ -646,64 +982,63 @@ def delete_config():
         load_config()
 
 # Create a frame for the config section
-config_frame = tk.Frame(root)
-config_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+top_controls_frame = tk.Frame(root)
+top_controls_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
 
-tk.Label(config_frame, text="Config:").grid(row=0, column=0, padx=10, pady=5)
-config_menu = tk.OptionMenu(config_frame, var_config, *config_files)
-config_menu.config(width=15)
-config_menu.grid(row=0, column=1, padx=10, pady=5)
+config_frame = tk.LabelFrame(top_controls_frame, text="Configuration Management")
+config_frame.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.X, expand=True)
 
-# Now that config_menu is defined, we can update it
-update_config_menu()
 
-# Save New Config elements
-tk.Label(config_frame, text="Save as:").grid(row=0, column=2, padx=10, pady=5)
-entry_new_filename = tk.Entry(config_frame, width=15)
-entry_new_filename.grid(row=0, column=3, padx=10, pady=5)
+tk.Label(config_frame, text="Config File:").grid(row=0, column=0, padx=5, pady=2, sticky="w")
+config_menu = tk.OptionMenu(config_frame, var_config, *config_files, command=lambda _: load_config())
+config_menu.config(width=20)
+config_menu.grid(row=0, column=1, padx=5, pady=2, sticky="ew")
 
-save_new_button = tk.Button(
-    config_frame,
-    text="Save New Config",
-    command=save_new_config,
-    fg="blue",
-    highlightbackground="blue"
-)
-save_new_button.grid(row=0, column=4, pady=5, padx=5)
+update_config_menu() # Populate menu
 
-save_button = tk.Button(
-    config_frame,
-    text="Save",
-    command=save_config,
-    fg="green",
-    highlightbackground="green"
-)
-save_button.grid(row=0, column=5, pady=5, padx=5)
+tk.Label(config_frame, text="Save as New:").grid(row=1, column=0, padx=5, pady=2, sticky="w")
+entry_new_filename = tk.Entry(config_frame, width=22)
+entry_new_filename.grid(row=1, column=1, padx=5, pady=2, sticky="ew")
 
-delete_button = tk.Button(
-    config_frame,
-    text="Delete",
-    command=delete_config,
-    fg="red",
-    highlightbackground="red"
-)
-delete_button.grid(row=0, column=6, pady=5, padx=5)
+buttons_subframe_config = tk.Frame(config_frame)
+buttons_subframe_config.grid(row=0, column=2, rowspan=2, padx=5, pady=2, sticky="ns")
+
+save_new_button = tk.Button(buttons_subframe_config, text="Save New", command=save_new_config, fg="blue")
+save_new_button.pack(fill=tk.X, pady=1)
+save_button = tk.Button(buttons_subframe_config, text="Save Current", command=save_config, fg="green")
+save_button.pack(fill=tk.X, pady=1)
+delete_button = tk.Button(buttons_subframe_config, text="Delete Current", command=delete_config, fg="red")
+delete_button.pack(fill=tk.X, pady=1)
+
+
+# Batch processing frame
+batch_frame = tk.LabelFrame(top_controls_frame, text="Batch Processing")
+batch_frame.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.X, expand=True)
+
+tk.Label(batch_frame, text="Batch Input Folder:").grid(row=0, column=0, padx=5, pady=2, sticky="w")
+entry_batch_folder = tk.Entry(batch_frame, textvariable=var_batch_input_folder, width=30)
+entry_batch_folder.grid(row=0, column=1, padx=5, pady=2, sticky="ew")
+browse_batch_button = tk.Button(batch_frame, text="Browse", command=browse_batch_folder)
+browse_batch_button.grid(row=0, column=2, padx=5, pady=2)
+clear_batch_button = tk.Button(batch_frame, text="Clear Batch", command=clear_batch_folder)
+clear_batch_button.grid(row=1, column=2, padx=5, pady=2)
+
 
 # Create a notebook for tabbed interface
 notebook = ttk.Notebook(root)
-notebook.grid(row=1, column=0, sticky="nsew")
+notebook.grid(row=1, column=0, columnspan=2, sticky="nsew") # columnspan was 2
 root.grid_rowconfigure(1, weight=1)
-root.grid_columnconfigure(0, weight=1)
+root.grid_columnconfigure(0, weight=1) # Ensure notebook column expands
 
 # Create tabs
 tab_main_settings = ttk.Frame(notebook)
 tab_subtitles_new = ttk.Frame(notebook) 
-tab_advanced_effects = ttk.Frame(notebook)
+tab_overlay_effects = ttk.Frame(notebook) # Renamed tab
 
 # Add tabs to notebook
 notebook.add(tab_main_settings, text="Main Settings")
 notebook.add(tab_subtitles_new, text="Subtitles")
-notebook.add(tab_advanced_effects, text="Advanced Effects")
+notebook.add(tab_overlay_effects, text="Overlay Effects") # Renamed tab
 
 # Main layout - create a frame for the left and right columns in the MAIN SETTINGS tab
 main_settings_content_frame = tk.Frame(tab_main_settings)
@@ -748,17 +1083,6 @@ var_subtitle_outline = tk.DoubleVar(root, value=default_subtitle_outline)
 var_subtitle_outlinecolor = tk.StringVar(root, value=default_subtitle_outlinecolor)
 var_subtitle_shadow = tk.BooleanVar(root, value=default_subtitle_shadow)
 
-# Function to toggle background color and opacity controls based on shadow checkbox
-def toggle_shadow_controls(*args):
-    if var_subtitle_shadow.get():
-        bg_color_entry.config(state=tk.NORMAL)
-        bg_opacity_slider.config(state=tk.NORMAL)
-        bg_opacity_value_entry.config(state=tk.NORMAL)
-    else:
-        bg_color_entry.config(state=tk.DISABLED)
-        bg_opacity_slider.config(state=tk.DISABLED)
-        bg_opacity_value_entry.config(state=tk.DISABLED)
-    update_subtitle_preview()
 
 # Function to update slider value entry
 def update_slider_value(var, entry):
@@ -775,7 +1099,7 @@ def update_slider_from_entry(entry, var, slider, min_val, max_val):
         value = float(entry.get())
         if min_val <= value <= max_val:
             var.set(value)
-            update_subtitle_preview()
+            schedule_subtitle_preview_update() # Use debounced update
     except ValueError:
         pass  # Ignore invalid input
 
@@ -847,6 +1171,9 @@ def update_subtitle_preview(*args):
         
         # If shadow is enabled, create a shadow layer
         if var_subtitle_shadow.get():
+            # Define shadow_offset here to ensure it's always defined when shadow is enabled
+            shadow_offset = 2 
+
             # Calculate shadow color with opacity
             shadow_color = var_subtitle_bgcolor.get()
             r = int(shadow_color[0:2], 16)
@@ -860,9 +1187,6 @@ def update_subtitle_preview(*args):
             shadow_draw = ImageDraw.Draw(shadow_img)
             
             # Draw shadow of the text with outline if outline is enabled
-            shadow_offset = 2
-            
-            # If outline is enabled, draw shadow for the outlined text
             if var_subtitle_outline.get() > 0 and outline_img:
                 # Create a mask from the outline+text image
                 mask = Image.new('L', img.size, 0)
@@ -899,7 +1223,7 @@ def update_subtitle_preview(*args):
             
             # Composite shadow onto background, then add text+outline on top
             img = Image.alpha_composite(img.convert('RGBA'), shadow_img)
-            img = Image.alpha_composite(img, base_img).convert('RGB')
+            img = Image.alpha_composite(img.convert('RGBA'), base_img).convert('RGB')
         else:
             # No shadow, just composite text+outline onto background
             img = Image.alpha_composite(img.convert('RGBA'), base_img).convert('RGB')
@@ -945,7 +1269,7 @@ entry_subtitle_max_width.grid(row=1, column=1, padx=5, pady=5, sticky="w")
 tk.Label(subtitle_settings, text="Font:").grid(row=2, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 font_dropdown = ttk.Combobox(subtitle_settings, textvariable=var_subtitle_font, values=available_fonts, width=25)
 font_dropdown.grid(row=2, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
-font_dropdown.bind("<<ComboboxSelected>>", update_subtitle_preview)
+font_dropdown.bind("<<ComboboxSelected>>", schedule_subtitle_preview_update) # Use debounced update
 
 # Font size with slider and numeric display
 font_size_frame = tk.Frame(subtitle_settings)
@@ -954,7 +1278,7 @@ font_size_frame.grid(row=3, column=1, sticky="ew", padx=5, pady=5) # Adjusted ro
 tk.Label(subtitle_settings, text="Font Size:").grid(row=3, column=0, sticky="w", padx=5, pady=5) # Adjusted row
 font_size_slider = ttk.Scale(font_size_frame, from_=12, to=48, variable=var_subtitle_fontsize, orient="horizontal")
 font_size_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-font_size_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_fontsize, font_size_value_entry), update_subtitle_preview()))
+font_size_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_fontsize, font_size_value_entry), schedule_subtitle_preview_update())) # Use debounced update
 
 font_size_value_entry = tk.Entry(font_size_frame, width=4)
 font_size_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
@@ -962,30 +1286,30 @@ font_size_value_entry.insert(0, str(var_subtitle_fontsize.get()))
 font_size_value_entry.bind("<Return>", lambda e: update_slider_from_entry(font_size_value_entry, var_subtitle_fontsize, font_size_slider, 12, 48))
 font_size_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(font_size_value_entry, var_subtitle_fontsize, font_size_slider, 12, 48))
 
-tk.Label(subtitle_settings, text="Text Color:").grid(row=4, column=0, sticky="w", padx=5, pady=5) # Adjusted row
+tk.Label(subtitle_settings, text="Text Color:").grid(row=4, column=0, padx=5, pady=5, sticky="w") # Adjusted row
 text_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_fontcolor, width=10)
 text_color_entry.grid(row=4, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-text_color_entry.bind("<KeyRelease>", update_subtitle_preview)
+text_color_entry.bind("<KeyRelease>", schedule_subtitle_preview_update) # Use debounced update
 
 # Shadow checkbox
 shadow_frame = tk.Frame(subtitle_settings)
 shadow_frame.grid(row=5, column=0, columnspan=2, sticky="w", padx=5, pady=5) # Adjusted row
-shadow_checkbox = tk.Checkbutton(shadow_frame, text="Enable Text Shadow", variable=var_subtitle_shadow, command=toggle_shadow_controls)
+shadow_checkbox = tk.Checkbutton(shadow_frame, text="Enable Text Shadow", variable=var_subtitle_shadow, command=schedule_subtitle_preview_update) # Use debounced update
 shadow_checkbox.pack(anchor="w")
 
-tk.Label(subtitle_settings, text="Shadow Color:").grid(row=6, column=0, sticky="w", padx=5, pady=5) # Adjusted row
+tk.Label(subtitle_settings, text="Shadow Color:").grid(row=6, column=0, padx=5, pady=5, sticky="w") # Adjusted row
 bg_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_bgcolor, width=10)
 bg_color_entry.grid(row=6, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-bg_color_entry.bind("<KeyRelease>", update_subtitle_preview)
+bg_color_entry.bind("<KeyRelease>", schedule_subtitle_preview_update) # Use debounced update
 
 # Background opacity with slider and numeric display
 bg_opacity_frame = tk.Frame(subtitle_settings)
 bg_opacity_frame.grid(row=7, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
 
-tk.Label(subtitle_settings, text="Shadow Opacity:").grid(row=7, column=0, sticky="w", padx=5, pady=5) # Adjusted row
+tk.Label(subtitle_settings, text="Shadow Opacity:").grid(row=7, column=0, padx=5, pady=5, sticky="w") # Adjusted row
 bg_opacity_slider = ttk.Scale(bg_opacity_frame, from_=0, to=1, variable=var_subtitle_bgopacity, orient="horizontal")
 bg_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-bg_opacity_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_bgopacity, bg_opacity_value_entry), update_subtitle_preview()))
+bg_opacity_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_bgopacity, bg_opacity_value_entry), schedule_subtitle_preview_update())) # Use debounced update
 
 bg_opacity_value_entry = tk.Entry(bg_opacity_frame, width=4)
 bg_opacity_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
@@ -997,10 +1321,10 @@ bg_opacity_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(bg_
 outline_frame = tk.Frame(subtitle_settings)
 outline_frame.grid(row=8, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
 
-tk.Label(subtitle_settings, text="Outline Thickness:").grid(row=8, column=0, sticky="w", padx=5, pady=5) # Adjusted row
+tk.Label(subtitle_settings, text="Outline Thickness:").grid(row=8, column=0, padx=5, pady=5, sticky="w") # Adjusted row
 outline_slider = ttk.Scale(outline_frame, from_=0, to=4, variable=var_subtitle_outline, orient="horizontal")
 outline_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-outline_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_outline, outline_value_entry), update_subtitle_preview()))
+outline_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_subtitle_outline, outline_value_entry), schedule_subtitle_preview_update())) # Use debounced update
 
 outline_value_entry = tk.Entry(outline_frame, width=4)
 outline_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
@@ -1008,16 +1332,16 @@ outline_value_entry.insert(0, str(var_subtitle_outline.get()))
 outline_value_entry.bind("<Return>", lambda e: update_slider_from_entry(outline_value_entry, var_subtitle_outline, outline_slider, 0, 4))
 outline_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(outline_value_entry, var_subtitle_outline, outline_slider, 0, 4))
 
-tk.Label(subtitle_settings, text="Outline Color:").grid(row=9, column=0, sticky="w", padx=5, pady=5) # Adjusted row
+tk.Label(subtitle_settings, text="Outline Color:").grid(row=9, column=0, padx=5, pady=5, sticky="w") # Adjusted row
 outline_color_entry = tk.Entry(subtitle_settings, textvariable=var_subtitle_outlinecolor, width=10)
 outline_color_entry.grid(row=9, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-outline_color_entry.bind("<KeyRelease>", update_subtitle_preview)
+outline_color_entry.bind("<KeyRelease>", schedule_subtitle_preview_update) # Use debounced update
 
 # Initialize shadow controls state
 toggle_shadow_controls()
 
 # Position selection
-tk.Label(subtitle_settings, text="Position:").grid(row=10, column=0, sticky="w", padx=5, pady=5) # Adjusted row
+tk.Label(subtitle_settings, text="Position:").grid(row=10, column=0, padx=5, pady=5, sticky="w") # Adjusted row
 position_frame = tk.Frame(subtitle_settings)
 position_frame.grid(row=10, column=1, sticky="w", padx=5, pady=5) # Adjusted row
 
@@ -1027,14 +1351,16 @@ positions = [
     (1, "Bottom Left"), (2, "Bottom Center"), (3, "Bottom Right")
 ]
 
-for pos, label in positions:
-    tk.Radiobutton(
-        position_frame, 
-        text=label, 
-        variable=var_subtitle_position, 
-        value=pos,
-        command=update_subtitle_preview
-    ).pack(anchor="w")
+# Replace Radiobuttons with Combobox
+position_labels = [label for val, label in positions]
+position_values = [val for val, label in positions]
+
+position_dropdown = ttk.Combobox(position_frame, textvariable=var_subtitle_position, values=position_labels, width=25)
+position_dropdown.pack(side=tk.LEFT, fill=tk.X, expand=True)
+position_dropdown.bind("<<ComboboxSelected>>", lambda e: (var_subtitle_position.set(position_values[position_labels.index(position_dropdown.get())]), schedule_subtitle_preview_update()))
+# Set initial value for dropdown
+position_dropdown.set(positions[position_values.index(var_subtitle_position.get())][1])
+
 
 # Right column for preview
 # preview_frame is now initialized globally, just configure it here.
@@ -1049,45 +1375,44 @@ if preview_frame is not None and preview_label is None: # preview_frame will be 
     preview_label.pack(padx=10, pady=10)
 
 # Initialize preview
-update_subtitle_preview()
+schedule_subtitle_preview_update() # Use debounced update
 
 # Configure grid weights
 subtitle_frame.grid_columnconfigure(0, weight=1)
 subtitle_frame.grid_columnconfigure(1, weight=1)
 
+
 # Title Section (First Group)
 title_frame = tk.LabelFrame(left_column, text="Title Settings", padx=10, pady=5)
 title_frame.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
 
-tk.Label(title_frame, text="Title:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+# New checkbox for enabling/disabling title - moved to first place
+tk.Checkbutton(title_frame, text="Enable Title", variable=var_enable_title, command=toggle_title_controls).grid(row=0, column=0, padx=10, pady=5, sticky="w")
+
+tk.Label(title_frame, text="Title:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
 entry_title = tk.Entry(title_frame, width=30)
 entry_title.insert(0, default_title)
-entry_title.grid(row=0, column=1, padx=10, pady=5)
+entry_title.grid(row=1, column=1, padx=10, pady=5)
 entry_title.bind("<KeyRelease>", update_font_size)  # Bind key release event
 
-tk.Label(title_frame, text="Font:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+tk.Label(title_frame, text="Font:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
 entry_title_font = tk.OptionMenu(title_frame, var_title_font, *available_fonts)
 entry_title_font.config(width=20)
-entry_title_font.grid(row=1, column=1, padx=10, pady=5)
+entry_title_font.grid(row=2, column=1, padx=10, pady=5)
 
-tk.Label(title_frame, text="Color:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+tk.Label(title_frame, text="Color:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
 entry_title_fontcolor = tk.OptionMenu(title_frame, var_title_fontcolor, *font_colors)
 entry_title_fontcolor.config(width=10)
-entry_title_fontcolor.grid(row=2, column=1, padx=10, pady=5)
+entry_title_fontcolor.grid(row=3, column=1, padx=10, pady=5)
 
-tk.Label(title_frame, text="Size AUTO (Montserrat font):").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+tk.Label(title_frame, text="Size AUTO (Montserrat font):").grid(row=4, column=0, padx=10, pady=5, sticky="w")
 entry_calculated_title_font_size = tk.Entry(title_frame, width=30, state=tk.DISABLED)
-entry_calculated_title_font_size.grid(row=3, column=1, padx=10, pady=5)
+entry_calculated_title_font_size.grid(row=4, column=1, padx=10, pady=5)
 
-tk.Label(title_frame, text="Size MANUAL:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
+tk.Label(title_frame, text="Size MANUAL:").grid(row=5, column=0, padx=10, pady=5, sticky="w")
 entry_title_font_size = tk.Entry(title_frame, width=30)
 entry_title_font_size.insert(0, default_title_font_size)
-entry_title_font_size.grid(row=4, column=1, padx=10, pady=5)
-
-tk.Label(title_frame, text="Overlay Delay:").grid(row=5, column=0, padx=10, pady=5, sticky="w")
-entry_delay = tk.Entry(title_frame, width=30)
-entry_delay.insert(0, default_delay)
-entry_delay.grid(row=5, column=1, padx=10, pady=5)
+entry_title_font_size.grid(row=5, column=1, padx=10, pady=5)
 
 tk.Label(title_frame, text="Appearance Delay (after overlay):").grid(row=6, column=0, padx=10, pady=5, sticky="w")
 entry_title_appearance_delay = tk.Entry(title_frame, width=30)
@@ -1109,29 +1434,95 @@ entry_title_y_offset = tk.Entry(title_frame, width=30)
 entry_title_y_offset.insert(0, default_title_y_offset)
 entry_title_y_offset.grid(row=9, column=1, padx=10, pady=5)
 
-# Watermark Section (Second Group)
-watermark_frame = tk.LabelFrame(left_column, text="Watermark Settings", padx=10, pady=5)
-watermark_frame.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
+tk.Label(title_frame, text="Opacity:").grid(row=10, column=0, padx=10, pady=5, sticky="w")
+title_opacity_frame = tk.Frame(title_frame)
+title_opacity_frame.grid(row=10, column=1, sticky="ew", padx=10, pady=5)
 
-tk.Label(watermark_frame, text="Text:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+title_opacity_slider = ttk.Scale(title_opacity_frame, from_=0.0, to=1.0, variable=var_title_opacity, orient="horizontal")
+title_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
+title_opacity_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_title_opacity, title_opacity_value_entry)))
+
+title_opacity_value_entry = tk.Entry(title_opacity_frame, width=4)
+title_opacity_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
+title_opacity_value_entry.insert(0, f"{var_title_opacity.get():.2f}")
+title_opacity_value_entry.bind("<Return>", lambda e: update_slider_from_entry(title_opacity_value_entry, var_title_opacity, title_opacity_slider, 0, 1))
+title_opacity_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(title_opacity_value_entry, var_title_opacity, title_opacity_slider, 0, 1))
+
+# New: Title Background controls
+title_background_checkbox = tk.Checkbutton(title_frame, text="Enable Background", variable=var_enable_title_background, command=toggle_title_controls)
+title_background_checkbox.grid(row=11, column=0, padx=10, pady=5, sticky="w")
+
+tk.Label(title_frame, text="Background Color:").grid(row=12, column=0, padx=10, pady=5, sticky="w")
+title_background_color_entry = tk.Entry(title_frame, textvariable=var_title_background_color, width=30)
+title_background_color_entry.grid(row=12, column=1, padx=10, pady=5)
+
+tk.Label(title_frame, text="Background Opacity:").grid(row=13, column=0, padx=10, pady=5, sticky="w")
+title_background_opacity_frame = tk.Frame(title_frame)
+title_background_opacity_frame.grid(row=13, column=1, sticky="ew", padx=10, pady=5)
+
+title_background_opacity_slider = ttk.Scale(title_background_opacity_frame, from_=0.0, to=1.0, variable=var_title_background_opacity, orient="horizontal")
+title_background_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
+title_background_opacity_slider.bind("<ButtonRelease-1>", lambda e: (update_slider_value(var_title_background_opacity, title_background_opacity_value_entry)))
+
+title_background_opacity_value_entry = tk.Entry(title_background_opacity_frame, width=4)
+title_background_opacity_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
+title_background_opacity_value_entry.insert(0, f"{var_title_background_opacity.get():.2f}")
+title_background_opacity_value_entry.bind("<Return>", lambda e: update_slider_from_entry(title_background_opacity_value_entry, var_title_background_opacity, title_background_opacity_slider, 0, 1))
+title_background_opacity_value_entry.bind("<FocusOut>", lambda e: update_slider_from_entry(title_background_opacity_value_entry, var_title_background_opacity, title_background_opacity_slider, 0, 1))
+
+# Initialize title controls state
+# toggle_title_controls()
+
+
+
+# Overlay Effects Tab Content Frame
+overlay_effects_left_column = tk.Frame(tab_overlay_effects)
+overlay_effects_left_column.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+overlay_effects_right_column = tk.Frame(tab_overlay_effects)
+overlay_effects_right_column.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+
+tab_overlay_effects.grid_rowconfigure(0, weight=1)
+tab_overlay_effects.grid_columnconfigure(0, weight=1)
+tab_overlay_effects.grid_columnconfigure(1, weight=1)
+
+# Watermark Section (New location: Overlay Effects tab)
+watermark_frame = tk.LabelFrame(overlay_effects_right_column, text="Watermark", padx=10, pady=5)
+watermark_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew", columnspan=2) # Adjusted grid
+
+# New checkbox for enabling/disabling watermark (first place)
+tk.Checkbutton(watermark_frame, text="Enable", variable=var_enable_watermark, command=toggle_watermark_controls).grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+
+tk.Label(watermark_frame, text="Text:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
 text_watermark = tk.Text(watermark_frame, width=30, height=3)
 text_watermark.insert("1.0", default_watermark)
-text_watermark.grid(row=0, column=1, padx=10, pady=5)
+text_watermark.grid(row=1, column=1, padx=10, pady=5)
 
-tk.Label(watermark_frame, text="Font:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+tk.Label(watermark_frame, text="Font:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
 entry_font = tk.OptionMenu(watermark_frame, var_watermark_font, *available_fonts)
 entry_font.config(width=20)
-entry_font.grid(row=1, column=1, padx=10, pady=5)
+entry_font.grid(row=2, column=1, padx=10, pady=5)
 
-tk.Label(watermark_frame, text="Type:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+tk.Label(watermark_frame, text="Font Size:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+entry_watermark_font_size = tk.Entry(watermark_frame, textvariable=var_watermark_font_size, width=30)
+entry_watermark_font_size.grid(row=3, column=1, padx=10, pady=5)
+
+tk.Label(watermark_frame, text="Opacity:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
+watermark_opacity_slider = ttk.Scale(watermark_frame, from_=0.0, to=1.0, variable=var_watermark_opacity, orient="horizontal")
+watermark_opacity_slider.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
+
+tk.Label(watermark_frame, text="Font Color:").grid(row=5, column=0, padx=10, pady=5, sticky="w")
+entry_watermark_fontcolor = tk.OptionMenu(watermark_frame, var_watermark_fontcolor, *font_colors)
+entry_watermark_fontcolor.config(width=10)
+entry_watermark_fontcolor.grid(row=5, column=1, padx=10, pady=5)
+
+tk.Label(watermark_frame, text="Type:").grid(row=6, column=0, padx=10, pady=5, sticky="w")
 entry_watermark_type = tk.OptionMenu(watermark_frame, var_watermark_type, *watermark_types)
 entry_watermark_type.config(width=10)
-entry_watermark_type.grid(row=2, column=1, padx=10, pady=5)
+entry_watermark_type.grid(row=6, column=1, padx=10, pady=5)
 
-tk.Label(watermark_frame, text="Speed (frames: 25 = 1s):").grid(row=3, column=0, padx=10, pady=5, sticky="w")
-entry_watermark_speed = tk.Entry(watermark_frame, width=30)
-entry_watermark_speed.insert(0, default_watermark_speed)
-entry_watermark_speed.grid(row=3, column=1, padx=10, pady=5)
+tk.Label(watermark_frame, text="Speed (1=Slow, 10=Fast):").grid(row=7, column=0, padx=10, pady=5, sticky="w")
+watermark_speed_slider = ttk.Scale(watermark_frame, from_=1, to=10, variable=var_watermark_speed_intuitive, orient="horizontal")
+watermark_speed_slider.grid(row=7, column=1, padx=10, pady=5, sticky="ew")
 
 # Folders Section (First Group in Right Column)
 folders_frame = tk.LabelFrame(right_column, text="Folders", padx=10, pady=5)
@@ -1170,13 +1561,10 @@ entry_voiceover_delay = tk.Entry(sound_frame, width=30)
 entry_voiceover_delay.insert(0, default_voiceover_delay)
 entry_voiceover_delay.grid(row=0, column=1, padx=10, pady=5)
 
-# Advanced Effects Tab Content Frame
-advanced_effects_content_frame = tk.Frame(tab_advanced_effects)
-advanced_effects_content_frame.pack(fill="both", expand=True)
-
-# Effect Overlay Section (parent is now advanced_effects_content_frame)
-effect_frame = tk.LabelFrame(advanced_effects_content_frame, text="Effect Overlay", padx=10, pady=5)
-effect_frame.grid(row=0, column=0, padx=10, pady=5, sticky="ew", columnspan=2) 
+# Overlay Effects Tab Content Frame
+# Effect Overlay Section (parent is now overlay_effects_left_column)
+effect_frame = tk.LabelFrame(overlay_effects_right_column, text="Effect Overlay", padx=10, pady=5) # Corrected parent
+effect_frame.grid(row=0, column=0, padx=10, pady=5, sticky="nsew", columnspan=2) # Adjusted row to 0
 
 # Create variables for effect settings
 var_effect_overlay = tk.StringVar(root, value="None")
@@ -1197,24 +1585,26 @@ def update_effect_opacity_from_entry(*args):
     except ValueError:
         pass
 
-# Get available effect files
-effects_dir = os.path.join(os.path.dirname(__file__), 'effects')
-if not os.path.exists(effects_dir):
-    os.makedirs(effects_dir)
-effect_files = ["None"] + [f for f in os.listdir(effects_dir) if f.endswith('.mp4')]
 
-tk.Label(effect_frame, text="Effect:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+# Get available effect files (general overlays)
+if not os.path.exists(overlays_dir):
+    os.makedirs(overlays_dir)
+effect_files = ["None"] + [f for f in os.listdir(overlays_dir) if f.endswith('.mp4')]
+
+tk.Checkbutton(effect_frame, text="Enable Effect Overlay", variable=var_enable_effect_overlay, command=toggle_effect_overlay_controls).grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+
+tk.Label(effect_frame, text="Effect:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
 effect_dropdown = ttk.Combobox(effect_frame, textvariable=var_effect_overlay, values=effect_files, width=25)
-effect_dropdown.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+effect_dropdown.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
 
-tk.Label(effect_frame, text="Blend Mode:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+tk.Label(effect_frame, text="Blend Mode:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
 blend_dropdown = ttk.Combobox(effect_frame, textvariable=var_effect_blend, values=SUPPORTED_BLEND_MODES, width=25)
-blend_dropdown.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+blend_dropdown.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
 
 # Opacity with slider and numeric display
-tk.Label(effect_frame, text="Opacity:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+tk.Label(effect_frame, text="Opacity:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
 effect_opacity_frame = tk.Frame(effect_frame)
-effect_opacity_frame.grid(row=2, column=1, sticky="ew", padx=10, pady=5)
+effect_opacity_frame.grid(row=3, column=1, sticky="ew", padx=10, pady=5)
 
 effect_opacity_slider = ttk.Scale(effect_opacity_frame, from_=0, to=1, variable=var_effect_opacity, orient="horizontal")
 effect_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
@@ -1226,23 +1616,74 @@ effect_opacity_value.insert(0, f"{var_effect_opacity.get():.2f}")
 effect_opacity_value.bind("<Return>", update_effect_opacity_from_entry)
 effect_opacity_value.bind("<FocusOut>", update_effect_opacity_from_entry)
 
-# Chromakey Section (parent is now advanced_effects_content_frame)
-chromakey_frame = tk.LabelFrame(advanced_effects_content_frame, text="Chromakey Settings", padx=10, pady=5)
-chromakey_frame.grid(row=1, column=0, padx=10, pady=5, sticky="ew", columnspan=2) 
+# Subscribe Overlay Section (new LabelFrame)
+subscribe_overlay_frame = tk.LabelFrame(overlay_effects_left_column, text="Subscribe Overlay", padx=10, pady=5)
+subscribe_overlay_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew", columnspan=2)
 
-tk.Label(chromakey_frame, text="Color:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-entry_chromakey_color = tk.Entry(chromakey_frame, width=30, textvariable=var_chromakey_color)
-entry_chromakey_color.grid(row=0, column=1, padx=10, pady=5)
+enable_subscribe_overlay_checkbox = tk.Checkbutton(subscribe_overlay_frame, text="Enable", variable=var_enable_subscribe_overlay)
+enable_subscribe_overlay_checkbox.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 
-tk.Label(chromakey_frame, text="Similarity:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-entry_chromakey_similarity = tk.Entry(chromakey_frame, width=30)
+# Get available subscribe overlay files
+if not os.path.exists(subscribe_dir):
+    os.makedirs(subscribe_dir)
+subscribe_overlay_files = ["None"] + [f for f in os.listdir(subscribe_dir) if f.endswith('.mp4')]
+
+tk.Label(subscribe_overlay_frame, text="Overlay File:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+entry_subscribe_overlay_file = ttk.Combobox(subscribe_overlay_frame, textvariable=var_subscribe_overlay_file, values=subscribe_overlay_files, width=25)
+entry_subscribe_overlay_file.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+entry_subscribe_overlay_file.bind("<<ComboboxSelected>>", toggle_subscribe_overlay_controls) # Bind to update state
+
+tk.Label(subscribe_overlay_frame, text="Appearance Delay (s):").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+entry_subscribe_delay = tk.Entry(subscribe_overlay_frame, textvariable=var_subscribe_delay, width=30)
+entry_subscribe_delay.grid(row=2, column=1, padx=10, pady=5)
+
+# Relocated Chromakey Controls
+tk.Label(subscribe_overlay_frame, text="Chromakey Color:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+entry_chromakey_color = tk.Entry(subscribe_overlay_frame, width=30, textvariable=var_chromakey_color)
+entry_chromakey_color.grid(row=3, column=1, padx=10, pady=5)
+
+tk.Label(subscribe_overlay_frame, text="Chromakey Similarity:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
+entry_chromakey_similarity = tk.Entry(subscribe_overlay_frame, width=30)
 entry_chromakey_similarity.insert(0, default_chromakey_similarity)
-entry_chromakey_similarity.grid(row=1, column=1, padx=10, pady=5)
+entry_chromakey_similarity.grid(row=4, column=1, padx=10, pady=5)
 
-tk.Label(chromakey_frame, text="Blend:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-entry_chromakey_blend = tk.Entry(chromakey_frame, width=30)
+tk.Label(subscribe_overlay_frame, text="Chromakey Blend:").grid(row=5, column=0, padx=10, pady=5, sticky="w")
+entry_chromakey_blend = tk.Entry(subscribe_overlay_frame, width=30)
 entry_chromakey_blend.insert(0, default_chromakey_blend)
-entry_chromakey_blend.grid(row=2, column=1, padx=10, pady=5)
+entry_chromakey_blend.grid(row=5, column=1, padx=10, pady=5)
+
+# New: Title Video Overlay Section (moved from Main Settings tab)
+title_video_overlay_frame = tk.LabelFrame(overlay_effects_left_column, text="Title Overlay", padx=10, pady=5)
+title_video_overlay_frame.grid(row=0, column=0, padx=10, pady=5, sticky="nsew", columnspan=2)
+
+enable_title_video_overlay_checkbox = tk.Checkbutton(title_video_overlay_frame, text="Enable", variable=var_enable_title_video_overlay)
+enable_title_video_overlay_checkbox.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+
+# Get available title video overlay files
+if not os.path.exists(title_dir):
+    os.makedirs(title_dir)
+title_video_overlay_files = ["None"] + [f for f in os.listdir(title_dir) if f.endswith('.mp4')]
+
+tk.Label(title_video_overlay_frame, text="Overlay File:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+entry_title_video_overlay_file = ttk.Combobox(title_video_overlay_frame, textvariable=var_title_video_overlay_file, values=title_video_overlay_files, width=25)
+entry_title_video_overlay_file.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+entry_title_video_overlay_file.bind("<<ComboboxSelected>>", toggle_title_controls) # Bind to update state
+
+tk.Label(title_video_overlay_frame, text="Appearance Delay (s):").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+entry_title_video_overlay_delay = tk.Entry(title_video_overlay_frame, textvariable=var_title_video_overlay_delay, width=30)
+entry_title_video_overlay_delay.grid(row=2, column=1, padx=10, pady=5)
+
+tk.Label(title_video_overlay_frame, text="Chromakey Color:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+entry_title_video_chromakey_color = tk.Entry(title_video_overlay_frame, textvariable=var_title_video_chromakey_color, width=30)
+entry_title_video_chromakey_color.grid(row=3, column=1, padx=10, pady=5)
+
+tk.Label(title_video_overlay_frame, text="Chromakey Similarity:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
+entry_title_video_chromakey_similarity = tk.Entry(title_video_overlay_frame, textvariable=var_title_video_chromakey_similarity, width=30)
+entry_title_video_chromakey_similarity.grid(row=4, column=1, padx=10, pady=5)
+
+tk.Label(title_video_overlay_frame, text="Chromakey Blend:").grid(row=5, column=0, padx=10, pady=5, sticky="w")
+entry_title_video_chromakey_blend = tk.Entry(title_video_overlay_frame, textvariable=var_title_video_chromakey_blend, width=30)
+entry_title_video_chromakey_blend.grid(row=5, column=1, padx=10, pady=5)
 
 # Video Processing Section (Last Group in Right Column of Main Settings Tab)
 processing_frame = tk.LabelFrame(right_column, text="Video Processing", padx=10, pady=5)
@@ -1315,6 +1756,13 @@ quit_button.grid(row=0, column=0, pady=10, padx=20)
 
 # Load initial config
 load_config()
+
+# Initialize control states after all widgets are created and packed
+toggle_shadow_controls()
+toggle_title_controls()
+toggle_subscribe_overlay_controls()
+toggle_watermark_controls()
+toggle_effect_overlay_controls()
 
 # Start main loop
 root.mainloop()

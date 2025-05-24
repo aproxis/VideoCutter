@@ -46,7 +46,7 @@ def _transcribe_with_whisperx(audio_path: str, language: str, model_name: str, d
     aligned_result = whisperx.align(result["segments"], alignment_model, metadata, audio_path, device)
     return aligned_result # This dict also has 'segments' key with word timings
 
-def _whisperx_result_to_srt(aligned_result: dict, max_width: int) -> str:
+def _whisperx_result_to_srt(aligned_result: dict, max_width: int, time_offset: float = 0.0) -> str: # Re-add time_offset
     """Convert WhisperX aligned result to SRT format."""
     srt_lines = []
     segments = aligned_result.get("segments", [])
@@ -82,7 +82,8 @@ def _whisperx_result_to_srt(aligned_result: dict, max_width: int) -> str:
                     # Finalize current line
                     subtitle_index += 1
                     srt_lines.append(str(subtitle_index))
-                    srt_lines.append(f"{_format_time(current_line_start_time)} --> {_format_time(current_line_end_time)}")
+                    # Use current_line_start_time and current_line_end_time, add offset
+                    srt_lines.append(f"{_format_time(current_line_start_time + time_offset)} --> {_format_time(current_line_end_time + time_offset)}")
                     srt_lines.append(current_line_text)
                     srt_lines.append("")
                     
@@ -95,7 +96,8 @@ def _whisperx_result_to_srt(aligned_result: dict, max_width: int) -> str:
     if current_line_text:
         subtitle_index += 1
         srt_lines.append(str(subtitle_index))
-        srt_lines.append(f"{_format_time(current_line_start_time)} --> {_format_time(current_line_end_time)}")
+        # Use current_line_start_time and current_line_end_time, add offset
+        srt_lines.append(f"{_format_time(current_line_start_time + time_offset)} --> {_format_time(current_line_end_time + time_offset)}")
         srt_lines.append(current_line_text)
         srt_lines.append("")
     
@@ -104,7 +106,8 @@ def _whisperx_result_to_srt(aligned_result: dict, max_width: int) -> str:
 def generate_srt_from_audio_file(
     audio_file_path: str, 
     output_srt_path: str, 
-    config: dict
+    config: dict,
+    time_offset_seconds: float = 0.0 # Re-add time_offset_seconds
     ) -> str | None:
     """
     Generates an SRT subtitle file from an audio file using WhisperX.
@@ -151,8 +154,8 @@ def generate_srt_from_audio_file(
         print(f"Transcribing audio file: {audio_file_path}")
         aligned_result = _transcribe_with_whisperx(audio_file_path, language, model_name, device, compute_type)
         
-        print("Converting transcription to SRT format...")
-        srt_text = _whisperx_result_to_srt(aligned_result, max_width)
+        print(f"Converting transcription to SRT format with time offset: {time_offset_seconds}s...")
+        srt_text = _whisperx_result_to_srt(aligned_result, max_width, time_offset=time_offset_seconds) # Pass offset
         
         with open(output_srt_path, "w", encoding="utf-8") as f_out:
             f_out.write(srt_text)
