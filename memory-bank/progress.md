@@ -110,13 +110,21 @@
     - ✅ Centralized default GUI values in `videocutter/utils/gui_config_manager.py`.
     - ✅ Implemented threading for `start_process` to keep the GUI responsive during video processing.
     - ✅ **Fixed `KeyError: 'gui_utils'` by ensuring `gui_utils` module is correctly passed to `gui_config_manager` via the `gui_elements` dictionary.**
-- ⬜ **Refactor Core Scripts (`cutter.py`, `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, `depth.py`, `audio.py`)**:
-    - ⬜ Analyze existing scripts for responsibilities and complexities.
-    - ⬜ Design a modular architecture with a central controller (e.g., `main.py`).
-    - ⬜ Define clear interfaces and data flow between new modules.
-    - ⬜ Implement the refactoring in stages.
-    - ⬜ Develop a testing strategy for refactored components.
-    - ⬜ Update `gui.py` to integrate with the new backend structure.
+- ✅ **Refactor Core Processing Logic into `videocutter` package**:
+    - ✅ `videocutter/main.py`: Central orchestrator for the entire video processing pipeline.
+    - ✅ `videocutter/config_manager.py`: Handles configuration loading and merging.
+    - ✅ `videocutter/processing/`: Contains modular processing components (`video_processor`, `depth_processor`, `slideshow_generator`, `audio_processor`, `subtitle_generator`, `overlay_compositor`).
+    - ✅ `videocutter/utils/`: Contains utility functions (`file_utils`, `font_utils`, `gui_config_manager`).
+- ⬜ **Deprecate Old Monolithic Scripts**:
+    - ⬜ `cutter.py`
+    - ⬜ `sorter.py`
+    - ⬜ `cleaner.py`
+    - ⬜ `slideshow.py`
+    - ⬜ `subscribe.py` (and `subscribe_new.py`)
+    - ⬜ `depth.py`
+    - ⬜ `audio.py`
+    - ⬜ `srt_generator.py`
+    (These scripts are now largely superseded by the modular components within the `videocutter` package. The next step is to formally deprecate and remove them once the new pipeline is fully stable and integrated.)
 
 ### New Features
 
@@ -173,16 +181,16 @@
 
 ## Current Status
 
-### Project Status: Beta (Preparing for Major Refactoring)
+### Project Status: Beta (Major Refactoring Underway)
 
 VideoCutter is currently in a functional beta state. The core functionality is complete and working, with a usable GUI interface and configuration system, including recently enhanced subtitle features.
 
-The **primary focus is now shifting to a significant refactoring of the core processing scripts**. This aims to improve modularity, maintainability, testability, and scalability, establishing a more robust foundation for future development. Documentation updates will continue alongside this effort.
+A **major refactoring is actively underway**, transitioning from a collection of monolithic scripts to a modular Python package (`videocutter`). The new `videocutter/main.py` now orchestrates the pipeline, utilizing specialized modules for each processing step. The old scripts are being superseded.
 
 ### Key Metrics
 
 1.  **Functionality Completion**: ~90%
-    - Core processing pipeline: 95%
+    - Core processing pipeline (new modular): 80% (integration ongoing)
     - GUI and configuration: 95%
     - Subtitle system: 85%
     - Error handling: 70%
@@ -202,7 +210,14 @@ The **primary focus is now shifting to a significant refactoring of the core pro
 
 ### Recent Progress
 
-1.  **Subtitle System Enhancements**
+1.  **Core Refactoring**
+    - ✅ Established new `videocutter` package structure with `main.py` as orchestrator.
+    - ✅ Migrated `config_manager` to `videocutter/config_manager.py`.
+    - ✅ Created and integrated `videocutter/processing/` modules for video, depth, slideshow, audio, subtitle, and overlay processing.
+    - ✅ Created and integrated `videocutter/utils/` modules for file, font, and GUI config utilities.
+    - ✅ Updated `gui.py` to interact with the new modular backend.
+
+2.  **Subtitle System Enhancements**
     - ✅ Fixed RGB to BGR color conversion for ASS subtitles
     - ✅ Corrected opacity handling by inverting values for ASS format
     - ✅ Implemented proper shadow rendering with opacity control
@@ -215,20 +230,20 @@ The **primary focus is now shifting to a significant refactoring of the core pro
     - **✅ Added GUI widgets for all new ASS subtitle style parameters in `gui.py` and updated `_collect_gui_settings`.**
     - **✅ Adjusted the layout of the "Subtitles" tab in `gui.py` by adding `rowspan=2` to the "Basic Subtitle Settings" frame to prevent content cutting and improve vertical spacing.**
 
-2.  **Documentation**
+3.  **Documentation**
     - ✅ Updated memory-bank with subtitle system details
     - ✅ Documented ASS format specifics and color handling
     - ✅ Added subtitle workflow documentation
     - ✅ Updated system patterns with subtitle processing architecture
 
-3.  **Organization**
+4.  **Organization**
     - ✅ Refactored subtitle preview rendering for better accuracy
     - ✅ Improved parameter handling between components
     - ✅ Enhanced font management system
     - ✅ Standardized color conversion across components
     - ✅ Refactored `slideshow_generator.py` by extracting helper functions for video dimension calculation, media input preparation, and watermark application, improving modularity and readability.
 
-4.  **GUI Reorganization**
+5.  **GUI Reorganization**
     - ✅ Increased window size to 1400x900 for better layout.
     - ✅ Restructured GUI tabs into "Main Settings", "Subtitles", and "Overlay Effects" (renamed from "Advanced Effects").
     - ✅ Relocated settings to more logical tabs for improved user experience:

@@ -1,434 +1,333 @@
-# VideoCutter
+# VideoCutter: Automated Video Creation Toolkit
 
-A comprehensive video processing toolkit for creating professional slideshows from images and videos with depth effects, audio processing, custom overlays, and advanced subtitle support.
-
-## Overview
-
-VideoCutter automates the process of creating engaging video content from images and video clips. It provides a complete pipeline from processing raw media to producing polished slideshows with depth effects, transitions, audio mixing, custom branding, and professional subtitles. The project is currently in a functional beta state and is preparing for a significant refactoring of its core scripts to enhance modularity and maintainability.
+## Project Overview
+VideoCutter is a comprehensive video processing toolkit designed to automate the creation of professional slideshows from images and videos. It incorporates depth effects, audio processing, and custom overlays to produce engaging content for social media platforms. It aims to streamline the video creation workflow for content creators, reduce manual editing time, and maintain high-quality output.
 
 ## Features
 
-- **Video Processing**
-  - Split videos into segments of configurable duration
-  - Filter videos based on aspect ratio and minimum duration
-  - Process both vertical (9:16) and horizontal (16:9) content
+### Core Functionality
+*   **Video Processing**: Splits videos into configurable segments, processes input videos and images into standardized formats, and supports both vertical (9:16) and horizontal (16:9) video formats.
+*   **Image Processing**: Resizes images to target dimensions, applies gradient and blur effects for background enhancement, and includes enhanced `zoompan` effects with dynamic zooming.
+*   **DepthFlow Integration**: Generates 3D parallax effects from static images with multiple animation types and randomized parameters.
+*   **Slideshow Creation**: Combines processed media into cohesive slideshows with random transition effects and configurable slide duration.
+*   **Audio Processing**: Integrates soundtracks with fade in/out, mixes voiceovers with sidechain compression, adds transition sound effects, and synchronizes audio with video.
+*   **Branding & Overlays**: Adds model name overlays, subscribe/like overlays, customizable colors and positioning, and integrates outro videos.
+*   **File Management**: Organizes output in date-time based folders, automatically backs up source files, and maintains consistent file naming.
+*   **Configuration System**: Provides a GUI for parameter configuration, supports JSON-based configuration presets, and includes save/load/delete functionality.
 
-- **Image Enhancement**
-  - Resize and crop images to target dimensions
-  - Apply blur effects and gradients for professional look
-  - Support for both vertical and horizontal orientations
+### Advanced Subtitle System
+*   **SRT/ASS Integration**: Generates and integrates SRT/ASS subtitles with videos.
+*   **Custom Font Support**: Allows selection of custom fonts from the `fonts/` directory.
+*   **Advanced Styling**: Supports full ASS styling with configurable font, size, colors, outline, shadow effects, and precise positioning.
+*   **Real-time Preview**: Offers a real-time subtitle preview in the GUI for accurate visual feedback.
 
-- **DepthFlow Integration**
-  - Create 3D parallax effects from static images
-  - Configurable animations (Circle, Orbital, Dolly, Horizontal)
-  - Customizable depth parameters
+## Why VideoCutter? (Problem Solved)
+VideoCutter addresses the time-consuming and technical challenges faced by content creators in producing professional-quality video content. It automates the process of video editing, reducing the need for extensive technical knowledge and manual intervention.
 
-- **Slideshow Creation**
-  - Smooth transitions between media elements
-  - Random transition effects for visual variety
-  - Configurable slide duration and watermarks
+*   **Time Efficiency**: Automates tasks that previously took hours, processing entire batches in minutes.
+*   **Technical Barrier Reduction**: Provides a simple GUI that handles complex technical details.
+*   **Consistency**: Ensures consistent branding, timing, and visual style across all content.
+*   **Resource Management**: Automatically backs up original files, preventing data loss.
+*   **Platform Optimization**: Supports both vertical and horizontal formats for various platforms.
 
-- **Audio Processing**
-  - Mix soundtrack, voiceover, and transition sounds
-  - Sidechain compression for professional audio quality
-  - Automatic audio timing and synchronization
+## System Architecture
 
-- **Branding & Customization**
-  - Add model name and custom watermarks
-  - Configurable font sizes and colors
-  - Subscribe/like overlays for social media engagement
+VideoCutter follows a modular architecture with a clear separation of concerns, transitioning from older monolithic scripts to a new, modular `videocutter` package. `videocutter/main.py` serves as the central orchestrator.
 
-- **Advanced Subtitle System**
-  - SRT subtitle integration with videos
-  - Custom font selection from fonts/ directory
-  - Advanced styling with shadow and outline effects
-  - Real-time preview in GUI
-  - Configurable positioning and colors
+### Component Architecture
+```
+┌─────────────────────┐       ┌─────────────────────────┐
+│ GUI Interface       │       │ videocutter/main.py     │
+│ (gui.py)            │──────►│ (Main Orchestrator)     │
+└──────────┬──────────┘       └───────────┬─────────────┘
+           │                               │
+           │                               ▼
+           │                  ┌─────────────────────────┐
+           │                  │ videocutter/config_     │
+           │                  │ manager.py              │
+           │                  │ (Configuration Manager) │
+           │                  └───────────┬─────────────┘
+           │                               │
+           ▼                               ▼
+┌─────────────────────┐       ┌─────────────────────────┐
+│ videocutter/utils/  │       │ videocutter/processing/ │
+│ gui_config_         │       │ video_processor.py      │
+│ manager.py          │       │ (Video Processor)       │
+└─────────────────────┘       └───────────┬─────────────┘
+                                           │
+                                           ▼
+                               ┌─────────────────────────┐
+                               │ videocutter/processing/ │
+                               │ depth_processor.py      │
+                               │ (Depth Processor)       │
+                               └───────────┬─────────────┘
+                                           │
+                                           ▼
+                               ┌─────────────────────────┐
+                               │ videocutter/processing/ │
+                               │ slideshow_generator.py  │
+                               │ (Slideshow Generator)   │
+                               └───────────┬─────────────┘
+                                           │
+                                           ▼
+                               ┌─────────────────────────┐
+                               │ videocutter/processing/ │
+                               │ audio_processor.py      │
+                               │ (Audio Processor)       │
+                               └───────────┬─────────────┘
+                                           │
+                                           ▼
+                               ┌─────────────────────────┐
+                               │ videocutter/processing/ │
+                               │ subtitle_generator.py   │
+                               │ (Subtitle Generator)    │
+                               └───────────┬─────────────┘
+                                           │
+                                           ▼
+                               ┌─────────────────────────┐
+                               │ videocutter/processing/ │
+                               │ overlay_compositor.py   │
+                               │ (Overlay Compositor)    │
+                               └───────────┬─────────────┘
+                                           │
+                                           ▼
+                               ┌─────────────────────────┐
+                               │ Final Video Output      │
+                               └─────────────────────────┘
+```
 
-- **User-Friendly Interface**
-  - Graphical user interface for easy configuration
-  - Save and load configuration presets
-  - Real-time font size calculation based on text length
-  - Live subtitle preview with accurate rendering
+### Supporting Utilities
+```
+┌─────────────────────┐       ┌─────────────────────────┐
+│ videocutter/utils/  │       │ videocutter/utils/      │
+│ file_utils.py       │◄──────┤ font_utils.py           │
+│ (File Utilities)    │       │ (Font Utilities)        │
+└─────────────────────┘       └─────────────────────────┘
+           ▲                               ▲
+           │                               │
+           ▼                               ▼
+┌─────────────────────┐       ┌─────────────────────────┐
+│ videocutter/gui/    │       │ videocutter/gui/        │
+│ gui_utils.py        │◄──────┤ title_settings_frame.py │
+│ (GUI Utilities)     │       │ (Title Settings Frame)  │
+└─────────────────────┘       └─────────────────────────┘
+```
 
-## Directory Structure
+### Data Flow Pipeline
+```
+┌─────────────┐    ┌─────────────┐    ┌────────────────┐
+│ Input Files │───►│ FileUtils   │───►│ Processed Media│
+└─────────────┘    └─────────────┘    └────────┬───────┘
+                                               │
+                                               ▼
+┌─────────────┐    ┌─────────────┐    ┌────────────────┐
+│VideoProcessor│◄───┤DepthProcessor│◄──┤SlideshowGenerator│
+└──────┬──────┘    └─────────────┘    └────────────────┘
+       │                                      │
+       ▼                                      ▼
+┌─────────────┐    ┌─────────────┐    ┌────────────────┐
+│AudioProcessor│───►│SubtitleGen  │───►│OverlayCompositor│
+└─────────────┘    └─────────────┘    └────────┬───────┘
+                                               │
+                                               ▼
+                                    ┌─────────────┐
+                                    │ Final Video │
+                                    └─────────────┘
+```
 
+### Configuration Flow Hierarchy
+```
+┌─────────────────────────────────┐
+│ Global Config                   │
+│ (default_config.json)           │
+└─────────────┬───────────────────┘
+              │
+              ▼
+┌─────────────────────────────────┐
+│ Project Config                  │
+│ (_project_config.json)          │
+└─────────────┬───────────────────┘
+              │
+              ▼
+┌─────────────────────────────────┐
+│ Runtime Settings (GUI)          │
+└─────────────┬───────────────────┘
+              │
+              ▼
+┌─────────────────────────────────┐
+│ ConfigManager                   │
+│ (Unified Processing)            │
+└─────────────┬───────────────────┘
+              │
+              ▼
+┌─────────────────────────────────┐
+│ Unified Config (DotMap)         │
+│ ├─ Main Orchestrator            │
+│ ├─ VideoProcessor               │
+│ ├─ DepthProcessor               │
+│ ├─ SlideshowGenerator           │
+│ ├─ AudioProcessor               │
+│ ├─ SubtitleGenerator            │
+│ ├─ OverlayCompositor            │
+│ ├─ GUIConfigManager             │
+│ └─ TitleSettingsFrame           │
+└─────────────────────────────────┘
+```
+
+## Key Technologies
+
+*   **Python 3.x**: Primary programming language.
+*   **FFmpeg**: Core video and audio processing engine.
+*   **Tkinter**: GUI framework for the configuration interface.
+*   **PIL/Pillow**: Image processing library, also used for subtitle preview rendering.
+*   **DepthFlow**: Library for 3D parallax effects.
+*   **JSON**: Configuration file format.
+*   **Subprocess**: Manages external process execution.
+*   **DotMap**: Provides dot notation access to dictionaries for configuration.
+*   **WhisperX**: For audio transcription and alignment (used by `subtitle_generator`).
+*   **Mutagen**: For audio metadata (duration).
+*   **FontTools**: For font file inspection.
+
+## Installation & Setup
+
+### Required Software
+1.  **Python 3.x**: Minimum 3.6, recommended 3.8+.
+2.  **FFmpeg**: Minimum 4.0, recommended 4.4+ with libx264 support.
+3.  **DepthFlow**: Custom package for depth effects, requires PyTorch backend.
+
+### Environment Setup
+
+1.  **Python Environment**
+    ```bash
+    # Create virtual environment (recommended)
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    
+    # Install dependencies
+    pip install -r requirements.txt
+    ```
+
+2.  **FFmpeg Installation**
+    ```bash
+    # macOS
+    brew install ffmpeg
+    
+    # Ubuntu/Debian
+    sudo apt-get install ffmpeg
+    
+    # Windows
+    # Download from ffmpeg.org and add to PATH
+    ```
+
+3.  **DepthFlow Setup**
+    ```bash
+    # DepthFlow is typically installed via pip as part of requirements.txt
+    # Ensure PyTorch is installed with appropriate CUDA support if using GPU
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 # Example for CUDA 11.8
+    ```
+
+### Directory Structure
 ```
 VideoCutter/
 ├── config/                  # Configuration presets
 ├── fonts/                   # Custom fonts for text and subtitles
-├── INPUT/                   # Input media files
-│   ├── RESULT/              # Processed output (date-time folders)
-│   ├── SOURCE/              # Original files backup
+├── INPUT/                   # Input directory for media
+│   ├── DEPTH/               # Processed depth files
+│   ├── RESULT/              # Final output videos
+│   └── SOURCE/              # Backup of source files
 ├── TEMPLATE/                # Template files for overlays and audio
-├── memory-bank/             # Project documentation and context
-├── *.py                     # Python scripts
-└── README.md                # This documentation
+├── memory-bank/             # Project documentation
+├── videocutter/             # Modular Python package
+│   ├── config_manager.py
+│   ├── main.py
+│   ├── gui/
+│   │   ├── gui_utils.py
+│   │   └── title_settings_frame.py
+│   ├── processing/
+│   │   ├── audio_processor.py
+│   │   ├── depth_processor.py
+│   │   ├── overlay_compositor.py
+│   │   ├── slideshow_generator.py
+│   │   ├── subtitle_generator.py
+│   │   └── video_processor.py
+│   └── utils/
+│       ├── file_utils.py
+│       ├── font_utils.py
+│       └── gui_config_manager.py
+├── gui.py                   # Main GUI entry point
+├── requirements.txt         # Python dependencies
+└── *.py                     # Older monolithic scripts (to be deprecated)
 ```
 
-## Requirements
-
-### Software Dependencies
-
-- Python 3.x
-- FFmpeg (for video and audio processing)
-- PIL/Pillow (for image processing)
-- DepthFlow (for depth effects)
-- Tkinter (for GUI)
-
-### Python Packages
-
-See `requirements.txt` for a complete list of dependencies. Key packages include:
-
-```
-curl -L https://evermeet.cx/ffmpeg/ffmpeg-7.1.1.zip -o ffmpeg.zip
-curl -L https://evermeet.cx/ffmpeg/getrelease/ffprobe/7.0 -o ffprobe.zip
-unzip ffmpeg.zip
-unzip ffprobe.zip
-sudo mv ffmpeg /usr/local/bin/
-sudo mv ffprobe /usr/local/bin/
-sudo chmod +x /usr/local/bin/ffmpeg
-sudo chmod +x /usr/local/bin/ffprobe
-
-brew install python-tk@3.11
-brew install python@3.11 
-
-python3.11 -m venv venv
-source venv/bin/activate
-
-pip install Pillow
-pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1
-pip install transformers==4.47.0
-pip install depthflow==0.8.0
-```
-
-## Installation
-
-1. Clone the repository:
-   ```
-   git clone https://github.com/aproxis/VideoCutter.git
-   cd VideoCutter
-   ```
-
-2. Install required Python packages:
-   ```
-   pip install -r requirements.txt
-   ```
-
-3. Install FFmpeg:
-   - **macOS**: `brew install ffmpeg`
-   - **Linux**: `apt-get install ffmpeg`
-   - **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
-
-4. Install DepthFlow (if using depth effects):
-   ```
-   pip install DepthFlow
-   ```
-
-5. Set up directory structure:
-   ```
-   mkdir -p config INPUT/DEPTH INPUT/subs TEMPLATE fonts
-   ```
-
-6. Add required template files to the TEMPLATE directory (see TEMPLATE/README.md for details)
-
-7. Add custom fonts to the fonts directory (optional, for subtitle and text styling)
-
-## Core Components
-
-### 1. GUI Interface (`gui.py`)
-The graphical user interface for configuring and starting the processing pipeline. Features include:
-- Configuration preset management (save, load, delete)
-- Model name and watermark text input
-- Font size calculation and customization
-- Segment duration and time limit settings
-- Video orientation selection (vertical/horizontal)
-- DepthFlow and blur effect toggles
-- Subtitle styling and preview
-
-### 2. Video Processing (`cutter.py`)
-The main entry point that orchestrates the entire workflow:
-- Splits videos into segments of specified duration
-- Processes images for the target aspect ratio
-- Organizes files into date-time folders
-- Calls subsequent scripts in the pipeline
-
-### 3. Quality Control (`cleaner.py`)
-Ensures quality by removing videos that don't meet requirements:
-- Removes videos shorter than specified duration
-- Validates video formats and properties
-
-### 4. File Organization (`sorter.py`)
-Manages file organization and naming:
-- Creates date-time stamped folders
-- Renames files for consistent processing
-- Backs up original files
-
-### 5. Depth Effects (`depth.py`)
-Applies 3D parallax effects to static images:
-- Creates depth maps from 2D images
-- Applies various animation patterns
-- Processes in parallel for performance
-
-### 6. Slideshow Creation (`slideshow.py`)
-Combines processed media into a cohesive slideshow:
-- Adds transitions between segments
-- Applies watermark and text overlays
-- Creates the base slideshow structure
-
-### 7. Audio Processing (`audio.py`)
-Handles all audio-related processing:
-- Mixes soundtrack with voiceover
-- Adds transition sound effects
-- Applies audio effects and normalization
-
-### 8. Branding & Subtitles (`subscribe.py`)
-Adds final branding, subscription overlays, and subtitles:
-- Integrates model name overlay
-- Adds subscribe/like animations
-- Applies subtitles with advanced styling
-- Finalizes the video for distribution
+### Template Files
+Required template files in `TEMPLATE` directory:
+*   `soundtrack.mp3`: Background music
+*   `transition.mp3`: Transition sound effect
+*   `transition_long.mp3`: Extended transition sound
+*   `voiceover_end.mp3`: Ending voiceover
+*   `outro_vertical.mp4`: Vertical outro video
+*   `outro_horizontal.mp4`: Horizontal outro video
+*   `name_subscribe_like.mp4`: Vertical subscription overlay
+*   `name_subscribe_like_horizontal.mp4`: Horizontal subscription overlay
 
 ## Usage
 
-### Quick Start
+The workflow for VideoCutter is designed to be straightforward and efficient:
 
-1. Set up your environment:
-   ```
-   # Clone the repository
-   git clone https://github.com/aproxis/VideoCutter.git
-   cd VideoCutter
-   
-   # Create and activate a virtual environment
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   
-   # Install dependencies
-   pip install -r requirements.txt
-   
-   # Create necessary directories
-   mkdir -p INPUT/DEPTH INPUT/RESULT INPUT/SOURCE INPUT/subs fonts
-   ```
+1.  **Input Preparation**:
+    *   Place media files (images, videos) in the `INPUT` folder.
+    *   Optional voiceover file (`voiceover.mp3`) can be added to the `INPUT` folder.
 
-2. Prepare your media:
-   - Place images and videos in the `INPUT` folder
-   - Add custom fonts to the `fonts` directory
+2.  **Configuration**:
+    *   Launch the GUI (`python gui.py`).
+    *   Select or create a configuration preset via the GUI.
+    *   Set basic parameters like model name, watermark text, and video orientation.
+    *   Enable/disable advanced options like depth effects, title overlays, and subtitle styling.
 
-3. Launch the application:
-   ```
-   python gui.py
-   ```
+3.  **Processing**:
+    *   Click the "START" button in the GUI to initiate the entire pipeline.
+    *   Progress will be displayed in the terminal.
+    *   No further user intervention is required during processing.
 
-### GUI Mode
+4.  **Output**:
+    *   The completed video will be saved in a date-time stamped folder within `INPUT/RESULT/`.
+    *   Original files are preserved in `INPUT/SOURCE/`.
+    *   The final video is ready for direct upload to social media platforms.
 
-1. Configure your settings:
-   - Set title and watermark text
-   - Adjust font size and segment duration
-   - Choose video orientation (vertical/horizontal)
-   - Enable/disable depth effects
-   - Set time limits
-   - Configure subtitle styling (if using subtitles)
+## Current Status & Progress
 
-2. Click "START" to begin processing
+### Project Status: Beta (Major Refactoring Underway)
+VideoCutter is currently in a functional beta state. The core functionality is complete and working, with a usable GUI interface and configuration system, including recently enhanced subtitle features.
 
-3. Find your results in the `INPUT/RESULT/[datetime]/` folder
+A **major refactoring is actively underway**, transitioning from a collection of monolithic scripts to a modular Python package (`videocutter`). The new `videocutter/main.py` now orchestrates the pipeline, utilizing specialized modules for each processing step. The old scripts are being superseded.
 
-### Command Line Mode
+### Recent Progress
+*   **Core Refactoring**: Established new `videocutter` package structure with `main.py` as orchestrator, and migrated core functionalities into modular components (`config_manager`, `processing/` modules, `utils/` modules). `gui.py` has been updated to interact with this new modular backend.
+*   **Subtitle System Enhancements**: Implemented full ASS style parameter support, fixed color conversion and opacity handling, enhanced preview accuracy, and integrated new subtitle parameters into the GUI and configuration system.
+*   **GUI Reorganization**: Increased window size, restructured GUI tabs ("Main Settings", "Subtitles", "Overlay Effects"), relocated settings for improved user experience, implemented new overlay directory structure, and enhanced control disabling for various sections.
 
-For batch processing or automation, you can use the command line interface:
+## Future Enhancements
 
-```
-python cutter.py --n "Model Name" --w "Your Watermark" --d 6 --o vertical --z 1 --srt 1
-```
+### Immediate Priority: Core Script Refactoring Completion
+*   Formally deprecate and remove old monolithic scripts (`cutter.py`, `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, `depth.py`, `audio.py`, `srt_generator.py`) once the new modular pipeline is fully stable.
 
-#### Basic Parameters:
+### Short-term Tasks
+*   **Subtitle Feature Expansion**: Add support for multiple subtitle tracks, timing adjustment, more positioning options, and enhanced text formatting.
+*   **Preview Enhancements**: Implement video-based subtitle preview, timeline-based editing, and real-time preview updates.
+*   **Configuration Management**: Add subtitle preset management, style templates, and enhanced parameter validation.
 
-- `--d`: Segment duration in seconds (default: 6)
-- `--tl`: Time limit in seconds (default: 595)
-- `--i`: Input folder (default: 'INPUT')
-- `--n`: Model name (default: 'Model Name')
-- `--f`: Font size (default: 90)
-- `--w`: Watermark text (default: 'Today is a\n Plus Day')
-- `--z`: Use DepthFlow (0/1, default: 0)
-- `--o`: Video orientation (vertical/horizontal, default: vertical)
-- `--b`: Add blur (0/1, default: 0)
+### Medium-term Tasks
+*   **Subtitle Generation**: Enhance automatic subtitle generation, implement timing correction, and add support for translation.
+*   **Performance Optimization**: Optimize subtitle rendering, reduce memory usage, and improve overall processing efficiency.
+*   **User Experience Improvements**: Add drag-and-drop subtitle file import, implement a subtitle editor, and enhance error reporting.
 
-#### Subtitle Parameters:
+### Long-term Vision
+*   **Advanced Subtitle Features**: Add animated subtitle effects, karaoke-style text animation, and graphic subtitle support.
+*   **Integration Enhancements**: Support more subtitle formats, direct subtitle download from services, and subtitle extraction from video files.
+*   **Accessibility Improvements**: Add high-contrast subtitle options and screen reader compatibility.
 
-- `--srt`: Add SRT subtitles (0/1, default: 0)
-- `--sf`: Font for subtitles (default: 'Arial')
-- `--sfs`: Subtitle font size (default: 24)
-- `--sfc`: Subtitle font color (hex without #, default: 'FFFFFF')
-- `--sbc`: Subtitle shadow color (hex without #, default: '000000')
-- `--sbo`: Subtitle shadow opacity (0-1, default: 0.5)
-- `--spos`: Subtitle position (1-9, ASS alignment, default: 2)
-- `--sout`: Subtitle outline thickness (default: 1)
-- `--soutc`: Subtitle outline color (hex without #, default: '000000')
-- `--shadow`: Enable subtitle shadow (0/1, default: 1)
-- `--smaxw`: Maximum characters per subtitle line (default: 21)
+## Contributing
+Contributions are welcome! Please refer to the `memory-bank/` documentation for detailed project context, system patterns, and technical insights.
 
-## Workflow
-
-1. **Input Preparation**:
-   - Place your images and videos in the `INPUT` folder
-   - Add voiceover as `voiceover.mp3` (optional)
-   - Add subtitle file as `subs/voiceover.srt` (optional)
-   - Add custom fonts to the `fonts` directory (optional)
-
-2. **Processing Pipeline**:
-   - Videos are split into segments of specified duration
-   - Images are processed and resized
-   - Files are organized into date-time folders
-   - Depth effects are applied (if enabled)
-   - Slideshow is created with transitions
-   - Audio is added and mixed
-   - Subscription overlays are added
-   - Subtitles are rendered with styling (if enabled)
-
-3. **Output**:
-   - Final videos are saved in `INPUT/RESULT/[datetime]/`
-   - Original files are backed up in `INPUT/SOURCE/[datetime]/`
-
-## Configuration Files
-
-The `config/` directory contains JSON configuration presets that can be loaded and saved from the GUI:
-
-```json
-{
-  "title": "Model Name",
-  "watermark": "Your Watermark Text",
-  "title_font_size": 90,
-  "segment_duration": 6,
-  "input_folder": "INPUT",
-  "depthflow": 0,
-  "time_limit": 600,
-  "video_orientation": "vertical",
-  "blur": 0,
-  "generate_srt": false,
-  "subtitle_font": "Arial",
-  "subtitle_fontsize": 24,
-  "subtitle_fontcolor": "FFFFFF",
-  "subtitle_bgcolor": "000000",
-  "subtitle_bgopacity": 0.5,
-  "subtitle_position": 2,
-  "subtitle_outline": 1,
-  "subtitle_outlinecolor": "000000",
-  "subtitle_shadow": true
-}
-```
-
-## Advanced Features
-
-### DepthFlow Animations
-
-When enabled, DepthFlow creates 3D parallax effects from static images with randomly selected animations:
-
-- **Circle**: Camera moves in a circular pattern
-- **Orbital**: Camera orbits around the subject
-- **Dolly**: Camera moves forward/backward
-- **Horizontal**: Camera pans horizontally
-
-Parameters like isometric view, height, and zoom are randomized for variety.
-
-### Image Processing
-
-The image processing pipeline includes:
-
-1. Aspect ratio detection and appropriate resizing
-2. Gradient edge effects for smooth transitions
-3. Blur effects for background enhancement
-4. Orientation-specific processing for vertical/horizontal output
-
-### Audio Processing
-
-The audio pipeline includes:
-
-1. Soundtrack processing with fade in/out
-2. Transition sound mixing
-3. Voiceover integration with 5-second lead-in
-4. Sidechain compression for clear voiceover
-5. Final audio mixing and normalization
-
-### Custom Overlays
-
-The subscribe overlay adds:
-
-- Model name with configurable font size
-- Subscribe/like buttons
-- Custom colors and animations
-
-### Subtitle System
-
-The subtitle system provides advanced styling options:
-
-1. **Font Selection**: Choose from custom fonts in the fonts/ directory
-2. **Color Customization**: Set text, outline, and shadow colors
-3. **Shadow Effects**: Add drop shadows with configurable opacity
-4. **Outline Effects**: Add text outlines with configurable thickness
-5. **Positioning**: 9-point positioning system (1-9 ASS alignment)
-6. **Real-time Preview**: See exactly how subtitles will appear in the final video
-7. **SRT Integration**: Use standard SRT files for subtitle content
-
-## Subtitle Format
-
-The system uses SRT files for subtitle content:
-
-```
-1
-00:00:01,000 --> 00:00:04,000
-This is a subtitle
-
-2
-00:00:05,000 --> 00:00:08,000
-With multiple lines
-```
-
-SRT file will be generated in `INPUT/{datetime_folder}/subs/voiceover.srt` for automatic integration.
-
-## Troubleshooting
-
-### Common Issues
-
-- **FFmpeg errors**: Ensure FFmpeg is properly installed and in your PATH
-- **Missing files**: Check that all template files exist in the TEMPLATE directory
-- **Processing errors**: Verify input files are in supported formats (MP4, JPG)
-- **Audio sync issues**: Check that voiceover.mp3 exists in the INPUT folder
-- **Subtitle issues**: Verify SRT file format and placement in INPUT/subs directory
-- **Font issues**: Ensure custom fonts are in the fonts/ directory and in TTF or OTF format
-
-### Logs
-
-Check the terminal output for detailed processing logs and error messages. The depth processing also creates a `_depth_log.txt` file in the output directory.
-
-## Performance Considerations
-
-- **Memory Usage**: DepthFlow processing requires significant RAM (8GB+ recommended)
-- **Processing Time**: Typical processing takes 2-5 minutes per minute of output video
-- **Storage**: Ensure at least 10GB of free space for temporary files and outputs
-- **GPU Acceleration**: DepthFlow benefits from GPU acceleration if available
-
-## Future Development
-
-The immediate next major step is a **Core Script Refactoring** to improve modularity, maintainability, and scalability by breaking down main processing scripts into smaller, specialized modules managed by a central controller.
-
-Planned enhancements also include:
-
-- Comprehensive error handling throughout the pipeline
-- Progress indicators during processing
-- Additional transition types and effects
-- Direct social media publishing integration
-- Batch processing capabilities
-- Multiple subtitle track support
-- Subtitle timing adjustment
-- Advanced text formatting options
-- Subtitle editor with timeline
-
-## License
-
-[MIT License](LICENSE)
-
-## Credits
-
-- FFmpeg for video and audio processing
-- DepthFlow for 3D parallax effects
-- All contributors to this project
+## Contact
+For questions or support, please open an issue on the project's GitHub repository.

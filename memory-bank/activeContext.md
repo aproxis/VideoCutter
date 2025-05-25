@@ -2,7 +2,7 @@
 
 ## Current Work Focus
 
-The primary focus for VideoCutter is now shifting towards a significant **refactoring of core scripts** (`cutter.py`, `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, `depth.py`, and `audio.py`) to improve modularity, maintainability, and scalability. This will involve creating a central controller and breaking down existing scripts into more specialized modules.
+The primary focus for VideoCutter is now on the **refactoring of core scripts** (`cutter.py`, `sorter.py`, `cleaner.py`, `slideshow.py`, `subscribe.py`, `depth.py`, and `audio.py`) into a new, modular `videocutter` package. This involves creating a central orchestrator (`videocutter/main.py`) and breaking down existing functionalities into more specialized modules within `videocutter/processing/`, `videocutter/utils/`, and `videocutter/gui/`. This refactoring aims to improve modularity, maintainability, testability, and scalability.
 
 Alongside this, ongoing work includes documentation updates and potential further enhancements to subtitle functionality and user experience as identified.
 
@@ -34,6 +34,26 @@ Alongside this, ongoing work includes documentation updates and potential furthe
     - Ensuring consistent parameter passing between components
 
 ## Recent Changes
+
+### Core Refactoring Progress
+
+-   **New `videocutter` package structure**:
+    -   `videocutter/main.py`: Central orchestrator for the entire video processing pipeline, replacing the role of `cutter.py` and coordinating calls to new modular components.
+    -   `videocutter/config_manager.py`: Handles hierarchical loading and merging of configuration settings from global, project-specific, and runtime sources.
+    -   `videocutter/processing/`: Contains specialized modules for video, audio, depth, slideshow, subtitle, and overlay processing.
+        -   `videocutter/processing/video_processor.py`: Handles video splitting, conversion, and image processing.
+        -   `videocutter/processing/depth_processor.py`: Applies 3D parallax effects to images.
+        -   `videocutter/processing/slideshow_generator.py`: Generates base video slideshows with transitions and watermarks.
+        -   `videocutter/processing/audio_processor.py`: Manages audio mixing, voiceover integration, and sidechain compression.
+        -   `videocutter/processing/subtitle_generator.py`: Transcribes audio and generates SRT/ASS subtitle files.
+        -   `videocutter/processing/overlay_compositor.py`: Applies final visual overlays (subscribe, effects, title text/video) and renders subtitles.
+    -   `videocutter/utils/`: Contains utility functions.
+        -   `videocutter/utils/file_utils.py`: Provides file and directory management utilities (setup, backup, find, organize, limit).
+        -   `videocutter/utils/font_utils.py`: Extracts font names from font files.
+        -   `videocutter/utils/gui_config_manager.py`: Centralizes GUI default values and manages GUI-related configuration file interactions.
+    -   `videocutter/gui/`: Contains GUI-specific components.
+        -   `videocutter/gui/gui_utils.py`: Provides GUI utility functions (slider-entry sync, subtitle preview rendering).
+        -   `videocutter/gui/title_settings_frame.py`: Encapsulates title-specific GUI controls.
 
 ### Subtitle Rendering Improvements
 
@@ -88,15 +108,15 @@ Alongside this, ongoing work includes documentation updates and potential furthe
     *   Identify current responsibilities, functions, classes, and dependencies.
     *   Pinpoint areas with mixed concerns, high complexity, or potential for generalization.
 2.  **Design New Modular Architecture**:
-    *   Define logical modules/components to be extracted from the existing scripts.
-    *   Propose a new directory structure if necessary (e.g., `videocutter_core/`, `videocutter_utils/`).
-    *   Outline the responsibilities of a new central `main.py` (or a heavily refactored `cutter.py`) orchestrator.
+    *   Define logical modules/components to be extracted from the existing scripts. (Partially completed with the new `videocutter` package structure).
+    *   Propose a new directory structure if necessary (e.g., `videocutter_core/`, `videocutter_utils/`). (Implemented as `videocutter/`).
+    *   Outline the responsibilities of a new central `main.py` (or a heavily refactored `cutter.py`) orchestrator. (Implemented as `videocutter/main.py`).
 3.  **Define Interfaces and Data Flow**:
-    *   Specify how modules will communicate with the main controller and each other.
-    *   Plan how configuration data and application state will be managed and passed.
+    *   Specify how modules will communicate with the main controller and each other. (Defined through function calls and `DotMap` configuration passing).
+    *   Plan how configuration data and application state will be managed and passed. (Managed by `videocutter/config_manager.py`).
 4.  **Develop Implementation Plan**:
     *   Break down the refactoring process into smaller, manageable steps.
-    *   Consider the impact on `gui.py` and how it will interact with the new structure.
+    *   Consider the impact on `gui.py` and how it will interact with the new structure. (GUI updated to use `videocutter.main` and `videocutter.utils.gui_config_manager`).
     *   Establish a testing strategy for the refactored components.
 
 ### Short-term Tasks (Post-Refactoring Planning / Parallel if possible)
