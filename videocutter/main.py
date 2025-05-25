@@ -5,6 +5,7 @@ import os
 import shutil # For potential cleanup
 from datetime import datetime
 from dotmap import DotMap # Import DotMap for type hinting
+import json
 
 # Import a load_config function (assuming it's defined in config_manager.py)
 from .config_manager import load_config 
@@ -35,6 +36,12 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     print(f"\n{'='*20} Starting Project: {project_name} at {start_time_project.strftime('%Y-%m-%d %H:%M:%S')} {'='*20}")
     print(f"Using Input Folder: {project_input_folder}")
     # print(f"Effective Config for {project_name}: {cfg}") # For debugging
+
+    # Define a temporary directory within the project root for intermediate files
+    project_root_dir = os.path.dirname(os.path.abspath(__file__)) # videocutter/
+    project_root_dir = os.path.dirname(project_root_dir) # One level up to VideoCutter/
+    temp_dir = os.path.join(project_root_dir, "temp")
+    os.makedirs(temp_dir, exist_ok=True) # Ensure temp directory exists
 
     # 2. Setup Project-Specific Directories & Initial File Handling
     # Directories (RESULT, SOURCE/timestamp) are now created *inside* the project_input_folder
@@ -214,7 +221,7 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
         
         images_to_depthflow = [p for p in current_media_for_slideshow if any(p.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png'])]
         if images_to_depthflow:
-            videos_from_depthflow = depth_processor.apply_depth_effects(images_to_depthflow, cfg.toDict())
+            videos_from_depthflow = depth_processor.apply_depth_effects(images_to_depthflow, cfg)
             
             new_media_list = [p for p in current_media_for_slideshow if not p in images_to_depthflow]
             new_media_list.extend(videos_from_depthflow)
@@ -246,7 +253,7 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     media_for_ffmpeg_slideshow = current_media_for_slideshow + [outro_video_full_path]
 
     slideshow_base_path = slideshow_generator.generate_base_slideshow(
-        media_for_ffmpeg_slideshow, slideshow_base_path, cfg.toDict()
+        media_for_ffmpeg_slideshow, slideshow_base_path, cfg
     )
     if not slideshow_base_path:
         print(f"Error for {project_name}: Base slideshow generation failed. Aborting project.")
@@ -254,11 +261,14 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
 
     # 7. Generate Subtitles (Conditional)
     # -------------------------------------------------------------------------
-    generated_srt_path = None
+    generated_subtitle_path = None
     project_voiceover_path = os.path.join(work_datetime_folder, 'voiceover.mp3')
     if cfg.subtitles.enabled and os.path.exists(project_voiceover_path):
         print(f"\n--- {project_name} - Phase 6: Generating Subtitles ---")
-        srt_output_target_path = os.path.join(work_datetime_folder, "subs", "voiceover.srt")
+        
+        subtitle_format = cfg.subtitles.get('format', 'srt').lower() # Get format from config, default to 'srt'
+        subtitle_extension = "ass" if subtitle_format == "ass" else "srt"
+        subtitle_output_target_path = os.path.join(work_datetime_folder, "subs", f"voiceover.{subtitle_extension}")
         os.makedirs(os.path.join(work_datetime_folder, "subs"), exist_ok=True)
         
         vo_delay_from_config_audio_dict = cfg.get('audio', {}).get('vo_delay', "NOT_IN_AUDIO_DICT_USING_0_DEFAULT")
@@ -267,18 +277,20 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
             # cfg.audio.vo_delay should be an int due to ConfigManager's processing
             vo_delay_for_srt = float(cfg.audio.vo_delay) 
         except (TypeError, ValueError):
-            print(f"Warning: Could not convert cfg.audio.vo_delay ('{cfg.audio.get('vo_delay')}') to float. Defaulting to 0 for SRT offset.")
+            print(f"Warning: Could not convert cfg.audio.vo_delay ('{cfg.audio.get('vo_delay')}') to float. Defaulting to 0 for subtitle offset.")
             vo_delay_for_srt = 0.0
             
-        print(f"Debug SRT offset: cfg.audio.vo_delay = {cfg.audio.get('vo_delay')}, vo_delay_for_srt = {vo_delay_for_srt}")
+        print(f"Debug Subtitle offset: cfg.audio.vo_delay = {cfg.audio.get('vo_delay')}, vo_delay_for_srt = {vo_delay_for_srt}")
 
-        generated_srt_path = subtitle_generator.generate_srt_from_audio_file(
+        generated_subtitle_path = subtitle_generator.generate_subtitles_from_audio_file(
             project_voiceover_path, 
-            srt_output_target_path, 
-            cfg.toDict(),
+            subtitle_output_target_path, 
+            cfg,
+            subtitle_format=subtitle_format, # Pass the format
             time_offset_seconds=vo_delay_for_srt # Pass the delay
         )
-        if generated_srt_path: print(f"Subtitles generated for {project_name}: {generated_srt_path}")
+        if generated_subtitle_path: 
+            print(f"Subtitles generated for {project_name}: {generated_subtitle_path}")
         else: print(f"Subtitle generation failed or was skipped for {project_name}.")
     elif cfg.subtitles.enabled:
         print(f"Subtitle generation enabled for {project_name}, but voiceover.mp3 not found. Skipping.")
@@ -288,7 +300,7 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     print(f"\n--- {project_name} - Phase 7: Audio Processing ---")
     video_with_audio_path = os.path.join(work_datetime_folder, "slideshow_with_audio.mp4")
     video_with_audio_path = audio_processor.process_audio(
-        slideshow_base_path, video_with_audio_path, cfg.toDict(), work_datetime_folder
+        slideshow_base_path, video_with_audio_path, cfg, work_datetime_folder
     )
     if not video_with_audio_path:
         print(f"Error for {project_name}: Audio processing failed. Aborting project.")
@@ -302,8 +314,8 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     final_output_video_path = os.path.join(work_datetime_folder, final_output_video_name)
     
     final_video_actual_path = overlay_compositor.apply_final_overlays(
-        video_with_audio_path, final_output_video_path, cfg.toDict(), 
-        work_datetime_folder, generated_srt_path if cfg.subtitles.enabled else None
+        video_with_audio_path, final_output_video_path, cfg, 
+        work_datetime_folder, generated_subtitle_path if cfg.subtitles.enabled else None
     )
 
     if not final_video_actual_path:
@@ -318,6 +330,10 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     if video_with_audio_path != final_video_actual_path and os.path.exists(video_with_audio_path):
         os.remove(video_with_audio_path); print(f"Cleaned up for {project_name}: {video_with_audio_path}")
     
+    # Clean up the temporary directory
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    print(f"Cleaned up temporary directory: {temp_dir}")
+
     end_time_project = datetime.now()
     print(f"\nProject {project_name} Finished at: {end_time_project.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Total processing time for {project_name}: {end_time_project - start_time_project}")

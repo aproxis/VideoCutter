@@ -189,7 +189,7 @@ class ConfigurableDepthManager: # No longer inherits from a local DepthManager
             )
         )
 
-def apply_depth_effects(image_file_paths: List[str], config_params: dict) -> List[str]:
+def apply_depth_effects(image_file_paths: List[str], config_params: DotMap) -> List[str]:
     """
     Applies DepthFlow effects to a list of images.
 

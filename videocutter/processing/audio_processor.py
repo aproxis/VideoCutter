@@ -4,12 +4,14 @@
 import subprocess
 import os
 import shutil # For cleaning up temp files
+import json
 
 # Assuming video_processor contains get_video_duration or similar
 from .video_processor import get_video_duration # This is for VIDEO duration
 
 # For audio duration, mutagen is more direct for mp3
 from mutagen.mp3 import MP3
+from dotmap import DotMap
 
 def get_mp3_duration(file_path: str) -> float | None:
     """Determine the duration of an MP3 file using mutagen."""
@@ -34,7 +36,7 @@ def get_mp3_duration(file_path: str) -> float | None:
 def process_audio(
     base_video_path: str, 
     output_video_with_audio_path: str, 
-    config: dict,
+    config: DotMap,
     working_directory: str # Directory to store intermediate files and find voiceover.mp3
     ):
     """

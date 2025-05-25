@@ -8,6 +8,8 @@ import json # For ffprobe
 import glob # For font fallback
 import tempfile # For creating temporary files
 from typing import Optional # For Optional type hint
+from dotmap import DotMap # Import DotMap
+import shutil # Import shutil for file copying
 
 # Assuming font_utils is in videocutter.utils
 from videocutter.utils.font_utils import get_font_name
@@ -29,12 +31,12 @@ def _get_overlay_video_duration(overlay_video_path: str) -> float:
 def apply_final_overlays(
     input_video_path: str, 
     output_video_path: str, 
-    config: dict,
-    working_directory: str, # For resolving srt_file path
-    srt_file_path: str | None = None # Optional path to SRT file
+    config: DotMap, # Changed to DotMap
+    working_directory: str, # For resolving subtitle_file path
+    subtitle_file_path: str | None = None # Optional path to subtitle file (SRT or ASS)
     ):
     """
-    Applies final overlays (title, subscribe animation, effects) and renders subtitles.
+    Applies final overlays (title, subscribe, effects) and renders subtitles.
 
     Args:
         input_video_path (str): Path to the video with audio (e.g., slideshow_with_audio.mp4).
@@ -51,7 +53,7 @@ def apply_final_overlays(
                            'outline_color_hex', 'outline_thickness', 'shadow_color_hex', 
                            'shadow_opacity', 'shadow_enabled', 'position_ass' } (optional)
         working_directory (str): Base directory for the current run (e.g., INPUT/RESULT/datetime_folder)
-        srt_file_path (str | None): Absolute path to the SRT file if subtitles are enabled.
+        subtitle_file_path (str | None): Absolute path to the subtitle file (SRT or ASS) if subtitles are enabled.
     
     Returns:
         str | None: Path to the final video, or None on failure.
@@ -273,9 +275,22 @@ def apply_final_overlays(
         # If title is not enabled, current_video_stream remains unchanged, effectively skipping this overlay.
 
         # 6. Subtitle Rendering
-        if subtitle_cfg.get('enabled', False) and srt_file_path and os.path.exists(srt_file_path):
-            print(f"Preparing subtitle styling for {srt_file_path}...")
+        if subtitle_cfg.get('enabled', False) and subtitle_file_path and os.path.exists(subtitle_file_path):
+            print(f"Preparing subtitle styling for {subtitle_file_path}...")
             
+            # Define temp_dir for overlay_compositor
+            package_root_dir = os.path.dirname(os.path.abspath(__file__)) # videocutter/processing/
+            videocutter_root_dir = os.path.dirname(package_root_dir) # videocutter/
+            project_root_dir = os.path.dirname(videocutter_root_dir) # One level up to VideoCutter/
+            temp_dir = os.path.join(project_root_dir, "temp")
+            os.makedirs(temp_dir, exist_ok=True) # Ensure temp directory exists
+
+            # Copy subtitle file to temp_dir and use that path
+            subtitle_extension = os.path.splitext(subtitle_file_path)[1].lstrip('.')
+            temp_subtitle_path_in_temp_dir = os.path.join(temp_dir, f"voiceover.{subtitle_extension}")
+            shutil.copy(subtitle_file_path, temp_subtitle_path_in_temp_dir)
+            print(f"Copied subtitle to temp directory for overlay_compositor: {temp_subtitle_path_in_temp_dir}")
+
             # Resolve subtitle font name (using font_utils if available, or simple name)
             sub_font_name_arg = subtitle_cfg.get('font_name', 'Arial')
             sub_font_path_local = os.path.join(config.get('fonts_folder','fonts'), sub_font_name_arg) # Check local 'fonts'
@@ -291,7 +306,7 @@ def apply_final_overlays(
             
             style_parts = [
                 f"FontName={actual_sub_font_name}",
-                f"FontSize={subtitle_cfg.get('font_size', 24)}",
+                f"Fontsize={subtitle_cfg.get('font_size', 24)}",
                 f"PrimaryColour=&H00{fc_bgr}",
                 f"OutlineColour=&H00{oc_bgr}",
                 f"Outline={subtitle_cfg.get('outline_thickness', 1)}",
@@ -301,28 +316,19 @@ def apply_final_overlays(
                 opacity_val = int((1.0 - subtitle_cfg.get('shadow_opacity', 0.5)) * 255)
                 opacity_hex = format(opacity_val, '02X')
                 style_parts.append(f"BackColour=&H{opacity_hex}{sc_bgr}")
-                style_parts.append("Shadow=1") # Shadow distance, not just on/off
+                style_parts.append("Shadow=2") # Use a more visible shadow distance
             else:
                 style_parts.append("Shadow=0")
             
             ass_style = ",".join(style_parts)
             abs_fonts_dir = os.path.abspath(config.get('fonts_folder','fonts'))
             
-            # Ensure srt_file_path is correctly escaped for ffmpeg filter
-            # Colons in paths (e.g., C:\...) need to be escaped for FFmpeg filters on Windows.
-            # Backslashes should be converted to forward slashes for cross-platform compatibility in FFmpeg paths.
-            ffmpeg_safe_srt_path = srt_file_path.replace("\\", "/")
-            if os.name == 'nt': # On Windows, escape colons in paths
-                ffmpeg_safe_srt_path = ffmpeg_safe_srt_path.replace(":", "\\\\:")
-            else: # On Unix-like, only escape if it's not part of a protocol (unlikely for local files)
-                # For simplicity, let's assume local paths won't have problematic colons needing escape here,
-                # but be mindful if srt_file_path could contain them.
-                # The original code did `replace(":", "\\\\:")` universally.
-                ffmpeg_safe_srt_path = ffmpeg_safe_srt_path.replace(":", "\\\\:")
-
+            # Use the copied file in temp_dir for FFmpeg
+            ffmpeg_safe_subtitle_path = temp_subtitle_path_in_temp_dir
+            ffmpeg_safe_fonts_dir = abs_fonts_dir # No escaping needed for fontsdir if it's absolute and simple
 
             filter_complex_parts.append(
-                f"[{current_video_stream}]subtitles='{ffmpeg_safe_srt_path}':fontsdir='{abs_fonts_dir}':force_style='{ass_style}'[v_final]"
+                f"[{current_video_stream}]subtitles='{ffmpeg_safe_subtitle_path}':fontsdir='{ffmpeg_safe_fonts_dir}'[v_final]"
             )
             current_video_stream = "v_final" # Update current_video_stream after applying subtitles
         else:
@@ -334,7 +340,7 @@ def apply_final_overlays(
         # --- Execute FFmpeg Command ---
         final_filter_complex_str = ";".join(filter_complex_parts)
         
-        ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error']
+        ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'debug']
         ffmpeg_cmd.extend(ffmpeg_inputs)
         ffmpeg_cmd.extend([
             '-filter_complex', final_filter_complex_str,

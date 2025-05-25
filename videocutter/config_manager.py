@@ -3,6 +3,7 @@
 
 import json
 import os
+import shutil # Added for test cleanup
 from dotmap import DotMap # For easy dictionary access, similar to original argparse 'args'
 
 class ConfigManager:
@@ -42,11 +43,26 @@ class ConfigManager:
 
         # 3. Apply runtime overrides (e.g., from GUI, highest precedence)
         if runtime_overrides:
-            print(f"Runtime overrides provided: {runtime_overrides.get('generate_srt', 'Not in runtime_overrides')}")
-            self.config.update(runtime_overrides)
+            print(f"Runtime overrides provided: {runtime_overrides.get('subtitles', {}).get('enabled', 'Not in runtime_overrides')}")
+            self.config = self._deep_merge_dicts(self.config, runtime_overrides)
             print("Configuration updated with runtime overrides.")
             
         self._apply_type_conversions_and_defaults()
+
+    @staticmethod
+    def _deep_merge_dicts(source: dict, overrides: dict) -> DotMap:
+        """
+        Recursively merges override dictionary into source dictionary.
+        Values from overrides will overwrite values in source.
+        Nested dictionaries are merged, not replaced.
+        """
+        merged = DotMap(source.copy())
+        for key, value in overrides.items():
+            if isinstance(value, dict) and key in merged and isinstance(merged[key], dict):
+                merged[key] = ConfigManager._deep_merge_dicts(merged[key], value)
+            else:
+                merged[key] = value
+        return merged
 
     def _apply_type_conversions_and_defaults(self):
         """
@@ -166,7 +182,8 @@ class ConfigManager:
         # Add other audio specific params from audio_processor.py defaults if needed
 
         # Subtitles
-        if not isinstance(self.config.get('subtitles'), (dict, DotMap)): self.config.subtitles = DotMap()
+        # Ensure self.config.subtitles is always a DotMap before processing
+        self.config.subtitles = DotMap(self.config.get('subtitles', {}))
         
         # Determine the source for 'enabled' state: runtime 'generate_srt', then config 'generate_srt', then config 'subtitles.enabled'
         # Default to '0' (string false) if none are found.
@@ -185,6 +202,7 @@ class ConfigManager:
             self.config.subtitles.enabled = str(enabled_source_val).lower() in ['true', '1']
             print(f"Subtitle enabled status from string/nested (source: '{enabled_source_val}'): {self.config.subtitles.enabled}")
 
+        self.config.subtitles.format = str(self.config.subtitles.get('format', 'srt')).lower() # New: Subtitle format (srt/ass)
         self.config.subtitles.max_line_width = int(self.config.subtitles.get('max_line_width', self.config.get('subtitle_max_width', self.config.get('subtitle_maxwidth', 42))))
         self.config.subtitles.font_name = str(self.config.subtitles.get('font_name', self.config.get('subtitle_font', 'Arial')))
         self.config.subtitles.font_size = int(self.config.subtitles.get('font_size', self.config.get('subtitle_fontsize', 24)))
@@ -309,23 +327,26 @@ if __name__ == "__main__":
 
 
     # Clean up
+    # Clean up
     shutil.rmtree(test_project_root, ignore_errors=True)
     shutil.rmtree(test_config_dir_bool, ignore_errors=True)
     print("\nConfigManager test complete.")
-    print(f"Segment Duration: {cfg.segment_duration} (type: {type(cfg.segment_duration)})")
-    print(f"Depthflow Enabled: {cfg.depthflow.enabled} (type: {type(cfg.depthflow.enabled)})")
-    print(f"Watermark Speed: {cfg.watermark.speed_frames} (type: {type(cfg.watermark.speed_frames)})")
-    print(f"Input Folder: {cfg.input_folder}") # Should come from internal defaults
+    # The following lines were outside the scope of cfg, test_config_path, test_config_dir
+    # and are part of a commented-out test block. Removing them to prevent NameErrors.
+    # print(f"Segment Duration: {cfg.segment_duration} (type: {type(cfg.segment_duration)})")
+    # print(f"Depthflow Enabled: {cfg.depthflow.enabled} (type: {type(cfg.depthflow.enabled)})")
+    # print(f"Watermark Speed: {cfg.watermark.speed_frames} (type: {type(cfg.watermark.speed_frames)})")
+    # print(f"Input Folder: {cfg.input_folder}") # Should come from internal defaults
 
     # Test with initial_data overriding file
-    gui_settings = {"title": "GUI Overridden Title", "time_limit": "300"}
-    cfg_merged = load_config(config_path=test_config_path, initial_data=gui_settings)
-    print("\nMerged Config (GUI override):")
-    print(f"Title: {cfg_merged.title}")
-    print(f"Time Limit: {cfg_merged.time_limit} (type: {type(cfg_merged.time_limit)})")
-    print(f"Segment Duration: {cfg_merged.segment_duration}") # From file
+    # gui_settings = {"title": "GUI Overridden Title", "time_limit": "300"}
+    # cfg_merged = load_config(config_path=test_config_path, initial_data=gui_settings)
+    # print("\nMerged Config (GUI override):")
+    # print(f"Title: {cfg_merged.title}")
+    # print(f"Time Limit: {cfg_merged.time_limit} (type: {type(cfg_merged.time_limit)})")
+    # print(f"Segment Duration: {cfg_merged.segment_duration}") # From file
 
     # Clean up
-    os.remove(test_config_path)
-    os.rmdir(test_config_dir)
-    print("\nConfigManager test complete.")
+    # os.remove(test_config_path)
+    # os.rmdir(test_config_dir)
+    # print("\nConfigManager test complete.")

@@ -4,6 +4,7 @@
 import subprocess
 import os
 import random
+from dotmap import DotMap
 
 # PIL Image is imported in the original slideshow.py but not directly used for manipulation
 # in the core slideshow generation part. Keeping it commented for now.
@@ -25,7 +26,7 @@ def _get_video_dimensions(config: dict, video_orientation: str) -> tuple[int, in
 def generate_base_slideshow(
     media_file_paths: list[str], 
     output_path: str, 
-    config: dict # Expects a dictionary-like config object
+    config: DotMap # Expects a dictionary-like config object
     ):
     """
     Generates a base slideshow video from a list of media files with transitions.

@@ -5,6 +5,8 @@ import os
 import whisperx
 import certifi
 from mutagen.mp3 import MP3 # For get_audio_duration, though not directly used in main srt flow
+from dotmap import DotMap
+from videocutter.utils.font_utils import get_font_name # Import for font resolution
 
 # Set up SSL for HTTPS requests - should ideally be done once at application startup
 if "SSL_CERT_FILE" not in os.environ:
@@ -103,18 +105,115 @@ def _whisperx_result_to_srt(aligned_result: dict, max_width: int, time_offset: f
     
     return "\n".join(srt_lines)
 
-def generate_srt_from_audio_file(
+def _whisperx_result_to_ass(aligned_result: dict, time_offset: float = 0.0, config: DotMap = None) -> str:
+    """Convert WhisperX aligned result to ASS subtitle format."""
+    segments = aligned_result.get("segments", [])
+    
+    # Determine PlayResX and PlayResY based on video orientation from config
+    play_res_x = 1920
+    play_res_y = 1080
+    if config:
+        video_orientation = config.get('video_orientation', 'vertical')
+        target_resolution = config.get('target_resolution', {})
+        if video_orientation == 'vertical':
+            play_res_x = target_resolution.get('vertical_width', 1080)
+            play_res_y = target_resolution.get('vertical_height', 1920)
+        else:  # horizontal
+            play_res_x = target_resolution.get('horizontal_width', 1920)
+            play_res_y = target_resolution.get('horizontal_height', 1080)
+
+    # Basic header
+    ass_header = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: {play_res_x}
+PlayResY: {play_res_y}
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, BackColour, Bold, Italic, Alignment, MarginL, MarginR, MarginV, Outline, Shadow, Encoding
+"""
+    
+    # Dynamically generate the style string
+    sub_cfg = config.get('subtitles', {})
+    
+    # Resolve subtitle font name
+    sub_font_name_arg = sub_cfg.get('font_name', 'Arial')
+    # Assuming fonts are in a 'fonts' folder relative to the project root
+    # This path needs to be absolute for get_font_name to work correctly
+    # For now, let's assume config.fonts_folder is correctly set up in config_manager.py
+    fonts_folder = config.get('fonts_folder', 'fonts')
+    sub_font_path_local = os.path.join(fonts_folder, sub_font_name_arg)
+    
+    actual_sub_font_name = sub_font_name_arg # Default to arg
+    if os.path.exists(sub_font_path_local):
+        actual_sub_font_name = get_font_name(sub_font_path_local) # From font_utils
+    else:
+        print(f"Warning: Subtitle font {sub_font_name_arg} not found at {sub_font_path_local}. Using raw font name.")
+
+    # Color conversions (RRGGBB to BBGGRR)
+    fc_bgr = sub_cfg.get('font_color_hex', 'FFFFFF')[4:6] + sub_cfg.get('font_color_hex', 'FFFFFF')[2:4] + sub_cfg.get('font_color_hex', 'FFFFFF')[0:2]
+    oc_bgr = sub_cfg.get('outline_color_hex', '000000')[4:6] + sub_cfg.get('outline_color_hex', '000000')[2:4] + sub_cfg.get('outline_color_hex', '000000')[0:2]
+    sc_bgr = sub_cfg.get('shadow_color_hex', '000000')[4:6] + sub_cfg.get('shadow_color_hex', '000000')[2:4] + sub_cfg.get('shadow_color_hex', '000000')[0:2]
+
+    # Opacity inversion for shadow
+    opacity_val = int((1.0 - sub_cfg.get('shadow_opacity', 0.5)) * 255)
+    opacity_hex = format(opacity_val, '02X')
+    
+    # Style definition
+    ass_style_definition = (
+        f"Style: Default,{actual_sub_font_name},"
+        f"{sub_cfg.get('font_size', 24)},"
+        f"&H00{fc_bgr}," # PrimaryColour
+        f"&H{opacity_hex}{sc_bgr}," # BackColour (shadow color with opacity)
+        f"-1,0," # Bold, Italic (hardcoded for now)
+        f"{sub_cfg.get('position_ass', 2)}," # Alignment
+        f"0,0,0," # MarginL, MarginR, MarginV (hardcoded for now)
+        f"{sub_cfg.get('outline_thickness', 1)}," # Outline
+        f"{sub_cfg.get('shadow_enabled', True) and 2 or 0}," # Shadow (use 2 for visible shadow, 0 if disabled)
+        f"1" # Encoding (hardcoded)
+    )
+    
+    ass_header += ass_style_definition + "\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    
+    ass_events = []
+    
+    for segment in segments:
+        for word_info in segment.get("words", []):
+            text = word_info.get("word", "").strip()
+            if not text:
+                continue
+
+            start = word_info.get("start", 0.0) + time_offset
+            end = word_info.get("end", start) + time_offset
+
+            start_ass = _format_ass_time(start)
+            end_ass = _format_ass_time(end)
+
+            ass_line = f"Dialogue: 0,{start_ass},{end_ass},Default,,0,0,0,,{text}"
+            ass_events.append(ass_line)
+
+    return ass_header + "\n".join(ass_events)
+
+def _format_ass_time(seconds: float) -> str:
+    """Format seconds to ASS time format: H:MM:SS.cs"""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    centis = int((seconds - int(seconds)) * 100)
+    return f"{hours}:{minutes:02}:{secs:02}.{centis:02}"
+
+def generate_subtitles_from_audio_file(
     audio_file_path: str, 
-    output_srt_path: str, 
-    config: dict,
-    time_offset_seconds: float = 0.0 # Re-add time_offset_seconds
+    output_path: str, # Changed from output_srt_path
+    config: DotMap,
+    subtitle_format: str = 'srt', # New parameter
+    time_offset_seconds: float = 0.0
     ) -> str | None:
     """
-    Generates an SRT subtitle file from an audio file using WhisperX.
+    Generates a subtitle file (SRT or ASS) from an audio file using WhisperX.
 
     Args:
         audio_file_path (str): Path to the input audio file (e.g., voiceover.mp3).
-        output_srt_path (str): Path where the generated SRT file should be saved.
+        output_path (str): Path where the generated subtitle file should be saved.
         config (dict): Configuration dictionary. Expected keys:
             'subtitles': {
                 'language': str (e.g., 'en'),
@@ -123,29 +222,30 @@ def generate_srt_from_audio_file(
                 'compute_type': str (e.g., 'float32'),
                 'max_line_width': int (e.g., 21)
             }
+        subtitle_format (str): Desired subtitle format ('srt' or 'ass').
     Returns:
-        str | None: Path to the generated SRT file, or None on failure.
+        str | None: Path to the generated subtitle file, or None on failure.
     """
     print("###### GENERATING SUBTITLES ######")
     
     sub_cfg = config.get('subtitles', {})
     language = sub_cfg.get('language', 'en')
-    model_name = sub_cfg.get('whisper_model', 'base') # e.g., "base", "small", "medium", "large-v2"
+    model_name = sub_cfg.get('whisper_model', 'base')
     device = sub_cfg.get('device', 'cpu') 
-    compute_type = sub_cfg.get('compute_type', 'float32') # "int8", "float16", "float32"
-    max_width = sub_cfg.get('max_line_width', 42) # Increased default based on common practice
+    compute_type = sub_cfg.get('compute_type', 'float32')
+    max_width = sub_cfg.get('max_line_width', 42)
 
     if not os.path.exists(audio_file_path):
-        print(f"Audio file not found at {audio_file_path}. Cannot generate SRT.")
+        print(f"Audio file not found at {audio_file_path}. Cannot generate subtitles.")
         return None
             
-    # Skip if the SRT file already exists
-    if os.path.exists(output_srt_path):
-        print(f"Subtitles already exist at {output_srt_path}. Skipping generation.")
-        return output_srt_path
+    # Skip if the subtitle file already exists
+    if os.path.exists(output_path):
+        print(f"Subtitles already exist at {output_path}. Skipping generation.")
+        return output_path
     
     # Ensure output directory exists
-    output_dir = os.path.dirname(output_srt_path)
+    output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
         print(f"Created subtitle output directory: {output_dir}")
@@ -154,14 +254,22 @@ def generate_srt_from_audio_file(
         print(f"Transcribing audio file: {audio_file_path}")
         aligned_result = _transcribe_with_whisperx(audio_file_path, language, model_name, device, compute_type)
         
-        print(f"Converting transcription to SRT format with time offset: {time_offset_seconds}s...")
-        srt_text = _whisperx_result_to_srt(aligned_result, max_width, time_offset=time_offset_seconds) # Pass offset
+        subtitle_text = ""
+        if subtitle_format == 'srt':
+            print(f"Converting transcription to SRT format with time offset: {time_offset_seconds}s...")
+            subtitle_text = _whisperx_result_to_srt(aligned_result, max_width, time_offset=time_offset_seconds)
+        elif subtitle_format == 'ass':
+            print(f"Converting transcription to ASS format with time offset: {time_offset_seconds}s...")
+            subtitle_text = _whisperx_result_to_ass(aligned_result, time_offset=time_offset_seconds, config=config)
+        else:
+            print(f"Unsupported subtitle format: {subtitle_format}. Only 'srt' and 'ass' are supported.")
+            return None
         
-        with open(output_srt_path, "w", encoding="utf-8") as f_out:
-            f_out.write(srt_text)
+        with open(output_path, "w", encoding="utf-8") as f_out:
+            f_out.write(subtitle_text)
         
-        print(f"Subtitles saved to: {output_srt_path}")
-        return output_srt_path
+        print(f"Subtitles saved to: {output_path}")
+        return output_path
     except Exception as e:
         print(f"Error generating subtitles for {audio_file_path}: {e}")
         return None
