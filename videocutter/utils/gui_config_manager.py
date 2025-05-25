@@ -48,7 +48,7 @@ chromakey_blend = 0
 generate_srt = False
 subtitle_maxwidth = 21
 subtitle_font = "Arial"
-subtitle_fontsize = 24
+subtitle_fontsize = 48
 subtitle_fontcolor = "FFFFFF"
 subtitle_bgcolor = "000000"
 subtitle_bgopacity = 0.5
@@ -57,6 +57,24 @@ subtitle_outline = 1
 subtitle_outlinecolor = "000000"
 subtitle_shadow = True
 subtitle_format = 'srt' # New: Default subtitle format
+
+# New ASS subtitle style parameters
+subtitle_secondary_color = "00FFFFFF" # Default to white (BBGGRR)
+subtitle_bold = -1 # -1 for bold, 0 for normal
+subtitle_italic = 0 # 0 for normal, -1 for italic
+subtitle_underline = 0 # 0 for normal, -1 for underlined
+subtitle_strikeout = 0 # 0 for normal, -1 for strikeout
+subtitle_scale_x = 100 # Percentage
+subtitle_scale_y = 100 # Percentage
+subtitle_spacing = 0.0 # Pixels
+subtitle_angle = 0 # Degrees
+subtitle_border_style = 1 # 1 for outline+shadow, 3 for opaque box
+subtitle_shadow_distance = 1.0 # Pixels
+subtitle_margin_l = 10 # Left margin
+subtitle_margin_r = 10 # Right margin
+subtitle_margin_v = 10 # Vertical margin
+subtitle_encoding = 1 # Character set (1 for ANSI, 0 for default)
+
 effect_overlay = 'None'
 effect_opacity = 0.2
 effect_blend = 'overlay'
@@ -162,6 +180,21 @@ def create_default_config():
         'subtitle_outlinecolor': subtitle_outlinecolor,
         'subtitle_shadow': subtitle_shadow,
         'subtitle_format': subtitle_format, # New: Subtitle format
+        'subtitle_secondary_color': subtitle_secondary_color,
+        'subtitle_bold': subtitle_bold,
+        'subtitle_italic': subtitle_italic,
+        'subtitle_underline': subtitle_underline,
+        'subtitle_strikeout': subtitle_strikeout,
+        'subtitle_scale_x': subtitle_scale_x,
+        'subtitle_scale_y': subtitle_scale_y,
+        'subtitle_spacing': subtitle_spacing,
+        'subtitle_angle': subtitle_angle,
+        'subtitle_border_style': subtitle_border_style,
+        'subtitle_shadow_distance': subtitle_shadow_distance,
+        'subtitle_margin_l': subtitle_margin_l,
+        'subtitle_margin_r': subtitle_margin_r,
+        'subtitle_margin_v': subtitle_margin_v,
+        'subtitle_encoding': subtitle_encoding,
         'effect_overlay': effect_overlay,
         'effect_opacity': effect_opacity,
         'effect_blend': effect_blend,
@@ -303,6 +336,23 @@ def load_config(root_widget, var_config_str, gui_elements):
     update_var(gui_elements.get('var_subtitle_shadow'), config.get('subtitle_shadow', subtitle_shadow))
     update_var(gui_elements.get('var_subtitle_format'), config.get('subtitle_format', subtitle_format)) # New: Update subtitle format
 
+    # Load new ASS subtitle style parameters
+    update_var(gui_elements.get('var_subtitle_secondary_color'), config.get('subtitle_secondary_color', subtitle_secondary_color))
+    update_var(gui_elements.get('var_subtitle_bold'), config.get('subtitle_bold', subtitle_bold))
+    update_var(gui_elements.get('var_subtitle_italic'), config.get('subtitle_italic', subtitle_italic))
+    update_var(gui_elements.get('var_subtitle_underline'), config.get('subtitle_underline', subtitle_underline))
+    update_var(gui_elements.get('var_subtitle_strikeout'), config.get('subtitle_strikeout', subtitle_strikeout))
+    update_var(gui_elements.get('var_subtitle_scale_x'), config.get('subtitle_scale_x', subtitle_scale_x))
+    update_var(gui_elements.get('var_subtitle_scale_y'), config.get('subtitle_scale_y', subtitle_scale_y))
+    update_var(gui_elements.get('var_subtitle_spacing'), config.get('subtitle_spacing', subtitle_spacing))
+    update_var(gui_elements.get('var_subtitle_angle'), config.get('subtitle_angle', subtitle_angle))
+    update_var(gui_elements.get('var_subtitle_border_style'), config.get('subtitle_border_style', subtitle_border_style))
+    update_var(gui_elements.get('var_subtitle_shadow_distance'), config.get('subtitle_shadow_distance', subtitle_shadow_distance))
+    update_var(gui_elements.get('var_subtitle_margin_l'), config.get('subtitle_margin_l', subtitle_margin_l))
+    update_var(gui_elements.get('var_subtitle_margin_r'), config.get('subtitle_margin_r', subtitle_margin_r))
+    update_var(gui_elements.get('var_subtitle_margin_v'), config.get('subtitle_margin_v', subtitle_margin_v))
+    update_var(gui_elements.get('var_subtitle_encoding'), config.get('subtitle_encoding', subtitle_encoding))
+
     # Update slider value entries
     # These functions are now in gui_utils.py
     if gui_elements.get('font_size_value_entry'):
@@ -398,6 +448,21 @@ def save_config(gui_elements):
             'subtitle_outlinecolor': gui_elements['var_subtitle_outlinecolor'].get(),
             'subtitle_shadow': gui_elements['var_subtitle_shadow'].get(),
             'subtitle_format': gui_elements['var_subtitle_format'].get(), # New: Save subtitle format
+            'subtitle_secondary_color': gui_elements['var_subtitle_secondary_color'].get(),
+            'subtitle_bold': gui_elements['var_subtitle_bold'].get(),
+            'subtitle_italic': gui_elements['var_subtitle_italic'].get(),
+            'subtitle_underline': gui_elements['var_subtitle_underline'].get(),
+            'subtitle_strikeout': gui_elements['var_subtitle_strikeout'].get(),
+            'subtitle_scale_x': gui_elements['var_subtitle_scale_x'].get(),
+            'subtitle_scale_y': gui_elements['var_subtitle_scale_y'].get(),
+            'subtitle_spacing': gui_elements['var_subtitle_spacing'].get(),
+            'subtitle_angle': gui_elements['var_subtitle_angle'].get(),
+            'subtitle_border_style': gui_elements['var_subtitle_border_style'].get(),
+            'subtitle_shadow_distance': gui_elements['var_subtitle_shadow_distance'].get(),
+            'subtitle_margin_l': gui_elements['var_subtitle_margin_l'].get(),
+            'subtitle_margin_r': gui_elements['var_subtitle_margin_r'].get(),
+            'subtitle_margin_v': gui_elements['var_subtitle_margin_v'].get(),
+            'subtitle_encoding': gui_elements['var_subtitle_encoding'].get(),
             'effect_overlay': gui_elements['var_effect_overlay'].get(),
             'effect_opacity': gui_elements['var_effect_opacity'].get(),
             'effect_blend': gui_elements['var_effect_blend'].get(),
@@ -468,6 +533,21 @@ def save_new_config(gui_elements):
             'subtitle_outlinecolor': gui_elements['var_subtitle_outlinecolor'].get(),
             'subtitle_shadow': gui_elements['var_subtitle_shadow'].get(),
             'subtitle_format': gui_elements['var_subtitle_format'].get(), # New: Save subtitle format
+            'subtitle_secondary_color': gui_elements['var_subtitle_secondary_color'].get(),
+            'subtitle_bold': gui_elements['var_subtitle_bold'].get(),
+            'subtitle_italic': gui_elements['var_subtitle_italic'].get(),
+            'subtitle_underline': gui_elements['var_subtitle_underline'].get(),
+            'subtitle_strikeout': gui_elements['var_subtitle_strikeout'].get(),
+            'subtitle_scale_x': gui_elements['var_subtitle_scale_x'].get(),
+            'subtitle_scale_y': gui_elements['var_subtitle_scale_y'].get(),
+            'subtitle_spacing': gui_elements['var_subtitle_spacing'].get(),
+            'subtitle_angle': gui_elements['var_subtitle_angle'].get(),
+            'subtitle_border_style': gui_elements['var_subtitle_border_style'].get(),
+            'subtitle_shadow_distance': gui_elements['var_subtitle_shadow_distance'].get(),
+            'subtitle_margin_l': gui_elements['var_subtitle_margin_l'].get(),
+            'subtitle_margin_r': gui_elements['var_subtitle_margin_r'].get(),
+            'subtitle_margin_v': gui_elements['var_subtitle_margin_v'].get(),
+            'subtitle_encoding': gui_elements['var_subtitle_encoding'].get(),
             'effect_overlay': gui_elements['var_effect_overlay'].get(),
             'effect_opacity': gui_elements['var_effect_opacity'].get(),
             'effect_blend': gui_elements['var_effect_blend'].get(),

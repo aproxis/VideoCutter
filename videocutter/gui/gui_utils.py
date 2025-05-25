@@ -3,13 +3,9 @@ from tkinter import ttk
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 import os
 
-# Debounce mechanism for preview updates
-_after_id = None
+# Direct update for preview (removed debounce for debugging)
 def schedule_subtitle_preview_update(root, update_function):
-    global _after_id
-    if _after_id:
-        root.after_cancel(_after_id)
-    _after_id = root.after(200, update_function) # 200ms delay
+    update_function()
 
 # Function to update slider value entry
 def update_slider_value(var, entry):
@@ -32,6 +28,7 @@ def update_slider_from_entry(entry, var, slider, min_val, max_val, root, update_
 
 # Function to update subtitle preview
 def update_subtitle_preview(gui_elements):
+    print("Entering update_subtitle_preview") # Debug print
     # Access necessary elements from gui_elements
     root = gui_elements['root']
     var_subtitle_font = gui_elements['var_subtitle_font']
@@ -45,19 +42,52 @@ def update_subtitle_preview(gui_elements):
     preview_label = gui_elements['preview_label']
     preview_frame = gui_elements['preview_frame']
     fonts_dir = gui_elements['fonts_dir'] # Assuming fonts_dir is passed in gui_elements
+    var_video_orientation = gui_elements['var_video_orientation'] # Get video orientation
 
     try:
+        # Determine target video height based on orientation for scaling
+        video_orientation = var_video_orientation.get()
+        if video_orientation == 'vertical':
+            target_video_height = 1920 # Standard vertical video height
+        else: # horizontal
+            target_video_height = 1080 # Standard horizontal video height
+
+        # Preview canvas dimensions
+        preview_width = 400
+        preview_height = 100
+        
+        # Use the GUI font size directly for preview, with min/max for readability/fit
+        scaled_font_size = var_subtitle_fontsize.get()
+        # Ensure minimum font size for visibility in preview
+        if scaled_font_size < 12: # Revert to original minimum for preview
+            scaled_font_size = 12
+        # Ensure maximum font size to fit in preview
+        if scaled_font_size > 60: # Arbitrary maximum to prevent overflow in preview
+            scaled_font_size = 60
+
         # Create a blank image
-        img = Image.new('RGB', (400, 100), color=(100, 100, 100))
+        img = Image.new('RGB', (preview_width, preview_height), color=(100, 100, 100))
         draw = ImageDraw.Draw(img)
         
         # Try to load the selected font
+        font = None
+        font_path = os.path.join(fonts_dir, var_subtitle_font.get())
+        print(f"Attempting to load font: {font_path} with size: {scaled_font_size}") # Debug print
         try:
-            font_path = os.path.join(fonts_dir, var_subtitle_font.get())
-            font = ImageFont.truetype(font_path, var_subtitle_fontsize.get())
-        except:
-            # Fallback to default font
+            font = ImageFont.truetype(font_path, scaled_font_size)
+        except (IOError, OSError) as e:
+            print(f"Error loading font file '{font_path}': {e}. Falling back to default font.")
             font = ImageFont.load_default()
+        except ValueError as e:
+            print(f"Error with font size {scaled_font_size} for font '{font_path}': {e}. Falling back to default font.")
+            font = ImageFont.load_default()
+        except Exception as e:
+            print(f"An unexpected error occurred while loading font '{font_path}': {e}. Falling back to default font.")
+            font = ImageFont.load_default()
+
+        if font is None: # Fallback if all attempts fail
+            font = ImageFont.load_default()
+            print("Forced fallback to default font as font object is None.")
         
         # Draw sample text
         sample_text = "Sample Subtitle Text"
@@ -75,7 +105,7 @@ def update_subtitle_preview(gui_elements):
                 # Last resort fallback
                 text_width, text_height = 200, 20
                 
-        position = (200 - text_width // 2, 50 - text_height // 2)
+        position = (preview_width // 2 - text_width // 2, preview_height // 2 - text_height // 2)
         
         # Create a base image with alpha channel for layering
         base_img = Image.new('RGBA', img.size, (0, 0, 0, 0))
@@ -87,7 +117,10 @@ def update_subtitle_preview(gui_elements):
         # If outline is enabled, create an outline layer
         outline_img = None
         if var_subtitle_outline.get() > 0:
+            # Outline thickness should also be directly from GUI, but with a minimum
             outline_thickness = var_subtitle_outline.get()
+            if outline_thickness < 1: outline_thickness = 1 # Ensure minimum outline
+            
             outline_img = Image.new('RGBA', img.size, (0, 0, 0, 0))
             outline_draw = ImageDraw.Draw(outline_img)
             
@@ -107,8 +140,9 @@ def update_subtitle_preview(gui_elements):
         
         # If shadow is enabled, create a shadow layer
         if var_subtitle_shadow.get():
-            # Define shadow_offset here to ensure it's always defined when shadow is enabled
-            shadow_offset = 2 
+            # Shadow offset should also be directly from GUI, but with a minimum
+            shadow_offset = 2 # Default shadow offset
+            if shadow_offset < 1: shadow_offset = 1 # Ensure minimum shadow offset
 
             # Calculate shadow color with opacity
             shadow_color = var_subtitle_bgcolor.get()
@@ -129,11 +163,12 @@ def update_subtitle_preview(gui_elements):
                 mask_draw = ImageDraw.Draw(mask)
                 
                 # Draw the outline shape
-                outline_thickness = var_subtitle_outline.get()
+                outline_thickness_for_mask = var_subtitle_outline.get() # Use direct value
+                if outline_thickness_for_mask < 1: outline_thickness_for_mask = 1
                 for dx in [-1, 0, 1]:
                     for dy in [-1, 0, 1]:
                         mask_draw.text(
-                            (position[0] + dx * outline_thickness, position[1] + dy * outline_thickness),
+                            (position[0] + dx * outline_thickness_for_mask, position[1] + dy * outline_thickness_for_mask),
                             sample_text,
                             font=font,
                             fill=255

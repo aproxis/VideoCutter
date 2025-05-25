@@ -60,6 +60,10 @@
     - ✅ Real-time preview in GUI
     - ✅ Shadow and outline effects
     - ✅ Configurable positioning and colors
+    - **✅ Implemented full ASS style parameter support in `videocutter/processing/subtitle_generator.py`.**
+    - **✅ Integrated new ASS subtitle style parameters into `videocutter/config_manager.py` and `videocutter/utils/gui_config_manager.py`.**
+    - **✅ Added GUI widgets for all new ASS subtitle style parameters in `gui.py` and updated `_collect_gui_settings`.**
+    - **✅ Adjusted the layout of the "Subtitles" tab in `gui.py` by adding `rowspan=2` to the "Basic Subtitle Settings" frame to prevent content cutting and improve vertical spacing.**
 
 ### Documentation
 
@@ -206,6 +210,10 @@ The **primary focus is now shifting to a significant refactoring of the core pro
     - ✅ Enhanced preview accuracy in the GUI
     - ✅ Added numeric formatting for slider values
     - ✅ Improved font detection and fallback mechanisms
+    - **✅ Implemented full ASS style parameter support in `videocutter/processing/subtitle_generator.py`.**
+    - **✅ Integrated new ASS subtitle style parameters into `videocutter/config_manager.py` and `videocutter/utils/gui_config_manager.py`.**
+    - **✅ Added GUI widgets for all new ASS subtitle style parameters in `gui.py` and updated `_collect_gui_settings`.**
+    - **✅ Adjusted the layout of the "Subtitles" tab in `gui.py` by adding `rowspan=2` to the "Basic Subtitle Settings" frame to prevent content cutting and improve vertical spacing.**
 
 2.  **Documentation**
     - ✅ Updated memory-bank with subtitle system details

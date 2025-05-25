@@ -13,8 +13,7 @@ import shutil # Import shutil for file copying
 
 # Assuming font_utils is in videocutter.utils
 from videocutter.utils.font_utils import get_font_name
-# Assuming video_processor has get_video_duration or similar
-from .video_processor import get_video_duration
+from .video_processor import get_video_duration, get_video_metadata
 
 
 def _get_overlay_video_duration(overlay_video_path: str) -> float:
@@ -114,10 +113,14 @@ def apply_final_overlays(
     title_video_chromakey_similarity = title_video_overlay_cfg.get('chromakey_similarity', 0.18)
     title_video_chromakey_blend = title_video_overlay_cfg.get('chromakey_blend', 0.0)
 
-    main_video_duration = get_video_duration(input_video_path)
-    if main_video_duration is None:
-        print(f"Could not get duration for main video {input_video_path}. Aborting.")
+    main_video_metadata = get_video_metadata(input_video_path)
+    if not main_video_metadata or main_video_metadata.get("duration") is None:
+        print(f"Could not get metadata for main video {input_video_path}. Aborting.")
         return None
+    
+    main_video_duration = main_video_metadata["duration"]
+    main_video_width = main_video_metadata["width"]
+    main_video_height = main_video_metadata["height"]
 
     # --- Build Filter Complex ---
     filter_complex_parts = []
@@ -188,17 +191,18 @@ def apply_final_overlays(
             effect_blend_mode = effects_cfg.get('blend_mode', 'overlay').lower()
             
             effect_stream_label = "v_effect_processed"
+            # Scale effect overlay to main video dimensions
             if effect_blend_mode in ["normal", "overlay", "over"]:
                 filter_complex_parts.append(
-                    f"[{effect_input_idx}:v]format=rgba,colorchannelmixer=aa={effect_opacity},"
-                    f"setpts=PTS-STARTPTS,scale=iw:ih,setsar=1[effect_alpha];"
+                    f"[{effect_input_idx}:v]scale={main_video_width}:{main_video_height},format=rgba,colorchannelmixer=aa={effect_opacity},"
+                    f"setpts=PTS-STARTPTS,setsar=1[effect_alpha];"
                     f"[{current_video_stream}][effect_alpha]overlay=shortest=1[{effect_stream_label}]"
                 )
             else: # Other blend modes
                 filter_complex_parts.append(
-                    f"[{current_video_stream}]format=rgba,scale=iw:ih,setsar=1,format=rgb24[v_rgb_for_blend];"
-                    f"[{effect_input_idx}:v]format=rgba,trim=duration={main_video_duration},setpts=PTS-STARTPTS,"
-                    f"scale=iw:ih,setsar=1,format=rgb24[effect_rgb];"
+                    f"[{current_video_stream}]format=rgba,scale={main_video_width}:{main_video_height},setsar=1,format=rgb24[v_rgb_for_blend];"
+                    f"[{effect_input_idx}:v]scale={main_video_width}:{main_video_height},format=rgba,trim=duration={main_video_duration},setpts=PTS-STARTPTS,"
+                    f"setsar=1,format=rgb24[effect_rgb];"
                     f"[v_rgb_for_blend][effect_rgb]blend=all_mode={effect_blend_mode}:all_opacity={effect_opacity}[blended_effect];"
                     f"[blended_effect]format=yuv420p[{effect_stream_label}]"
                 )

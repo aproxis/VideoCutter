@@ -25,6 +25,7 @@ Alongside this, ongoing work includes documentation updates and potential furthe
     - Adding real-time parameter updates
     - Implementing numeric formatting for slider values
     - Enhancing control state management
+    - **Optimizing GUI layout for subtitle settings to prevent content cutting.**
 
 4.  **FFmpeg Integration**
     - Optimizing subtitle styling parameters
@@ -41,6 +42,7 @@ Alongside this, ongoing work includes documentation updates and potential furthe
 - Implemented proper shadow rendering with opacity control
 - Fixed the drawing order to ensure shadows appear behind text with outlines
 - Enhanced preview rendering to match the final video output
+- **Implemented full ASS style parameter support in `videocutter/processing/subtitle_generator.py`.**
 
 ### GUI Enhancements
 
@@ -49,7 +51,7 @@ Alongside this, ongoing work includes documentation updates and potential furthe
 - Fixed shadow controls state management
 - Enhanced preview rendering with alpha compositing
 - Implemented proper masking for complex text shapes with outlines
-- **Reorganized GUI layout for better user experience:**
+- Reorganized GUI layout for better user experience:
     - Increased window size to 1400x900.
     - Restructured tabs into "Main Settings", "Subtitles", and "Overlay Effects" (renamed from "Advanced Effects").
     - Relocated settings to more logical tabs:
@@ -64,7 +66,11 @@ Alongside this, ongoing work includes documentation updates and potential furthe
     - Implemented GUI control disabling (greying out) for Watermark, Subscribe Overlay, and Title Overlay sections based on their respective "Enable" checkboxes, ensuring all relevant widgets are correctly enabled/disabled.
     - Centralized default GUI values in `videocutter/utils/gui_config_manager.py`.
     - Implemented threading for `start_process` to keep the GUI responsive during video processing.
-    - **Fixed `KeyError: 'gui_utils'` by ensuring `gui_utils` module is correctly passed to `gui_config_manager` via the `gui_elements` dictionary.**
+    - Fixed `KeyError: 'gui_utils'` by ensuring `gui_utils` module is correctly passed to `gui_config_manager` via the `gui_elements` dictionary.
+    - **Added new `tk.Variable`s for all ASS subtitle style parameters in `gui.py` (`_init_subtitle_variables`).**
+    - **Added corresponding GUI widgets for all new ASS subtitle style parameters in `gui.py` (`_setup_subtitles_tab`).**
+    - **Updated `_collect_gui_settings` in `gui.py` to include all new ASS subtitle style parameters.**
+    - **Adjusted the layout of the "Subtitles" tab in `gui.py` by adding `rowspan=2` to the "Basic Subtitle Settings" frame to prevent content cutting and improve vertical spacing.**
 
 ### FFmpeg Integration
 
@@ -253,8 +259,8 @@ Alongside this, ongoing work includes documentation updates and potential furthe
     - This reorganization is expected to make the GUI more intuitive for users.
     - The addition of dedicated controls for title video chromakey and title background further enhances user control and customization.
     - The new overlay directory structure and GUI dropdowns provide more organized and flexible management of visual effects.
-    - Added an "Enable" checkbox for the Effect Overlay, allowing users to easily toggle its application and manage associated settings.
-    - Implemented GUI control disabling (greying out) for Watermark, Subscribe Overlay, and Title Overlay sections based on their respective "Enable" checkboxes, ensuring all relevant widgets are correctly enabled/disabled, improving usability and clarity.
+    - Added an "Enable" checkbox for Effect Overlay in GUI, with state saving/loading and control enabling/disabling.
+    - Implemented GUI control disabling (greying out) for Watermark, Subscribe Overlay, and Title Overlay sections based on their respective "Enable" checkboxes, ensuring all relevant widgets are correctly enabled/disabled.
     - Centralized default GUI values in `videocutter/utils/gui_config_manager.py`.
     - Implemented threading for `start_process` to keep the GUI responsive during video processing.
 

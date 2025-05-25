@@ -213,6 +213,24 @@ class ConfigManager:
         self.config.subtitles.position_ass = int(self.config.subtitles.get('position_ass', self.config.get('subtitle_position', 2)))
         self.config.subtitles.outline_thickness = float(self.config.subtitles.get('outline_thickness', self.config.get('subtitle_outline', 1.0)))
         self.config.subtitles.outline_color_hex = str(self.config.subtitles.get('outline_color_hex', self.config.get('subtitle_outlinecolor', '000000')))
+        
+        # New ASS subtitle style parameters
+        self.config.subtitles.secondary_color_hex = str(self.config.subtitles.get('secondary_color_hex', '00FFFFFF')) # Default to white
+        self.config.subtitles.bold = int(self.config.subtitles.get('bold', -1))
+        self.config.subtitles.italic = int(self.config.subtitles.get('italic', 0))
+        self.config.subtitles.underline = int(self.config.subtitles.get('underline', 0))
+        self.config.subtitles.strikeout = int(self.config.subtitles.get('strikeout', 0))
+        self.config.subtitles.scale_x = int(self.config.subtitles.get('scale_x', 100))
+        self.config.subtitles.scale_y = int(self.config.subtitles.get('scale_y', 100))
+        self.config.subtitles.spacing = float(self.config.subtitles.get('spacing', 0.0))
+        self.config.subtitles.angle = int(self.config.subtitles.get('angle', 0))
+        self.config.subtitles.border_style = int(self.config.subtitles.get('border_style', 1))
+        self.config.subtitles.shadow_distance = float(self.config.subtitles.get('shadow_distance', 1.0))
+        self.config.subtitles.margin_l = int(self.config.subtitles.get('margin_l', 10))
+        self.config.subtitles.margin_r = int(self.config.subtitles.get('margin_r', 10))
+        self.config.subtitles.margin_v = int(self.config.subtitles.get('margin_v', 10))
+        self.config.subtitles.encoding = int(self.config.subtitles.get('encoding', 1))
+
         # WhisperX specific settings
         self.config.subtitles.language = str(self.config.subtitles.get('language', self.config.get('subtitle_language', 'en')))
         self.config.subtitles.whisper_model = str(self.config.subtitles.get('whisper_model', self.config.get('subtitle_whisper_model', 'base')))

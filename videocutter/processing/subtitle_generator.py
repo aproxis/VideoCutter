@@ -129,7 +129,7 @@ PlayResX: {play_res_x}
 PlayResY: {play_res_y}
 
 [V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, BackColour, Bold, Italic, Alignment, MarginL, MarginR, MarginV, Outline, Shadow, Encoding
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 """
     
     # Dynamically generate the style string
@@ -151,25 +151,37 @@ Format: Name, Fontname, Fontsize, PrimaryColour, BackColour, Bold, Italic, Align
 
     # Color conversions (RRGGBB to BBGGRR)
     fc_bgr = sub_cfg.get('font_color_hex', 'FFFFFF')[4:6] + sub_cfg.get('font_color_hex', 'FFFFFF')[2:4] + sub_cfg.get('font_color_hex', 'FFFFFF')[0:2]
+    # SecondaryColour (default to white)
+    secondary_color_bgr = sub_cfg.get('secondary_color_hex', '00FFFFFF')[4:6] + sub_cfg.get('secondary_color_hex', '00FFFFFF')[2:4] + sub_cfg.get('secondary_color_hex', '00FFFFFF')[0:2]
+    # OutlineColour (default to black)
     oc_bgr = sub_cfg.get('outline_color_hex', '000000')[4:6] + sub_cfg.get('outline_color_hex', '000000')[2:4] + sub_cfg.get('outline_color_hex', '000000')[0:2]
+    # BackColour (default to black)
     sc_bgr = sub_cfg.get('shadow_color_hex', '000000')[4:6] + sub_cfg.get('shadow_color_hex', '000000')[2:4] + sub_cfg.get('shadow_color_hex', '000000')[0:2]
 
-    # Opacity inversion for shadow
-    opacity_val = int((1.0 - sub_cfg.get('shadow_opacity', 0.5)) * 255)
-    opacity_hex = format(opacity_val, '02X')
-    
     # Style definition
     ass_style_definition = (
         f"Style: Default,{actual_sub_font_name},"
-        f"{sub_cfg.get('font_size', 24)},"
+        f"{sub_cfg.get('font_size', 24)}," # Fontsize
         f"&H00{fc_bgr}," # PrimaryColour
-        f"&H{opacity_hex}{sc_bgr}," # BackColour (shadow color with opacity)
-        f"-1,0," # Bold, Italic (hardcoded for now)
+        f"&H00{secondary_color_bgr}," # SecondaryColour
+        f"&H00{oc_bgr}," # OutlineColour
+        f"&H00{sc_bgr}," # BackColour
+        f"{sub_cfg.get('bold', -1)}," # Bold
+        f"{sub_cfg.get('italic', 0)}," # Italic
+        f"{sub_cfg.get('underline', 0)}," # Underline
+        f"{sub_cfg.get('strikeout', 0)}," # StrikeOut
+        f"{sub_cfg.get('scale_x', 100)}," # ScaleX
+        f"{sub_cfg.get('scale_y', 100)}," # ScaleY
+        f"{sub_cfg.get('spacing', 0.0)}," # Spacing
+        f"{sub_cfg.get('angle', 0)}," # Angle
+        f"{sub_cfg.get('border_style', 1)}," # BorderStyle
+        f"{sub_cfg.get('outline_thickness', 1.0)}," # Outline
+        f"{sub_cfg.get('shadow_distance', 1.0)}," # Shadow
         f"{sub_cfg.get('position_ass', 2)}," # Alignment
-        f"0,0,0," # MarginL, MarginR, MarginV (hardcoded for now)
-        f"{sub_cfg.get('outline_thickness', 1)}," # Outline
-        f"{sub_cfg.get('shadow_enabled', True) and 2 or 0}," # Shadow (use 2 for visible shadow, 0 if disabled)
-        f"1" # Encoding (hardcoded)
+        f"{sub_cfg.get('margin_l', 10)}," # MarginL
+        f"{sub_cfg.get('margin_r', 10)}," # MarginR
+        f"{sub_cfg.get('margin_v', 10)}," # MarginV
+        f"{sub_cfg.get('encoding', 1)}" # Encoding
     )
     
     ass_header += ass_style_definition + "\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
@@ -239,11 +251,6 @@ def generate_subtitles_from_audio_file(
         print(f"Audio file not found at {audio_file_path}. Cannot generate subtitles.")
         return None
             
-    # Skip if the subtitle file already exists
-    if os.path.exists(output_path):
-        print(f"Subtitles already exist at {output_path}. Skipping generation.")
-        return output_path
-    
     # Ensure output directory exists
     output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
