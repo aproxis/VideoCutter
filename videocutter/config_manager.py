@@ -235,7 +235,7 @@ class ConfigManager:
         self.config.subtitles.language = str(self.config.subtitles.get('language', self.config.get('subtitle_language', 'en')))
         self.config.subtitles.whisper_model = str(self.config.subtitles.get('whisper_model', self.config.get('subtitle_whisper_model', 'base')))
         self.config.subtitles.device = str(self.config.subtitles.get('device', self.config.get('subtitle_device', 'cpu')))
-        self.config.subtitles.compute_type = str(self.config.subtitles.get('compute_type', self.config.get('subtitle_compute_type', 'float32')))
+        self.config.subtitles.compute_type = str(self.config.subtitles.get('compute_type', self.config.get('subtitle_compute_type', 'int8')))
 
 
     def get(self, key, default=None): # Keep this simple get for direct access

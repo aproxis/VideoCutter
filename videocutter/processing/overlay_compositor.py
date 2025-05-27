@@ -344,7 +344,7 @@ def apply_final_overlays(
         # --- Execute FFmpeg Command ---
         final_filter_complex_str = ";".join(filter_complex_parts)
         
-        ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'debug']
+        ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error']
         ffmpeg_cmd.extend(ffmpeg_inputs)
         ffmpeg_cmd.extend([
             '-filter_complex', final_filter_complex_str,

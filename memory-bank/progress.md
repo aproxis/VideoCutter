@@ -110,6 +110,11 @@
     - ✅ Centralized default GUI values in `videocutter/utils/gui_config_manager.py`.
     - ✅ Implemented threading for `start_process` to keep the GUI responsive during video processing.
     - ✅ **Fixed `KeyError: 'gui_utils'` by ensuring `gui_utils` module is correctly passed to `gui_config_manager` via the `gui_elements` dictionary.**
+    - ✅ **Moved "Main Settings" tab content to `videocutter/gui/main_settings_frame.py` and implemented a two-column layout within it.**
+    - ✅ **Updated `gui.py` to instantiate and use `MainSettingsFrame` for the "Main Settings" tab.**
+    - ✅ **Moved batch processing frame from `gui.py` to `videocutter/gui/main_settings_frame.py`.**
+    - ✅ **Removed `_create_batch_frame` from `gui.py` and adjusted `_create_top_controls` accordingly.**
+    - ✅ **Re-added "START" and "EXIT" buttons to the `_create_top_controls` method in `gui.py`.**
 - ✅ **Refactor Core Processing Logic into `videocutter` package**:
     - ✅ `videocutter/main.py`: Central orchestrator for the entire video processing pipeline.
     - ✅ `videocutter/config_manager.py`: Handles configuration loading and merging.
@@ -258,6 +263,11 @@ A **major refactoring is actively underway**, transitioning from a collection of
     - ✅ Centralized default GUI values in `videocutter/utils/gui_config_manager.py`.
     - ✅ Implemented threading for `start_process` to keep the GUI responsive during video processing.
     - ✅ **Fixed `KeyError: 'gui_utils'` by ensuring `gui_utils` module is correctly passed to `gui_config_manager` via the `gui_elements` dictionary.**
+    - ✅ **Moved "Main Settings" tab content to `videocutter/gui/main_settings_frame.py` and implemented a two-column layout within it.**
+    - ✅ **Updated `gui.py` to instantiate and use `MainSettingsFrame` for the "Main Settings" tab.**
+    - ✅ **Moved batch processing frame from `gui.py` to `videocutter/gui/main_settings_frame.py`.**
+    - ✅ **Removed `_create_batch_frame` from `gui.py` and adjusted `_create_top_controls` accordingly.**
+    - ✅ **Re-added "START" and "EXIT" buttons to the `_create_top_controls` method in `gui.py`.**
 
 ### FFmpeg Integration
 

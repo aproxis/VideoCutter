@@ -30,8 +30,8 @@ def format_time(seconds):
 def transcribe_with_whisperx(audio_path, language="en", model_name="base", device="cpu"):
     """Transcribe and perform forced alignment with WhisperX."""
     print(f"Running WhisperX for file: {audio_path}")
-    # Load Whisper model with float32 compute type for stability
-    model = whisperx.load_model(model_name, device=device, language=language, compute_type="float32")
+    # Load Whisper model with int8 compute type for stability
+    model = whisperx.load_model(model_name, device=device, language=language, compute_type="int8")
     result = model.transcribe(audio_path)
     # Load model for forced alignment
     alignment_model, metadata = whisperx.load_align_model(language_code=language, device=device)

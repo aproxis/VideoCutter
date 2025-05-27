@@ -73,34 +73,43 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
 
     # Collect initial media files from project_input_folder (top level of it)
     initial_media_files = []
-    for ext_list in [['.mp4', '.mov', '.avi'], ['.jpg', '.jpeg', '.png'], ['.mp3']]:
+    for ext_list in [['.mp4', '.mov', '.avi'], ['.jpg', '.jpeg', '.png'], ['.mp3'], ['.txt']]: # Added .txt
         initial_media_files.extend(file_utils.find_files_by_extension(project_input_folder, ext_list))
     
-    processed_raw_media_paths_in_work_dir = []
-
-    for original_path in initial_media_files:
+    # Collect initial media files from project_input_folder (top level of it)
+    # and copy them to the work_datetime_folder for processing.
+    # The file_utils.organize_files_to_timestamped_folder will handle renaming.
+    
+    # First, find all relevant files in the project_input_folder
+    all_files_in_input = []
+    for ext_list in [['.mp4', '.mov', '.avi'], ['.jpg', '.jpeg', '.png'], ['.mp3'], ['.txt']]:
+        all_files_in_input.extend(file_utils.find_files_by_extension(project_input_folder, ext_list))
+    
+    # Filter out files that are already in RESULT or SOURCE subdirs of the project folder
+    # and the project config file itself.
+    files_to_process_and_move = []
+    for original_path in all_files_in_input:
         filename = os.path.basename(original_path)
-        # Skip files already in RESULT or SOURCE subdirs of the project folder
         if os.path.dirname(original_path).endswith(os.path.sep + "RESULT") or \
-           os.path.dirname(original_path).endswith(os.path.sep + "SOURCE"):
+           os.path.dirname(original_path).endswith(os.path.sep + "SOURCE") or \
+           filename.lower() == cfg.get('project_specific_config_filename', '_project_config.json'):
             continue
+        files_to_process_and_move.append(original_path)
 
-        if filename.lower() == 'voiceover.mp3':
-            file_utils.backup_original_file(original_path, run_source_backup_folder)
-            shutil.copy(original_path, os.path.join(work_datetime_folder, 'voiceover.mp3'))
-            print(f"Copied voiceover.mp3 for {project_name} to {work_datetime_folder}")
-            # Voiceover is not part of the visual slideshow items initially
-        elif filename.lower() == cfg.get('project_specific_config_filename', '_project_config.json'):
-            # Don't process the config file itself if it's in the root of project folder
-            continue
-        else:
-            file_utils.backup_original_file(original_path, run_source_backup_folder)
-            path_in_work_dir = os.path.join(work_datetime_folder, filename)
-            shutil.copy(original_path, path_in_work_dir)
-            processed_raw_media_paths_in_work_dir.append(path_in_work_dir)
+    # Copy files to a temporary staging area within work_datetime_folder
+    # before calling organize_files_to_timestamped_folder
+    staging_dir = os.path.join(work_datetime_folder, "staging")
+    os.makedirs(staging_dir, exist_ok=True)
+
+    for original_path in files_to_process_and_move:
+        filename = os.path.basename(original_path)
+        destination_path = os.path.join(staging_dir, filename)
+        
+        file_utils.backup_original_file(original_path, run_source_backup_folder)
+        shutil.copy(original_path, destination_path)
+        print(f"Copied '{original_path}' to staging area '{destination_path}'")
         
         # Remove from original project_input_folder (top-level) after backup and copy
-        # This assumes files are directly in project_input_folder, not subdirs (other than RESULT/SOURCE)
         try:
             if os.path.dirname(original_path) == project_input_folder: # Only remove if it's at the root of project folder
                 os.remove(original_path)
@@ -108,14 +117,29 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
         except OSError as e:
             print(f"Error removing original file {original_path} from {project_input_folder}: {e}")
 
+    # Now, organize and rename files from the staging directory into the work_datetime_folder
+    # This will apply the renaming rules (001.jpg, voiceover.mp3, original_text.txt etc.)
+    file_utils.organize_files_to_timestamped_folder(staging_dir, "") # Pass empty string for datetime_string as it's already a timestamped folder
+    
+    # Move the renamed files from staging_dir to work_datetime_folder
+    for filename in os.listdir(staging_dir):
+        shutil.move(os.path.join(staging_dir, filename), os.path.join(work_datetime_folder, filename))
+    
+    # Clean up the staging directory
+    shutil.rmtree(staging_dir)
+    print(f"Cleaned up staging directory: {staging_dir}")
+
     # 3. Initial Video & Image Processing (in work_datetime_folder for the current project)
     # -------------------------------------------------------------------------
     print(f"\n--- {project_name} - Phase 2: Initial Media Processing ---")
     
-    video_segments_for_slideshow = [] # Not currently used, segments are picked up by find_files
-    images_for_slideshow = [] # Not currently used, images are picked by find_files
-
     temp_video_files_to_remove = [] 
+
+    # Re-scan work_datetime_folder for files after organization
+    processed_raw_media_paths_in_work_dir = file_utils.find_files_by_extension(
+        work_datetime_folder, 
+        ['.mp4', '.mov', '.avi', '.jpg', '.jpeg', '.png'] # Only process media files
+    )
 
     for media_path_in_work_dir in processed_raw_media_paths_in_work_dir:
         filename = os.path.basename(media_path_in_work_dir)
@@ -125,14 +149,12 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
             converted_video_path = media_path_in_work_dir 
             if cfg.video_orientation == 'horizontal':
                 temp_converted_path = os.path.join(work_datetime_folder, f"converted_{filename}")
-                apply_blur_for_video = cfg.get('image_options', {}).get('apply_side_blur', False) # Same blur flag for videos for now
-                apply_blur_for_video = cfg.get('image_options', {}).get('apply_side_blur', False) # Same blur flag for videos for now
                 apply_blur_for_video = cfg.get('image_options', {}).get('apply_side_blur', False)
                 if video_processor.convert_to_horizontal_with_blur_bg(
                     media_path_in_work_dir, 
                     temp_converted_path, 
                     cfg.get('target_resolution',{}).get('horizontal_height', 1080),
-                    apply_blur_for_video # Pass the flag here
+                    apply_blur_for_video
                     ):
                     converted_video_path = temp_converted_path
                     if media_path_in_work_dir != converted_video_path:
@@ -157,7 +179,6 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
                 cfg.video_orientation,
                 apply_blur_for_image
             )
-            # images_for_slideshow.append(media_path_in_work_dir) # Processed in place
 
     for f_path in temp_video_files_to_remove:
         if os.path.exists(f_path):
@@ -259,14 +280,39 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
         print(f"Error for {project_name}: Base slideshow generation failed. Aborting project.")
         return
 
+    # Read original text for correction if available
+    original_text_content = None
+    # Read from the work_datetime_folder where it was copied
+    original_text_file_path_in_work_dir = os.path.join(work_datetime_folder, 'original_text.txt')
+    print(f"DEBUG: Checking for original_text.txt at: {original_text_file_path_in_work_dir}")
+    if os.path.exists(original_text_file_path_in_work_dir):
+        print(f"DEBUG: original_text.txt exists: {os.path.exists(original_text_file_path_in_work_dir)}")
+        try:
+            with open(original_text_file_path_in_work_dir, 'r', encoding='utf-8') as f:
+                content = f.read()
+                print(f"DEBUG: Raw content read from original_text.txt (first 100 chars): '{content[:100]}...' (length: {len(content)})")
+                # Clean content: replace newlines with spaces, remove extra whitespace
+                cleaned_content = ' '.join(content.split()).strip()
+                print(f"DEBUG: Cleaned content (first 100 chars): '{cleaned_content[:100]}...' (length: {len(cleaned_content)})")
+                if cleaned_content:
+                    original_text_content = cleaned_content
+                    print(f"Found original_text.txt for {project_name}. Content loaded and cleaned for subtitle correction.")
+                else:
+                    print(f"original_text.txt for {project_name} is empty or contains only whitespace. Skipping subtitle correction.")
+        except Exception as e:
+            print(f"Error reading original_text.txt for {project_name}: {e}. Skipping subtitle correction.")
+    else:
+        print(f"original_text.txt not found in work directory for {project_name}. Skipping subtitle correction.")
+
     # 7. Generate Subtitles (Conditional)
     # -------------------------------------------------------------------------
     generated_subtitle_path = None
     project_voiceover_path = os.path.join(work_datetime_folder, 'voiceover.mp3')
+
     if cfg.subtitles.enabled and os.path.exists(project_voiceover_path):
         print(f"\n--- {project_name} - Phase 6: Generating Subtitles ---")
         
-        subtitle_format = cfg.subtitles.get('format', 'srt').lower() # Get format from config, default to 'srt'
+        subtitle_format = cfg.subtitles.get('format', 'ass').lower() # Get format from config, default to 'ass'
         subtitle_extension = "ass" if subtitle_format == "ass" else "srt"
         subtitle_output_target_path = os.path.join(work_datetime_folder, "subs", f"voiceover.{subtitle_extension}")
         os.makedirs(os.path.join(work_datetime_folder, "subs"), exist_ok=True)
@@ -281,13 +327,15 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
             vo_delay_for_srt = 0.0
             
         print(f"Debug Subtitle offset: cfg.audio.vo_delay = {cfg.audio.get('vo_delay')}, vo_delay_for_srt = {vo_delay_for_srt}")
+        # Removed the problematic print statement here
 
         generated_subtitle_path = subtitle_generator.generate_subtitles_from_audio_file(
             project_voiceover_path, 
             subtitle_output_target_path, 
             cfg,
             subtitle_format=subtitle_format, # Pass the format
-            time_offset_seconds=vo_delay_for_srt # Pass the delay
+            time_offset_seconds=vo_delay_for_srt, # Pass the delay
+            original_text=original_text_content # Pass the original text content
         )
         if generated_subtitle_path: 
             print(f"Subtitles generated for {project_name}: {generated_subtitle_path}")

@@ -93,8 +93,14 @@ def organize_files_to_timestamped_folder(source_directory: str, datetime_string:
     os.makedirs(timestamped_folder_path, exist_ok=True)
     print(f"Ensured timestamped folder exists: {timestamped_folder_path}")
 
-    files_in_source = os.listdir(source_directory)
+    files_in_source = sorted(os.listdir(source_directory)) # Sort to ensure consistent numbering
     counters = {} # To keep track of renaming sequence per extension
+    
+    image_extensions = ['.jpg', '.jpeg', '.png']
+    txt_extensions = ['.txt']
+    
+    voiceover_found = False
+    original_text_found = False
 
     for filename in files_in_source:
         # Skip the newly created timestamped folder itself and any files without extensions
@@ -108,12 +114,33 @@ def organize_files_to_timestamped_folder(source_directory: str, datetime_string:
         name, ext = os.path.splitext(filename)
         ext_lower = ext.lower()
 
-        current_counter = counters.get(ext_lower, 0) + 1
-        counters[ext_lower] = current_counter
+        new_filename = filename # Default to original filename
 
         if ext_lower == '.mp3':
-            new_filename = 'voiceover.mp3'
+            if not voiceover_found:
+                new_filename = 'voiceover.mp3'
+                voiceover_found = True
+            else:
+                # Handle multiple mp3s if needed, e.g., rename sequentially
+                current_counter = counters.get(ext_lower, 0) + 1
+                counters[ext_lower] = current_counter
+                new_filename = f"voiceover_{str(current_counter).zfill(3)}.mp3"
+        elif ext_lower in [f".{e}" for e in image_extensions]: # Check against normalized image extensions
+            current_counter = counters.get('.jpg', 0) + 1 # Use .jpg counter for all images
+            counters['.jpg'] = current_counter
+            new_filename = f"{str(current_counter).zfill(3)}.jpg" # Force .jpg extension
+        elif ext_lower in txt_extensions:
+            if not original_text_found:
+                new_filename = 'original_text.txt'
+                original_text_found = True
+            else:
+                current_counter = counters.get(ext_lower, 0) + 1
+                counters[ext_lower] = current_counter
+                new_filename = f"original_text_{str(current_counter).zfill(3)}.txt"
         else:
+            # For other file types, continue sequential renaming based on their original extension
+            current_counter = counters.get(ext_lower, 0) + 1
+            counters[ext_lower] = current_counter
             new_filename = f"{str(current_counter).zfill(3)}{ext}" # Preserve original extension case
 
         new_filepath = os.path.join(timestamped_folder_path, new_filename)

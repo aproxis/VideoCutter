@@ -54,6 +54,7 @@ Alongside this, ongoing work includes documentation updates and potential furthe
     -   `videocutter/gui/`: Contains GUI-specific components.
         -   `videocutter/gui/gui_utils.py`: Provides GUI utility functions (slider-entry sync, subtitle preview rendering).
         -   `videocutter/gui/title_settings_frame.py`: Encapsulates title-specific GUI controls.
+        -   `videocutter/gui/main_settings_frame.py`: Encapsulates main settings GUI controls with a two-column layout, now including batch processing controls.
 
 ### Subtitle Rendering Improvements
 
@@ -91,6 +92,10 @@ Alongside this, ongoing work includes documentation updates and potential furthe
     - **Added corresponding GUI widgets for all new ASS subtitle style parameters in `gui.py` (`_setup_subtitles_tab`).**
     - **Updated `_collect_gui_settings` in `gui.py` to include all new ASS subtitle style parameters.**
     - **Adjusted the layout of the "Subtitles" tab in `gui.py` by adding `rowspan=2` to the "Basic Subtitle Settings" frame to prevent content cutting and improve vertical spacing.**
+    - **Moved "Main Settings" tab content to `videocutter/gui/main_settings_frame.py` and implemented a two-column layout within it.**
+    - **Updated `gui.py` to instantiate and use `MainSettingsFrame` for the "Main Settings" tab.**
+    - **Moved batch processing frame from `gui.py` to `videocutter/gui/main_settings_frame.py`.**
+    - **Removed `_create_batch_frame` from `gui.py` and adjusted `_create_top_controls` accordingly.**
 
 ### FFmpeg Integration
 

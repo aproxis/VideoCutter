@@ -198,3 +198,27 @@ class TitleSettingsFrame(ttk.Frame):
         entry_title_video_chromakey_blend = tk.Entry(title_video_overlay_frame, textvariable=self.gui_elements['var_title_video_chromakey_blend'], width=30)
         entry_title_video_chromakey_blend.grid(row=5, column=1, padx=10, pady=5)
         self.gui_elements['entry_title_video_chromakey_blend'] = entry_title_video_chromakey_blend # Store in gui_elements
+
+    def collect_settings(self):
+        settings = {
+            'enable_title': self.gui_elements['var_enable_title'].get(),
+            'title_text': self.gui_elements['entry_title'].get(),
+            'title_font': self.gui_elements['var_title_font'].get(),
+            'title_fontcolor': self.gui_elements['var_title_fontcolor'].get(),
+            'title_font_size': int(self.gui_elements['entry_title_font_size'].get()),
+            'title_appearance_delay': int(self.gui_elements['entry_title_appearance_delay'].get()),
+            'title_visible_time': int(self.gui_elements['entry_title_visible_time'].get()),
+            'title_x_offset': int(self.gui_elements['entry_title_x_offset'].get()),
+            'title_y_offset': int(self.gui_elements['entry_title_y_offset'].get()),
+            'title_opacity': float(self.gui_elements['var_title_opacity'].get()),
+            'enable_title_background': self.gui_elements['var_enable_title_background'].get(),
+            'title_background_color': self.gui_elements['var_title_background_color'].get(),
+            'title_background_opacity': float(self.gui_elements['var_title_background_opacity'].get()),
+            'enable_title_video_overlay': self.gui_elements['var_enable_title_video_overlay'].get(),
+            'title_video_overlay_file': self.gui_elements['var_title_video_overlay_file'].get(),
+            'title_video_overlay_delay': int(self.gui_elements['var_title_video_overlay_delay'].get()),
+            'title_video_chromakey_color': self.gui_elements['var_title_video_chromakey_color'].get(),
+            'title_video_chromakey_similarity': float(self.gui_elements['var_title_video_chromakey_similarity'].get()),
+            'title_video_chromakey_blend': float(self.gui_elements['var_title_video_chromakey_blend'].get()),
+        }
+        return settings

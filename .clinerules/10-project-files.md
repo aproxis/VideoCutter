@@ -647,7 +647,7 @@ This module is responsible for transcribing audio files and generating subtitle 
     -   `subtitles.language` (str): Language for transcription (e.g., 'en').
     -   `subtitles.whisper_model` (str): Name of the WhisperX model to use (e.g., 'base', 'tiny').
     -   `subtitles.device` (str): Computation device ('cpu' or 'cuda').
-    -   `subtitles.compute_type` (str): Compute type ('float32', 'float16').
+    -   `subtitles.compute_type` (str): Compute type ('int8').
     -   `subtitles.max_line_width` (int): Maximum characters per line for SRT.
     -   `subtitles.font_name` (str): Font name for ASS.
     -   `subtitles.font_size` (int): Font size for ASS.
@@ -1290,7 +1290,7 @@ This script is an older, monolithic component responsible for generating SRT sub
     -   Converts time in seconds to the standard SRT time format (HH:MM:SS,mmm).
 
 3.  **`transcribe_with_whisperx` Function:**
-    -   The core transcription logic. It loads a `WhisperX` model, transcribes the audio, and then performs forced alignment to get precise word-level timings. It uses `float32` for compute type for stability.
+    -   The core transcription logic. It loads a `WhisperX` model, transcribes the audio, and then performs forced alignment to get precise word-level timings. It uses `int8` for compute type for stability.
 
 4.  **`whisperx_result_to_srt` Function:**
     -   Converts the aligned transcription results from `WhisperX` into a formatted SRT string. It includes logic to wrap lines based on a `max_width` (characters per line).

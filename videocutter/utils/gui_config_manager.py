@@ -56,7 +56,7 @@ subtitle_position = 2
 subtitle_outline = 1
 subtitle_outlinecolor = "000000"
 subtitle_shadow = True
-subtitle_format = 'srt' # New: Default subtitle format
+subtitle_format = 'ass' # New: Default subtitle format is now ASS
 
 # New ASS subtitle style parameters
 subtitle_secondary_color = "00FFFFFF" # Default to white (BBGGRR)
@@ -205,6 +205,11 @@ def create_default_config():
     with open(config_file, 'w') as f:
         json.dump(default_config, f, indent=4)
     messagebox.showinfo("Info", f"Default config created: {default_filename}")
+    
+    # Update the global config_files list after creating a new default config
+    global config_files
+    config_files = [file for file in os.listdir(config_folder) if file.endswith(".json")]
+    
     return default_filename
 
 def update_config_menu(config_menu_widget, var_config_str, gui_elements): # Added gui_elements as argument
@@ -224,6 +229,20 @@ def load_config(root_widget, var_config_str, gui_elements):
     except FileNotFoundError:
         messagebox.showerror("Error", f"Config file not found: {config_file}")
         return
+    except json.JSONDecodeError:
+        messagebox.showerror("Error", f"Error decoding JSON from config file: {config_file}. It might be empty or corrupted.")
+        # Optionally, try to load default config as a fallback
+        default_config_path = os.path.join(config_folder, "default_config.json")
+        if os.path.exists(default_config_path):
+            try:
+                with open(default_config_path, 'r') as f_default:
+                    config = json.load(f_default)
+                messagebox.showinfo("Info", "Loaded default_config.json as a fallback.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not load default_config.json as fallback: {e}")
+                return # Cannot recover, return
+        else:
+            return # Cannot recover, return
 
     # Helper to safely update entry/text widgets
     def update_entry(entry_widget, value):
@@ -353,19 +372,6 @@ def load_config(root_widget, var_config_str, gui_elements):
     update_var(gui_elements.get('var_subtitle_margin_v'), config.get('subtitle_margin_v', subtitle_margin_v))
     update_var(gui_elements.get('var_subtitle_encoding'), config.get('subtitle_encoding', subtitle_encoding))
 
-    # Update slider value entries
-    # These functions are now in gui_utils.py
-    if gui_elements.get('font_size_value_entry'):
-        gui_elements['gui_utils'].update_slider_value(gui_elements['var_subtitle_fontsize'], gui_elements['font_size_value_entry'])
-    if gui_elements.get('bg_opacity_value_entry'):
-        gui_elements['gui_utils'].update_slider_value(gui_elements['var_subtitle_bgopacity'], gui_elements['bg_opacity_value_entry'])
-    if gui_elements.get('outline_value_entry'):
-        gui_elements['gui_utils'].update_slider_value(gui_elements['var_subtitle_outline'], gui_elements['outline_value_entry'])
-
-    # This function is now in gui_utils.py
-    if gui_elements.get('root') and gui_elements.get('gui_utils'):
-        gui_elements['gui_utils'].schedule_subtitle_preview_update(root_widget, lambda: gui_elements['gui_utils'].update_subtitle_preview(gui_elements))
-
     # Calculate font size based on title length
     title_text = config.get('title', title) # Use a different variable name to avoid conflict with global 'title'
     length = len(title_text)
@@ -388,8 +394,19 @@ def load_config(root_widget, var_config_str, gui_elements):
     if gui_elements.get('toggle_subscribe_overlay_controls'): gui_elements['toggle_subscribe_overlay_controls']()
     if gui_elements.get('toggle_watermark_controls'): gui_elements['toggle_watermark_controls']()
     if gui_elements.get('toggle_effect_overlay_controls'): gui_elements['toggle_effect_overlay_controls']()
-    if gui_elements.get('toggle_shadow_controls'): gui_elements['toggle_shadow_controls']()
+    if gui_elements.get('tab_subtitles_instance'):
+        gui_elements['tab_subtitles_instance'].update_all_subtitle_controls()
 
+
+def _get_numeric_value(tk_var, default_value, value_type=float):
+    """Safely gets a numeric value from a Tkinter variable, handling empty strings."""
+    try:
+        val = tk_var.get()
+        if isinstance(val, str) and not val.strip():
+            return default_value
+        return value_type(val)
+    except (tk.TclError, ValueError):
+        return default_value
 
 def save_config(gui_elements):
     config_file = os.path.join(config_folder, gui_elements['var_config'].get())
@@ -399,72 +416,72 @@ def save_config(gui_elements):
             'watermark': gui_elements['text_watermark'].get("1.0", tk.END).rstrip('\n'),
             'watermark_type': gui_elements['var_watermark_type'].get(),
             'enable_watermark': gui_elements['var_enable_watermark'].get(),
-            'watermark_font_size': gui_elements['var_watermark_font_size'].get(),
-            'watermark_opacity': gui_elements['var_watermark_opacity'].get(),
+            'watermark_font_size': _get_numeric_value(gui_elements['var_watermark_font_size'], watermark_font_size, int),
+            'watermark_opacity': _get_numeric_value(gui_elements['var_watermark_opacity'], watermark_opacity),
             'watermark_fontcolor': gui_elements['var_watermark_fontcolor'].get(),
-            'watermark_speed_intuitive': gui_elements['var_watermark_speed_intuitive'].get(),
-            'title_font_size': gui_elements['entry_title_font_size'].get(),
-            'segment_duration': gui_elements['entry_segment_duration'].get(),
+            'watermark_speed_intuitive': _get_numeric_value(gui_elements['var_watermark_speed_intuitive'], watermark_speed_intuitive, int),
+            'title_font_size': _get_numeric_value(gui_elements['entry_title_font_size'], title_font_size, int),
+            'segment_duration': _get_numeric_value(gui_elements['entry_segment_duration'], segment_duration, int),
             'input_folder': gui_elements['entry_input_folder'].get(),
             'template_folder': gui_elements['entry_template_folder'].get(),
             'depthflow': gui_elements['var_depthflow'].get(),
-            'time_limit': gui_elements['entry_time_limit'].get(),
+            'time_limit': _get_numeric_value(gui_elements['entry_time_limit'], time_limit, int),
             'video_orientation': gui_elements['var_video_orientation'].get(),
             'blur': gui_elements['var_add_blur'].get(),
             'watermark_font': gui_elements['var_watermark_font'].get(),
-            'subscribe_delay': gui_elements['var_subscribe_delay'].get(),
+            'subscribe_delay': _get_numeric_value(gui_elements['var_subscribe_delay'], subscribe_delay, int),
             'title_fontcolor': gui_elements['var_title_fontcolor'].get(),
             'title_font': gui_elements['var_title_font'].get(),
-            'voiceover_delay': gui_elements['entry_voiceover_delay'].get(),
-            'title_appearance_delay': gui_elements['entry_title_appearance_delay'].get(),
-            'title_visible_time': gui_elements['entry_title_visible_time'].get(),
-            'title_x_offset': gui_elements['entry_title_x_offset'].get(),
-            'title_y_offset': gui_elements['entry_title_y_offset'].get(),
+            'voiceover_delay': _get_numeric_value(gui_elements['entry_voiceover_delay'], voiceover_delay, int),
+            'title_appearance_delay': _get_numeric_value(gui_elements['entry_title_appearance_delay'], title_appearance_delay, int),
+            'title_visible_time': _get_numeric_value(gui_elements['entry_title_visible_time'], title_visible_time, int),
+            'title_x_offset': _get_numeric_value(gui_elements['entry_title_x_offset'], title_x_offset, int),
+            'title_y_offset': _get_numeric_value(gui_elements['entry_title_y_offset'], title_y_offset, int),
             'enable_title': gui_elements['var_enable_title'].get(),
-            'title_opacity': gui_elements['var_title_opacity'].get(),
+            'title_opacity': _get_numeric_value(gui_elements['var_title_opacity'], title_opacity),
             'enable_title_background': gui_elements['var_enable_title_background'].get(),
             'title_background_color': gui_elements['var_title_background_color'].get(),
-            'title_background_opacity': gui_elements['var_title_background_opacity'].get(),
+            'title_background_opacity': _get_numeric_value(gui_elements['var_title_background_opacity'], title_background_opacity),
             'enable_subscribe_overlay': gui_elements['var_enable_subscribe_overlay'].get(),
             'subscribe_overlay_file': gui_elements['var_subscribe_overlay_file'].get(),
             'title_video_overlay_file': gui_elements['var_title_video_overlay_file'].get(),
             'enable_title_video_overlay': gui_elements['var_enable_title_video_overlay'].get(),
-            'title_video_overlay_delay': gui_elements['var_title_video_overlay_delay'].get(),
+            'title_video_overlay_delay': _get_numeric_value(gui_elements['var_title_video_overlay_delay'], title_video_overlay_delay, int),
             'title_video_chromakey_color': gui_elements['var_title_video_chromakey_color'].get(),
-            'title_video_chromakey_similarity': gui_elements['var_title_video_chromakey_similarity'].get(),
-            'title_video_chromakey_blend': gui_elements['var_title_video_chromakey_blend'].get(),
+            'title_video_chromakey_similarity': _get_numeric_value(gui_elements['var_title_video_chromakey_similarity'], title_video_chromakey_similarity),
+            'title_video_chromakey_blend': _get_numeric_value(gui_elements['var_title_video_chromakey_blend'], title_video_chromakey_blend),
             'chromakey_color': gui_elements['var_chromakey_color'].get(),
-            'chromakey_similarity': gui_elements['entry_chromakey_similarity'].get(),
-            'chromakey_blend': gui_elements['entry_chromakey_blend'].get(),
+            'chromakey_similarity': _get_numeric_value(gui_elements['entry_chromakey_similarity'], chromakey_similarity),
+            'chromakey_blend': _get_numeric_value(gui_elements['entry_chromakey_blend'], chromakey_blend),
             'generate_srt': gui_elements['var_generate_srt'].get(),
-            'subtitle_maxwidth': gui_elements['entry_subtitle_max_width'].get(),
+            'subtitle_maxwidth': _get_numeric_value(gui_elements['entry_subtitle_max_width'], subtitle_maxwidth, int),
             'subtitle_font': gui_elements['var_subtitle_font'].get(),
-            'subtitle_fontsize': gui_elements['var_subtitle_fontsize'].get(),
+            'subtitle_fontsize': _get_numeric_value(gui_elements['var_subtitle_fontsize'], subtitle_fontsize, int),
             'subtitle_fontcolor': gui_elements['var_subtitle_fontcolor'].get(),
             'subtitle_bgcolor': gui_elements['var_subtitle_bgcolor'].get(),
-            'subtitle_bgopacity': gui_elements['var_subtitle_bgopacity'].get(),
-            'subtitle_position': gui_elements['var_subtitle_position'].get(),
-            'subtitle_outline': gui_elements['var_subtitle_outline'].get(),
+            'subtitle_bgopacity': _get_numeric_value(gui_elements['var_subtitle_bgopacity'], subtitle_bgopacity),
+            'subtitle_position': _get_numeric_value(gui_elements['var_subtitle_position'], subtitle_position, int),
+            'subtitle_outline': _get_numeric_value(gui_elements['var_subtitle_outline'], subtitle_outline),
             'subtitle_outlinecolor': gui_elements['var_subtitle_outlinecolor'].get(),
             'subtitle_shadow': gui_elements['var_subtitle_shadow'].get(),
             'subtitle_format': gui_elements['var_subtitle_format'].get(), # New: Save subtitle format
             'subtitle_secondary_color': gui_elements['var_subtitle_secondary_color'].get(),
-            'subtitle_bold': gui_elements['var_subtitle_bold'].get(),
-            'subtitle_italic': gui_elements['var_subtitle_italic'].get(),
-            'subtitle_underline': gui_elements['var_subtitle_underline'].get(),
-            'subtitle_strikeout': gui_elements['var_subtitle_strikeout'].get(),
-            'subtitle_scale_x': gui_elements['var_subtitle_scale_x'].get(),
-            'subtitle_scale_y': gui_elements['var_subtitle_scale_y'].get(),
-            'subtitle_spacing': gui_elements['var_subtitle_spacing'].get(),
-            'subtitle_angle': gui_elements['var_subtitle_angle'].get(),
-            'subtitle_border_style': gui_elements['var_subtitle_border_style'].get(),
-            'subtitle_shadow_distance': gui_elements['var_subtitle_shadow_distance'].get(),
-            'subtitle_margin_l': gui_elements['var_subtitle_margin_l'].get(),
-            'subtitle_margin_r': gui_elements['var_subtitle_margin_r'].get(),
-            'subtitle_margin_v': gui_elements['var_subtitle_margin_v'].get(),
-            'subtitle_encoding': gui_elements['var_subtitle_encoding'].get(),
+            'subtitle_bold': _get_numeric_value(gui_elements['var_subtitle_bold'], subtitle_bold, int),
+            'subtitle_italic': _get_numeric_value(gui_elements['var_subtitle_italic'], subtitle_italic, int),
+            'subtitle_underline': _get_numeric_value(gui_elements['var_subtitle_underline'], subtitle_underline, int),
+            'subtitle_strikeout': _get_numeric_value(gui_elements['var_subtitle_strikeout'], subtitle_strikeout, int),
+            'subtitle_scale_x': _get_numeric_value(gui_elements['var_subtitle_scale_x'], subtitle_scale_x, int),
+            'subtitle_scale_y': _get_numeric_value(gui_elements['var_subtitle_scale_y'], subtitle_scale_y, int),
+            'subtitle_spacing': _get_numeric_value(gui_elements['var_subtitle_spacing'], subtitle_spacing),
+            'subtitle_angle': _get_numeric_value(gui_elements['var_subtitle_angle'], subtitle_angle, int),
+            'subtitle_border_style': _get_numeric_value(gui_elements['var_subtitle_border_style'], subtitle_border_style, int),
+            'subtitle_shadow_distance': _get_numeric_value(gui_elements['var_subtitle_shadow_distance'], subtitle_shadow_distance),
+            'subtitle_margin_l': _get_numeric_value(gui_elements['var_subtitle_margin_l'], subtitle_margin_l, int),
+            'subtitle_margin_r': _get_numeric_value(gui_elements['var_subtitle_margin_r'], subtitle_margin_r, int),
+            'subtitle_margin_v': _get_numeric_value(gui_elements['var_subtitle_margin_v'], subtitle_margin_v, int),
+            'subtitle_encoding': _get_numeric_value(gui_elements['var_subtitle_encoding'], subtitle_encoding, int),
             'effect_overlay': gui_elements['var_effect_overlay'].get(),
-            'effect_opacity': gui_elements['var_effect_opacity'].get(),
+            'effect_opacity': _get_numeric_value(gui_elements['var_effect_opacity'], effect_opacity),
             'effect_blend': gui_elements['var_effect_blend'].get(),
             'enable_effect_overlay': gui_elements['var_enable_effect_overlay'].get()
         }, f, indent=4)
@@ -484,72 +501,72 @@ def save_new_config(gui_elements):
             'watermark': gui_elements['text_watermark'].get("1.0", tk.END).rstrip('\n'),
             'watermark_type': gui_elements['var_watermark_type'].get(),
             'enable_watermark': gui_elements['var_enable_watermark'].get(),
-            'watermark_font_size': gui_elements['var_watermark_font_size'].get(),
-            'watermark_opacity': gui_elements['var_watermark_opacity'].get(),
+            'watermark_font_size': _get_numeric_value(gui_elements['var_watermark_font_size'], watermark_font_size, int),
+            'watermark_opacity': _get_numeric_value(gui_elements['var_watermark_opacity'], watermark_opacity),
             'watermark_fontcolor': gui_elements['var_watermark_fontcolor'].get(),
-            'watermark_speed_intuitive': gui_elements['var_watermark_speed_intuitive'].get(),
-            'title_font_size': gui_elements['entry_title_font_size'].get(),
-            'segment_duration': gui_elements['entry_segment_duration'].get(),
+            'watermark_speed_intuitive': _get_numeric_value(gui_elements['var_watermark_speed_intuitive'], watermark_speed_intuitive, int),
+            'title_font_size': _get_numeric_value(gui_elements['entry_title_font_size'], title_font_size, int),
+            'segment_duration': _get_numeric_value(gui_elements['entry_segment_duration'], segment_duration, int),
             'input_folder': gui_elements['entry_input_folder'].get(),
             'template_folder': gui_elements['entry_template_folder'].get(),
             'depthflow': gui_elements['var_depthflow'].get(),
-            'time_limit': gui_elements['entry_time_limit'].get(),
+            'time_limit': _get_numeric_value(gui_elements['entry_time_limit'], time_limit, int),
             'video_orientation': gui_elements['var_video_orientation'].get(),
             'blur': gui_elements['var_add_blur'].get(),
             'watermark_font': gui_elements['var_watermark_font'].get(),
-            'subscribe_delay': gui_elements['var_subscribe_delay'].get(),
+            'subscribe_delay': _get_numeric_value(gui_elements['var_subscribe_delay'], subscribe_delay, int),
             'title_fontcolor': gui_elements['var_title_fontcolor'].get(),
             'title_font': gui_elements['var_title_font'].get(),
-            'voiceover_delay': gui_elements['entry_voiceover_delay'].get(),
-            'title_appearance_delay': gui_elements['entry_title_appearance_delay'].get(),
-            'title_visible_time': gui_elements['entry_title_visible_time'].get(),
-            'title_x_offset': gui_elements['entry_title_x_offset'].get(),
-            'title_y_offset': gui_elements['entry_title_y_offset'].get(),
+            'voiceover_delay': _get_numeric_value(gui_elements['entry_voiceover_delay'], voiceover_delay, int),
+            'title_appearance_delay': _get_numeric_value(gui_elements['entry_title_appearance_delay'], title_appearance_delay, int),
+            'title_visible_time': _get_numeric_value(gui_elements['entry_title_visible_time'], title_visible_time, int),
+            'title_x_offset': _get_numeric_value(gui_elements['entry_title_x_offset'], title_x_offset, int),
+            'title_y_offset': _get_numeric_value(gui_elements['entry_title_y_offset'], title_y_offset, int),
             'enable_title': gui_elements['var_enable_title'].get(),
-            'title_opacity': gui_elements['var_title_opacity'].get(),
+            'title_opacity': _get_numeric_value(gui_elements['var_title_opacity'], title_opacity),
             'enable_title_background': gui_elements['var_enable_title_background'].get(),
             'title_background_color': gui_elements['var_title_background_color'].get(),
-            'title_background_opacity': gui_elements['var_title_background_opacity'].get(),
+            'title_background_opacity': _get_numeric_value(gui_elements['var_title_background_opacity'], title_background_opacity),
             'enable_subscribe_overlay': gui_elements['var_enable_subscribe_overlay'].get(),
             'subscribe_overlay_file': gui_elements['var_subscribe_overlay_file'].get(),
             'title_video_overlay_file': gui_elements['var_title_video_overlay_file'].get(),
             'enable_title_video_overlay': gui_elements['var_enable_title_video_overlay'].get(),
-            'title_video_overlay_delay': gui_elements['var_title_video_overlay_delay'].get(),
+            'title_video_overlay_delay': _get_numeric_value(gui_elements['var_title_video_overlay_delay'], title_video_overlay_delay, int),
             'title_video_chromakey_color': gui_elements['var_title_video_chromakey_color'].get(),
-            'title_video_chromakey_similarity': gui_elements['var_title_video_chromakey_similarity'].get(),
-            'title_video_chromakey_blend': gui_elements['var_title_video_chromakey_blend'].get(),
+            'title_video_chromakey_similarity': _get_numeric_value(gui_elements['var_title_video_chromakey_similarity'], title_video_chromakey_similarity),
+            'title_video_chromakey_blend': _get_numeric_value(gui_elements['var_title_video_chromakey_blend'], title_video_chromakey_blend),
             'chromakey_color': gui_elements['var_chromakey_color'].get(),
-            'chromakey_similarity': gui_elements['entry_chromakey_similarity'].get(),
-            'chromakey_blend': gui_elements['entry_chromakey_blend'].get(),
+            'chromakey_similarity': _get_numeric_value(gui_elements['entry_chromakey_similarity'], chromakey_similarity),
+            'chromakey_blend': _get_numeric_value(gui_elements['entry_chromakey_blend'], chromakey_blend),
             'generate_srt': gui_elements['var_generate_srt'].get(),
-            'subtitle_maxwidth': gui_elements['entry_subtitle_max_width'].get(),
+            'subtitle_maxwidth': _get_numeric_value(gui_elements['entry_subtitle_max_width'], subtitle_maxwidth, int),
             'subtitle_font': gui_elements['var_subtitle_font'].get(),
-            'subtitle_fontsize': gui_elements['var_subtitle_fontsize'].get(),
+            'subtitle_fontsize': _get_numeric_value(gui_elements['var_subtitle_fontsize'], subtitle_fontsize, int),
             'subtitle_fontcolor': gui_elements['var_subtitle_fontcolor'].get(),
             'subtitle_bgcolor': gui_elements['var_subtitle_bgcolor'].get(),
-            'subtitle_bgopacity': gui_elements['var_subtitle_bgopacity'].get(),
-            'subtitle_position': gui_elements['var_subtitle_position'].get(),
-            'subtitle_outline': gui_elements['var_subtitle_outline'].get(),
+            'subtitle_bgopacity': _get_numeric_value(gui_elements['var_subtitle_bgopacity'], subtitle_bgopacity),
+            'subtitle_position': _get_numeric_value(gui_elements['var_subtitle_position'], subtitle_position, int),
+            'subtitle_outline': _get_numeric_value(gui_elements['var_subtitle_outline'], subtitle_outline),
             'subtitle_outlinecolor': gui_elements['var_subtitle_outlinecolor'].get(),
             'subtitle_shadow': gui_elements['var_subtitle_shadow'].get(),
             'subtitle_format': gui_elements['var_subtitle_format'].get(), # New: Save subtitle format
             'subtitle_secondary_color': gui_elements['var_subtitle_secondary_color'].get(),
-            'subtitle_bold': gui_elements['var_subtitle_bold'].get(),
-            'subtitle_italic': gui_elements['var_subtitle_italic'].get(),
-            'subtitle_underline': gui_elements['var_subtitle_underline'].get(),
-            'subtitle_strikeout': gui_elements['var_subtitle_strikeout'].get(),
-            'subtitle_scale_x': gui_elements['var_subtitle_scale_x'].get(),
-            'subtitle_scale_y': gui_elements['var_subtitle_scale_y'].get(),
-            'subtitle_spacing': gui_elements['var_subtitle_spacing'].get(),
-            'subtitle_angle': gui_elements['var_subtitle_angle'].get(),
-            'subtitle_border_style': gui_elements['var_subtitle_border_style'].get(),
-            'subtitle_shadow_distance': gui_elements['var_subtitle_shadow_distance'].get(),
-            'subtitle_margin_l': gui_elements['var_subtitle_margin_l'].get(),
-            'subtitle_margin_r': gui_elements['var_subtitle_margin_r'].get(),
-            'subtitle_margin_v': gui_elements['var_subtitle_margin_v'].get(),
-            'subtitle_encoding': gui_elements['var_subtitle_encoding'].get(),
+            'subtitle_bold': _get_numeric_value(gui_elements['var_subtitle_bold'], subtitle_bold, int),
+            'subtitle_italic': _get_numeric_value(gui_elements['var_subtitle_italic'], subtitle_italic, int),
+            'subtitle_underline': _get_numeric_value(gui_elements['var_subtitle_underline'], subtitle_underline, int),
+            'subtitle_strikeout': _get_numeric_value(gui_elements['var_subtitle_strikeout'], subtitle_strikeout, int),
+            'subtitle_scale_x': _get_numeric_value(gui_elements['var_subtitle_scale_x'], subtitle_scale_x, int),
+            'subtitle_scale_y': _get_numeric_value(gui_elements['var_subtitle_scale_y'], subtitle_scale_y, int),
+            'subtitle_spacing': _get_numeric_value(gui_elements['var_subtitle_spacing'], subtitle_spacing),
+            'subtitle_angle': _get_numeric_value(gui_elements['var_subtitle_angle'], subtitle_angle, int),
+            'subtitle_border_style': _get_numeric_value(gui_elements['var_subtitle_border_style'], subtitle_border_style, int),
+            'subtitle_shadow_distance': _get_numeric_value(gui_elements['var_subtitle_shadow_distance'], subtitle_shadow_distance),
+            'subtitle_margin_l': _get_numeric_value(gui_elements['var_subtitle_margin_l'], subtitle_margin_l, int),
+            'subtitle_margin_r': _get_numeric_value(gui_elements['var_subtitle_margin_r'], subtitle_margin_r, int),
+            'subtitle_margin_v': _get_numeric_value(gui_elements['var_subtitle_margin_v'], subtitle_margin_v, int),
+            'subtitle_encoding': _get_numeric_value(gui_elements['var_subtitle_encoding'], subtitle_encoding, int),
             'effect_overlay': gui_elements['var_effect_overlay'].get(),
-            'effect_opacity': gui_elements['var_effect_opacity'].get(),
+            'effect_opacity': _get_numeric_value(gui_elements['var_effect_opacity'], effect_opacity),
             'effect_blend': gui_elements['var_effect_blend'].get(),
             'enable_effect_overlay': gui_elements['var_enable_effect_overlay'].get()
         }, f, indent=4)

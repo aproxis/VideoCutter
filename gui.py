@@ -11,6 +11,9 @@ import io
 from videocutter.main import run_pipeline_for_project, run_batch_pipeline
 from videocutter.utils import gui_config_manager as gcm
 from videocutter.gui.title_settings_frame import TitleSettingsFrame
+from videocutter.gui.subtitle_settings_frame import SubtitleSettingsFrame
+from videocutter.gui.overlay_effects_frame import OverlayEffectsFrame # New import for overlay effects
+from videocutter.gui.main_settings_frame import MainSettingsFrame # New import for main settings
 from videocutter.gui import gui_utils
 from videocutter import config_manager
 
@@ -36,12 +39,16 @@ class VideoCutterGUI:
         
     def _initialize_config(self):
         """Initialize configuration and check for config files"""
+        # Ensure gcm.config_files is up-to-date before checking
+        gcm.config_files = [file for file in os.listdir(gcm.config_folder) if file.endswith(".json")]
         self.config_files = gcm.config_files
         
         if not self.config_files:
-            messagebox.showwarning("Warning", "No configuration files found in the config directory.")
-            default_config_file = gcm.create_default_config()
-            self.config_files.append(default_config_file)
+            messagebox.showwarning("Warning", "No configuration files found in the config directory. Creating default config.")
+            default_config_file_name = gcm.create_default_config()
+            # After creating, re-read config_files to include the new default
+            gcm.config_files = [file for file in os.listdir(gcm.config_folder) if file.endswith(".json")]
+            self.config_files = gcm.config_files # Update instance variable
             
     def _initialize_variables(self):
         """Initialize all Tkinter variables"""
@@ -50,40 +57,11 @@ class VideoCutterGUI:
         self.gui_elements['root'] = self.root
         self.gui_elements['gui_utils'] = gui_utils # Add gui_utils to gui_elements
         
-        # Video processing variables
-        self._init_watermark_variables()
-        self._init_overlay_variables()
-        self._init_subtitle_variables()
-        self._init_effect_variables()
+        # Removed _init_video_processing_variables(), _init_batch_variables()
         self._init_title_variables()
-        self._init_batch_variables()
         
         # Global lists from config manager
         self._init_global_lists()
-        
-    def _init_watermark_variables(self):
-        """Initialize watermark-related variables"""
-        self.gui_elements['var_watermark_type'] = tk.StringVar(self.root, value=gcm.watermark_type)
-        self.gui_elements['var_watermark_font'] = tk.StringVar(self.root, value=gcm.watermark_font)
-        self.gui_elements['var_enable_watermark'] = tk.BooleanVar(value=gcm.enable_watermark)
-        self.gui_elements['var_watermark_font_size'] = tk.IntVar(self.root, value=gcm.watermark_font_size)
-        self.gui_elements['var_watermark_opacity'] = tk.DoubleVar(self.root, value=gcm.watermark_opacity)
-        self.gui_elements['var_watermark_fontcolor'] = tk.StringVar(self.root, value=gcm.watermark_fontcolor)
-        self.gui_elements['var_watermark_speed_intuitive'] = tk.IntVar(self.root, value=gcm.watermark_speed_intuitive)
-        
-        
-    def _init_overlay_variables(self):
-        """Initialize overlay-related variables"""
-        self.gui_elements['var_enable_subscribe_overlay'] = tk.BooleanVar(value=gcm.enable_subscribe_overlay)
-        self.gui_elements['var_subscribe_delay'] = tk.IntVar(self.root, value=gcm.subscribe_delay)
-        self.gui_elements['var_enable_title_video_overlay'] = tk.BooleanVar(value=gcm.enable_title_video_overlay)
-        self.gui_elements['var_title_video_overlay_file'] = tk.StringVar(self.root, value=gcm.title_video_overlay_file)
-        self.gui_elements['var_title_video_overlay_delay'] = tk.IntVar(self.root, value=gcm.title_video_overlay_delay)
-        self.gui_elements['var_title_video_chromakey_color'] = tk.StringVar(self.root, value=gcm.title_video_chromakey_color)
-        self.gui_elements['var_title_video_chromakey_similarity'] = tk.DoubleVar(self.root, value=gcm.title_video_chromakey_similarity)
-        self.gui_elements['var_title_video_chromakey_blend'] = tk.DoubleVar(self.root, value=gcm.title_video_chromakey_blend)
-        self.gui_elements['var_subscribe_overlay_file'] = tk.StringVar(self.root, value="None")
-        self.gui_elements['var_chromakey_color'] = tk.StringVar(self.root, value=gcm.chromakey_color)
         
     def _init_title_variables(self):
         """Initialize title-related variables"""
@@ -100,61 +78,6 @@ class VideoCutterGUI:
         self.gui_elements['var_enable_title_background'] = tk.BooleanVar(value=gcm.enable_title_background if hasattr(gcm, 'enable_title_background') else False)
         self.gui_elements['var_title_background_color'] = tk.StringVar(self.root, value=gcm.title_background_color if hasattr(gcm, 'title_background_color') else "black")
         self.gui_elements['var_title_background_opacity'] = tk.DoubleVar(self.root, value=gcm.title_background_opacity if hasattr(gcm, 'title_background_opacity') else 0.5)
-        
-    def _init_subtitle_variables(self):
-        """Initialize subtitle-related variables"""
-        self.gui_elements['var_generate_srt'] = tk.BooleanVar(value=gcm.generate_srt)
-        
-        # Default subtitle settings
-        self.gui_elements['default_subtitle_font'] = gcm.subtitle_font
-        self.gui_elements['default_subtitle_fontsize'] = gcm.subtitle_fontsize
-        self.gui_elements['default_subtitle_fontcolor'] = gcm.subtitle_fontcolor
-        self.gui_elements['default_subtitle_bgcolor'] = gcm.subtitle_bgcolor
-        self.gui_elements['default_subtitle_bgopacity'] = gcm.subtitle_bgopacity
-        self.gui_elements['default_subtitle_position'] = gcm.subtitle_position
-        self.gui_elements['default_subtitle_outline'] = gcm.subtitle_outline
-        self.gui_elements['default_subtitle_outlinecolor'] = gcm.subtitle_outlinecolor
-        self.gui_elements['default_subtitle_shadow'] = gcm.subtitle_shadow
-        
-        # Create subtitle variables
-        self.gui_elements['var_subtitle_font'] = tk.StringVar(self.root, value=gcm.subtitle_font)
-        self.gui_elements['var_subtitle_fontsize'] = tk.IntVar(self.root, value=gcm.subtitle_fontsize)
-        self.gui_elements['var_subtitle_fontcolor'] = tk.StringVar(self.root, value=gcm.subtitle_fontcolor)
-        self.gui_elements['var_subtitle_bgcolor'] = tk.StringVar(self.root, value=gcm.subtitle_bgcolor)
-        self.gui_elements['var_subtitle_bgopacity'] = tk.DoubleVar(self.root, value=gcm.subtitle_bgopacity)
-        self.gui_elements['var_subtitle_position'] = tk.IntVar(self.root, value=gcm.subtitle_position)
-        self.gui_elements['var_subtitle_outline'] = tk.DoubleVar(self.root, value=gcm.subtitle_outline)
-        self.gui_elements['var_subtitle_outlinecolor'] = tk.StringVar(self.root, value=gcm.subtitle_outlinecolor)
-        self.gui_elements['var_subtitle_shadow'] = tk.BooleanVar(self.root, value=gcm.subtitle_shadow)
-        self.gui_elements['var_subtitle_format'] = tk.StringVar(self.root, value='ass') # Always ASS
-
-        # New ASS subtitle style variables
-        self.gui_elements['var_subtitle_secondary_color'] = tk.StringVar(self.root, value=gcm.subtitle_secondary_color)
-        self.gui_elements['var_subtitle_bold'] = tk.IntVar(self.root, value=gcm.subtitle_bold)
-        self.gui_elements['var_subtitle_italic'] = tk.IntVar(self.root, value=gcm.subtitle_italic)
-        self.gui_elements['var_subtitle_underline'] = tk.IntVar(self.root, value=gcm.subtitle_underline)
-        self.gui_elements['var_subtitle_strikeout'] = tk.IntVar(self.root, value=gcm.subtitle_strikeout)
-        self.gui_elements['var_subtitle_scale_x'] = tk.IntVar(self.root, value=gcm.subtitle_scale_x)
-        self.gui_elements['var_subtitle_scale_y'] = tk.IntVar(self.root, value=gcm.subtitle_scale_y)
-        self.gui_elements['var_subtitle_spacing'] = tk.DoubleVar(self.root, value=gcm.subtitle_spacing)
-        self.gui_elements['var_subtitle_angle'] = tk.IntVar(self.root, value=gcm.subtitle_angle)
-        self.gui_elements['var_subtitle_border_style'] = tk.IntVar(self.root, value=gcm.subtitle_border_style)
-        self.gui_elements['var_subtitle_shadow_distance'] = tk.DoubleVar(self.root, value=gcm.subtitle_shadow_distance)
-        self.gui_elements['var_subtitle_margin_l'] = tk.IntVar(self.root, value=gcm.subtitle_margin_l)
-        self.gui_elements['var_subtitle_margin_r'] = tk.IntVar(self.root, value=gcm.subtitle_margin_r)
-        self.gui_elements['var_subtitle_margin_v'] = tk.IntVar(self.root, value=gcm.subtitle_margin_v)
-        self.gui_elements['var_subtitle_encoding'] = tk.IntVar(self.root, value=gcm.subtitle_encoding)
-        
-    def _init_effect_variables(self):
-        """Initialize effect-related variables"""
-        self.gui_elements['var_enable_effect_overlay'] = tk.BooleanVar(self.root, value=True)
-        self.gui_elements['var_effect_overlay'] = tk.StringVar(self.root, value="None")
-        self.gui_elements['var_effect_opacity'] = tk.DoubleVar(self.root, value=gcm.effect_opacity)
-        self.gui_elements['var_effect_blend'] = tk.StringVar(self.root, value=gcm.effect_blend)
-        
-    def _init_batch_variables(self):
-        """Initialize batch processing variables"""
-        self.gui_elements['var_batch_input_folder'] = tk.StringVar(self.root)
         
     def _init_global_lists(self):
         """Initialize global lists from config manager"""
@@ -180,7 +103,32 @@ class VideoCutterGUI:
         top_controls_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
         
         self._create_config_frame(top_controls_frame)
-        self._create_batch_frame(top_controls_frame)
+
+        # Add START and EXIT buttons at the top
+        buttons_frame = tk.Frame(top_controls_frame)
+        buttons_frame.pack(side=tk.RIGHT, padx=5, pady=5)
+
+        start_button = tk.Button(
+            buttons_frame,
+            text="START",
+            command=self.start_process,
+            fg="green",
+            highlightbackground="green",
+            width=15,
+            height=2
+        )
+        start_button.pack(side=tk.TOP, pady=2)
+
+        quit_button = tk.Button(
+            buttons_frame,
+            text="EXIT",
+            command=self.root.quit,
+            bg="black",
+            highlightbackground="black",
+            width=15,
+            height=2
+        )
+        quit_button.pack(side=tk.TOP, pady=2)
         
     def _create_config_frame(self, parent):
         """Create configuration management frame"""
@@ -222,22 +170,6 @@ class VideoCutterGUI:
                                  command=lambda: gcm.delete_config(self.gui_elements), fg="red")
         delete_button.pack(fill=tk.X, pady=1)
         
-    def _create_batch_frame(self, parent):
-        """Create batch processing frame"""
-        batch_frame = tk.LabelFrame(parent, text="Batch Processing")
-        batch_frame.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.X, expand=True)
-        
-        tk.Label(batch_frame, text="Batch Input Folder:").grid(row=0, column=0, padx=5, pady=2, sticky="w")
-        entry_batch_folder = tk.Entry(batch_frame, textvariable=self.gui_elements['var_batch_input_folder'], width=30)
-        entry_batch_folder.grid(row=0, column=1, padx=5, pady=2, sticky="ew")
-        self.gui_elements['entry_batch_folder'] = entry_batch_folder # Add to gui_elements
-        
-        browse_batch_button = tk.Button(batch_frame, text="Browse", command=self.browse_batch_folder)
-        browse_batch_button.grid(row=0, column=2, padx=5, pady=2)
-        
-        clear_batch_button = tk.Button(batch_frame, text="Clear Batch", command=self.clear_batch_folder)
-        clear_batch_button.grid(row=1, column=2, padx=5, pady=2)
-        
     def _create_tabbed_interface(self):
         """Create the main tabbed interface"""
         notebook = ttk.Notebook(self.root)
@@ -246,9 +178,12 @@ class VideoCutterGUI:
         self.root.grid_columnconfigure(0, weight=1)
         
         # Create tabs
-        tab_main_settings = ttk.Frame(notebook)
-        tab_subtitles_new = ttk.Frame(notebook)
-        tab_overlay_effects = ttk.Frame(notebook)
+        tab_main_settings = MainSettingsFrame(notebook, self.gui_elements) # Instantiate MainSettingsFrame
+        self.gui_elements['tab_main_settings_instance'] = tab_main_settings # Store instance
+        tab_subtitles_new = SubtitleSettingsFrame(notebook, self.gui_elements) # Instantiate SubtitleSettingsFrame
+        self.gui_elements['tab_subtitles_instance'] = tab_subtitles_new # Store instance
+        tab_overlay_effects = OverlayEffectsFrame(notebook, self.gui_elements) # Instantiate OverlayEffectsFrame
+        self.gui_elements['tab_overlay_effects_instance'] = tab_overlay_effects # Store instance
         tab_title_settings = TitleSettingsFrame(notebook, self.gui_elements)
         self.gui_elements['tab_title_settings_instance'] = tab_title_settings # Store instance
         
@@ -258,517 +193,7 @@ class VideoCutterGUI:
         notebook.add(tab_subtitles_new, text="Subtitles")
         notebook.add(tab_overlay_effects, text="Overlay Effects")
         
-        self._setup_main_settings_tab(tab_main_settings)
-        self._setup_subtitles_tab(tab_subtitles_new)
-        self._setup_overlay_effects_tab(tab_overlay_effects)
-        
-    def _setup_main_settings_tab(self, tab):
-        """Setup the main settings tab layout"""
-        main_settings_content_frame = tk.Frame(tab)
-        main_settings_content_frame.pack(fill="both", expand=True)
-        
-        main_settings_columns_frame = tk.Frame(main_settings_content_frame)
-        main_settings_columns_frame.pack(fill="both", expand=True)
-        
-        # Left and right columns
-        left_column = tk.Frame(main_settings_columns_frame)
-        left_column.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        
-        right_column = tk.Frame(main_settings_columns_frame)
-        right_column.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
-        
-        # Configure columns to expand
-        main_settings_columns_frame.grid_columnconfigure(0, weight=1)
-        main_settings_columns_frame.grid_columnconfigure(1, weight=1)
-
-
-        # Folders Section
-        folders_frame = tk.LabelFrame(right_column, text="Folders", padx=10, pady=5)
-        folders_frame.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
-
-        tk.Label(folders_frame, text="Input Folder:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        entry_input_folder = tk.Entry(folders_frame, width=30)
-        self.gui_elements['entry_input_folder'] = entry_input_folder # Add to gui_elements
-        entry_input_folder.insert(0, gcm.input_folder)
-        entry_input_folder.grid(row=0, column=1, padx=10, pady=5)
-
-        tk.Label(folders_frame, text="Template Folder:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        entry_template_folder = tk.Entry(folders_frame, width=30)
-        self.gui_elements['entry_template_folder'] = entry_template_folder # Add to gui_elements
-        entry_template_folder.insert(0, gcm.template_folder)
-        entry_template_folder.grid(row=1, column=1, padx=10, pady=5)
-
-        # Video Duration Section
-        duration_frame = tk.LabelFrame(right_column, text="Video Duration", padx=10, pady=5)
-        duration_frame.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
-
-        tk.Label(duration_frame, text="Segment Duration:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        entry_segment_duration = tk.Entry(duration_frame, width=30)
-        self.gui_elements['entry_segment_duration'] = entry_segment_duration # Add to gui_elements
-        entry_segment_duration.insert(0, gcm.segment_duration)
-        entry_segment_duration.grid(row=0, column=1, padx=10, pady=5)
-
-        tk.Label(duration_frame, text="MAX Length Limit (s):").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        entry_time_limit = tk.Entry(duration_frame, width=30)
-        self.gui_elements['entry_time_limit'] = entry_time_limit # Add to gui_elements
-        entry_time_limit.insert(0, gcm.time_limit)
-        entry_time_limit.grid(row=1, column=1, padx=10, pady=5)
-
-        # Sound/Audio Section
-        sound_frame = tk.LabelFrame(right_column, text="Audio Settings", padx=10, pady=5)
-        sound_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
-
-        tk.Label(sound_frame, text="Voiceover Start Delay (s):").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        entry_voiceover_delay = tk.Entry(sound_frame, width=30)
-        self.gui_elements['entry_voiceover_delay'] = entry_voiceover_delay # Add to gui_elements
-        entry_voiceover_delay.insert(0, gcm.voiceover_delay)
-        entry_voiceover_delay.grid(row=0, column=1, padx=10, pady=5)
-
-        # Video Processing Section
-        processing_frame = tk.LabelFrame(right_column, text="Video Processing", padx=10, pady=5)
-        processing_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
-
-        # Create a frame for orientation
-        orientation_frame = tk.Frame(processing_frame)
-        orientation_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
-
-        tk.Label(orientation_frame, text="Orientation:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        # Create a StringVar for video orientation
-        var_video_orientation = tk.StringVar(value=gcm.video_orientation)  # Default to horizontal
-        self.gui_elements['var_video_orientation'] = var_video_orientation # Add to gui_elements
-        tk.Radiobutton(orientation_frame, text="Vertical", variable=var_video_orientation, value='vertical').grid(row=0, column=1, padx=5, pady=5)
-        tk.Radiobutton(orientation_frame, text="Horizontal", variable=var_video_orientation, value='horizontal').grid(row=0, column=2, padx=5, pady=5)
-
-        # Create a frame for checkboxes
-        checkbox_frame = tk.Frame(processing_frame)
-        checkbox_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
-
-        # Create a BooleanVar for adding blur
-        var_add_blur = tk.BooleanVar()
-        self.gui_elements['var_add_blur'] = var_add_blur # Add to gui_elements
-        var_add_blur.set(gcm.blur)  # Default to not adding blur
-        blur_checkbox = tk.Checkbutton(checkbox_frame, text="Side Blur", variable=var_add_blur)
-        self.gui_elements['blur_checkbox'] = blur_checkbox # Add to gui_elements
-        blur_checkbox.grid(row=0, column=0, padx=5, pady=5)
-
-        # DepthFlow checkbox
-        var_depthflow = tk.BooleanVar()
-        self.gui_elements['var_depthflow'] = var_depthflow # Add to gui_elements
-        var_depthflow.set(gcm.depthflow)
-        tk.Checkbutton(checkbox_frame, text="Depthflow", variable=var_depthflow).grid(row=0, column=1, padx=5, pady=5)
-
-        # Function to show/hide blur checkbox based on orientation
-        def toggle_blur_checkbox():
-            if self.gui_elements['var_video_orientation'].get() == 'horizontal':
-                self.gui_elements['blur_checkbox'].config(state=tk.NORMAL)
-            else:
-                self.gui_elements['blur_checkbox'].config(state=tk.DISABLED)
-                self.gui_elements['var_add_blur'].set(False)  # Reset blur option if not horizontal
-
-        # Bind the radiobutton selection to the toggle function
-        self.gui_elements['var_video_orientation'].trace('w', lambda *args: toggle_blur_checkbox())
-
-        # Initialize the toggle_blur_checkbox function
-        toggle_blur_checkbox()
-
-        # Add START and EXIT buttons at the bottom
-        buttons_frame = tk.Frame(self.root)
-        buttons_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
-
-        start_button = tk.Button(
-            buttons_frame,
-            text="START",
-            command=self.start_process,
-            fg="green",
-            highlightbackground="green",
-            width=15,
-            height=2
-        )
-        start_button.grid(row=0, column=1, pady=10, padx=20) # Adjusted column for centering
-
-        quit_button = tk.Button(
-            buttons_frame,
-            text="EXIT",
-            command=self.root.quit,
-            bg="black",
-            highlightbackground="black",
-            width=15,
-            height=2
-        )
-        quit_button.grid(row=0, column=0, pady=10, padx=20) # Adjusted column for centering
-
-        # Configure column weights for centering
-        buttons_frame.grid_columnconfigure(0, weight=1)
-        buttons_frame.grid_columnconfigure(1, weight=1)
-        buttons_frame.grid_columnconfigure(2, weight=1)
-
-    def _setup_subtitles_tab(self, tab):
-        """Setup the subtitles tab layout"""
-        subtitle_frame = tk.Frame(tab, padx=10, pady=10)
-        subtitle_frame.pack(fill="both", expand=True)
-
-        # Left column for settings
-        subtitle_settings = tk.LabelFrame(subtitle_frame, text="Subtitle Settings", padx=10, pady=10)
-        # Configure grid for two columns and two rows in the subtitle_frame
-        subtitle_frame.grid_columnconfigure(0, weight=1) # Left column for basic settings
-        subtitle_frame.grid_columnconfigure(1, weight=1) # Right column for advanced settings and preview
-        subtitle_frame.grid_rowconfigure(0, weight=1) # Top row for settings
-        subtitle_frame.grid_rowconfigure(1, weight=1) # Bottom row for preview
-
-        # Left column for basic settings
-        subtitle_settings_basic = tk.LabelFrame(subtitle_frame, text="Basic Subtitle Settings", padx=10, pady=10)
-        subtitle_settings_basic.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=10, pady=10)
-
-        # Add Enable Subtitles checkbox to subtitle_settings_basic
-        tk.Checkbutton(subtitle_settings_basic, text="Enable Subtitles", variable=self.gui_elements['var_generate_srt']).grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="w")
-
-        # Subtitle line max width
-        tk.Label(subtitle_settings_basic, text="Characters per line (max):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        entry_subtitle_max_width = tk.Entry(subtitle_settings_basic, width=10) # Adjusted width
-        self.gui_elements['entry_subtitle_max_width'] = entry_subtitle_max_width # Add to gui_elements
-        entry_subtitle_max_width.insert(0, gcm.subtitle_maxwidth)
-        entry_subtitle_max_width.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-
-        # Font settings
-        tk.Label(subtitle_settings_basic, text="Font:").grid(row=2, column=0, sticky="w", padx=5, pady=5) # Adjusted row
-        font_dropdown = ttk.Combobox(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_font'], values=self.gui_elements['available_fonts'], width=25)
-        self.gui_elements['font_dropdown'] = font_dropdown # Add to gui_elements
-        font_dropdown.grid(row=2, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
-        font_dropdown.bind("<<ComboboxSelected>>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))) # Use debounced update
-
-        # Font size with slider and numeric display
-        font_size_frame = tk.Frame(subtitle_settings_basic)
-        font_size_frame.grid(row=3, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
-
-        tk.Label(subtitle_settings_basic, text="Font Size:").grid(row=3, column=0, sticky="w", padx=5, pady=5) # Adjusted row
-        font_size_slider = ttk.Scale(font_size_frame, from_=12, to=150, variable=self.gui_elements['var_subtitle_fontsize'], orient="horizontal")
-        self.gui_elements['font_size_slider'] = font_size_slider # Add to gui_elements
-        font_size_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        font_size_slider.bind("<ButtonRelease-1>", lambda e: (gui_utils.update_slider_value(self.gui_elements['var_subtitle_fontsize'], self.gui_elements['font_size_value_entry']), gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))) # Use debounced update
-
-        font_size_value_entry = tk.Entry(font_size_frame, width=4)
-        self.gui_elements['font_size_value_entry'] = font_size_value_entry # Add to gui_elements
-        font_size_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
-        font_size_value_entry.insert(0, str(self.gui_elements['var_subtitle_fontsize'].get()))
-        font_size_value_entry.bind("<Return>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['font_size_value_entry'], self.gui_elements['var_subtitle_fontsize'], self.gui_elements['font_size_slider'], 12, 150, self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-        font_size_value_entry.bind("<FocusOut>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['font_size_value_entry'], self.gui_elements['var_subtitle_fontsize'], self.gui_elements['font_size_slider'], 12, 150, self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        tk.Label(subtitle_settings_basic, text="Text Color:").grid(row=4, column=0, padx=5, pady=5, sticky="w") # Adjusted row
-        text_color_entry = tk.Entry(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_fontcolor'], width=10)
-        self.gui_elements['text_color_entry'] = text_color_entry # Add to gui_elements
-        text_color_entry.grid(row=4, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-        text_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))) # Use debounced update
-
-        # Secondary Color
-        tk.Label(subtitle_settings_basic, text="Secondary Color:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
-        secondary_color_entry = tk.Entry(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_secondary_color'], width=10)
-        self.gui_elements['secondary_color_entry'] = secondary_color_entry
-        secondary_color_entry.grid(row=5, column=1, sticky="w", padx=5, pady=5)
-        secondary_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        # Outline thickness with slider and numeric display
-        outline_frame = tk.Frame(subtitle_settings_basic)
-        outline_frame.grid(row=6, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
-
-        tk.Label(subtitle_settings_basic, text="Outline Thickness:").grid(row=6, column=0, padx=5, pady=5, sticky="w") # Adjusted row
-        outline_slider = ttk.Scale(outline_frame, from_=0, to=4, variable=self.gui_elements['var_subtitle_outline'], orient="horizontal")
-        self.gui_elements['outline_slider'] = outline_slider # Add to gui_elements
-        outline_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        outline_slider.bind("<ButtonRelease-1>", lambda e: (gui_utils.update_slider_value(self.gui_elements['var_subtitle_outline'], self.gui_elements['outline_value_entry']), gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))) # Use debounced update
-
-        outline_value_entry = tk.Entry(outline_frame, width=4)
-        self.gui_elements['outline_value_entry'] = outline_value_entry # Add to gui_elements
-        outline_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
-        outline_value_entry.insert(0, str(self.gui_elements['var_subtitle_outline'].get()))
-        outline_value_entry.bind("<Return>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['outline_value_entry'], self.gui_elements['var_subtitle_outline'], self.gui_elements['outline_slider'], 0, 4, self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-        outline_value_entry.bind("<FocusOut>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['outline_value_entry'], self.gui_elements['var_subtitle_outline'], self.gui_elements['outline_slider'], 0, 4, self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        tk.Label(subtitle_settings_basic, text="Outline Color:").grid(row=7, column=0, padx=5, pady=5, sticky="w") # Adjusted row
-        outline_color_entry = tk.Entry(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_outlinecolor'], width=10)
-        self.gui_elements['outline_color_entry'] = outline_color_entry # Add to gui_elements
-        outline_color_entry.grid(row=7, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-        outline_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))) # Use debounced update
-
-        # Shadow checkbox
-        shadow_frame = tk.Frame(subtitle_settings_basic)
-        shadow_frame.grid(row=8, column=0, columnspan=2, sticky="w", padx=5, pady=5) # Adjusted row
-        shadow_checkbox = tk.Checkbutton(shadow_frame, text="Enable Text Shadow", variable=self.gui_elements['var_subtitle_shadow'], command=lambda: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))) # Use debounced update
-        self.gui_elements['shadow_checkbox'] = shadow_checkbox # Add to gui_elements
-        shadow_checkbox.pack(anchor="w")
-
-        tk.Label(subtitle_settings_basic, text="Shadow Color:").grid(row=9, column=0, padx=5, pady=5, sticky="w") # Adjusted row
-        bg_color_entry = tk.Entry(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_bgcolor'], width=10)
-        self.gui_elements['bg_color_entry'] = bg_color_entry # Add to gui_elements
-        bg_color_entry.grid(row=9, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-        bg_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))) # Use debounced update
-
-        # Background opacity with slider and numeric display
-        bg_opacity_frame = tk.Frame(subtitle_settings_basic)
-        bg_opacity_frame.grid(row=10, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
-
-        tk.Label(subtitle_settings_basic, text="Shadow Opacity:").grid(row=10, column=0, padx=5, pady=5, sticky="w") # Adjusted row
-        bg_opacity_slider = ttk.Scale(bg_opacity_frame, from_=0, to=1, variable=self.gui_elements['var_subtitle_bgopacity'], orient="horizontal")
-        self.gui_elements['bg_opacity_slider'] = bg_opacity_slider # Add to gui_elements
-        bg_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        bg_opacity_slider.bind("<ButtonRelease-1>", lambda e: (gui_utils.update_slider_value(self.gui_elements['var_subtitle_bgopacity'], self.gui_elements['bg_opacity_value_entry']), gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))) # Use debounced update
-
-        bg_opacity_value_entry = tk.Entry(bg_opacity_frame, width=4)
-        self.gui_elements['bg_opacity_value_entry'] = bg_opacity_value_entry # Add to gui_elements
-        bg_opacity_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
-        bg_opacity_value_entry.insert(0, str(self.gui_elements['var_subtitle_bgopacity'].get()))
-        bg_opacity_value_entry.bind("<Return>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['bg_opacity_value_entry'], self.gui_elements['var_subtitle_bgopacity'], self.gui_elements['bg_opacity_slider'], 0, 1, self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-        bg_opacity_value_entry.bind("<FocusOut>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['bg_opacity_value_entry'], self.gui_elements['var_subtitle_bgopacity'], self.gui_elements['bg_opacity_slider'], 0, 1, self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        # Position selection
-        tk.Label(subtitle_settings_basic, text="Position:").grid(row=11, column=0, padx=5, pady=5, sticky="w") # Adjusted row
-        position_frame = tk.Frame(subtitle_settings_basic)
-        position_frame.grid(row=11, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-
-        positions = [
-            (5, "Top Left"), (6, "Top Center"), (7, "Top Right"),
-            (9, "Middle Left"), (10, "Middle Center"), (11, "Middle Right"),
-            (1, "Bottom Left"), (2, "Bottom Center"), (3, "Bottom Right")
-        ]
-
-        # Replace Radiobuttons with Combobox
-        position_labels = [label for val, label in positions]
-        position_values = [val for val, label in positions]
-
-        position_dropdown = ttk.Combobox(position_frame, textvariable=self.gui_elements['var_subtitle_position'], values=position_labels, width=25)
-        self.gui_elements['position_dropdown'] = position_dropdown # Add to gui_elements
-        position_dropdown.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        position_dropdown.bind("<<ComboboxSelected>>", lambda e: (self.gui_elements['var_subtitle_position'].set(position_values[position_labels.index(position_dropdown.get())]), gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))))
-        # Set initial value for dropdown
-        position_dropdown.set(positions[position_values.index(self.gui_elements['var_subtitle_position'].get())][1])
-
-        # Right column for advanced settings
-        subtitle_settings_advanced = tk.LabelFrame(subtitle_frame, text="Advanced Subtitle Settings", padx=10, pady=10)
-        subtitle_settings_advanced.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-
-        # Bold, Italic, Underline, StrikeOut
-        font_style_frame = tk.LabelFrame(subtitle_settings_advanced, text="Font Style", padx=5, pady=5)
-        font_style_frame.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="ew")
-
-        tk.Checkbutton(font_style_frame, text="Bold", variable=self.gui_elements['var_subtitle_bold'], onvalue=-1, offvalue=0, command=lambda: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))).pack(side=tk.LEFT, padx=5)
-        tk.Checkbutton(font_style_frame, text="Italic", variable=self.gui_elements['var_subtitle_italic'], onvalue=-1, offvalue=0, command=lambda: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))).pack(side=tk.LEFT, padx=5)
-        tk.Checkbutton(font_style_frame, text="Underline", variable=self.gui_elements['var_subtitle_underline'], onvalue=-1, offvalue=0, command=lambda: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))).pack(side=tk.LEFT, padx=5)
-        tk.Checkbutton(font_style_frame, text="StrikeOut", variable=self.gui_elements['var_subtitle_strikeout'], onvalue=-1, offvalue=0, command=lambda: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))).pack(side=tk.LEFT, padx=5)
-
-        # ScaleX, ScaleY
-        scale_frame = tk.LabelFrame(subtitle_settings_advanced, text="Scaling", padx=5, pady=5)
-        scale_frame.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="ew")
-
-        tk.Label(scale_frame, text="Scale X (%):").pack(side=tk.LEFT, padx=5)
-        scale_x_entry = tk.Entry(scale_frame, textvariable=self.gui_elements['var_subtitle_scale_x'], width=5)
-        scale_x_entry.pack(side=tk.LEFT, padx=5)
-        scale_x_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        tk.Label(scale_frame, text="Scale Y (%):").pack(side=tk.LEFT, padx=5)
-        scale_y_entry = tk.Entry(scale_frame, textvariable=self.gui_elements['var_subtitle_scale_y'], width=5)
-        scale_y_entry.pack(side=tk.LEFT, padx=5)
-        scale_y_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        # Spacing
-        tk.Label(subtitle_settings_advanced, text="Spacing (px):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        spacing_entry = tk.Entry(subtitle_settings_advanced, textvariable=self.gui_elements['var_subtitle_spacing'], width=10)
-        self.gui_elements['spacing_entry'] = spacing_entry
-        spacing_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
-        spacing_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        # Angle
-        tk.Label(subtitle_settings_advanced, text="Angle (deg):").grid(row=3, column=0, padx=5, pady=5, sticky="w")
-        angle_entry = tk.Entry(subtitle_settings_advanced, textvariable=self.gui_elements['var_subtitle_angle'], width=10)
-        self.gui_elements['angle_entry'] = angle_entry
-        angle_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
-        angle_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        # BorderStyle
-        tk.Label(subtitle_settings_advanced, text="Border Style:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
-        border_style_options = [1, 3] # 1: Outline+Shadow, 3: Opaque Box
-        border_style_dropdown = ttk.Combobox(subtitle_settings_advanced, textvariable=self.gui_elements['var_subtitle_border_style'], values=border_style_options, width=10)
-        self.gui_elements['border_style_dropdown'] = border_style_dropdown
-        border_style_dropdown.grid(row=4, column=1, sticky="w", padx=5, pady=5)
-        border_style_dropdown.bind("<<ComboboxSelected>>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        # Shadow Distance
-        tk.Label(subtitle_settings_advanced, text="Shadow Distance:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
-        shadow_distance_entry = tk.Entry(subtitle_settings_advanced, textvariable=self.gui_elements['var_subtitle_shadow_distance'], width=10)
-        self.gui_elements['shadow_distance_entry'] = shadow_distance_entry
-        shadow_distance_entry.grid(row=5, column=1, sticky="w", padx=5, pady=5)
-        shadow_distance_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        # Margins
-        margins_frame = tk.LabelFrame(subtitle_settings_advanced, text="Margins", padx=5, pady=5)
-        margins_frame.grid(row=6, column=0, columnspan=2, padx=5, pady=5, sticky="ew")
-
-        tk.Label(margins_frame, text="Left:").pack(side=tk.LEFT, padx=5)
-        margin_l_entry = tk.Entry(margins_frame, textvariable=self.gui_elements['var_subtitle_margin_l'], width=5)
-        margin_l_entry.pack(side=tk.LEFT, padx=5)
-        margin_l_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        tk.Label(margins_frame, text="Right:").pack(side=tk.LEFT, padx=5)
-        margin_r_entry = tk.Entry(margins_frame, textvariable=self.gui_elements['var_subtitle_margin_r'], width=5)
-        margin_r_entry.pack(side=tk.LEFT, padx=5)
-        margin_r_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        tk.Label(margins_frame, text="Vertical:").pack(side=tk.LEFT, padx=5)
-        margin_v_entry = tk.Entry(margins_frame, textvariable=self.gui_elements['var_subtitle_margin_v'], width=5)
-        margin_v_entry.pack(side=tk.LEFT, padx=5)
-        margin_v_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-        # Encoding
-        tk.Label(subtitle_settings_advanced, text="Encoding:").grid(row=7, column=0, padx=5, pady=5, sticky="w")
-        encoding_options = [0, 1] # 0: ANSI, 1: Default (UTF-8)
-        encoding_dropdown = ttk.Combobox(subtitle_settings_advanced, textvariable=self.gui_elements['var_subtitle_encoding'], values=encoding_options, width=10)
-        self.gui_elements['encoding_dropdown'] = encoding_dropdown
-        encoding_dropdown.grid(row=7, column=1, sticky="w", padx=5, pady=5)
-        encoding_dropdown.bind("<<ComboboxSelected>>", lambda e: gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
-
-
-        # Right column for preview
-        preview_frame = tk.LabelFrame(subtitle_frame, text="Preview", padx=10, pady=10)
-        preview_frame.grid(row=1, column=1, sticky="nsew", padx=10, pady=10) # Moved to bottom-right
-        self.gui_elements['preview_frame'] = preview_frame # Add preview_frame to gui_elements
-        
-        # Preview label
-        self.gui_elements['preview_label'] = tk.Label(preview_frame)
-        self.gui_elements['preview_label'].pack(padx=10, pady=10)
-            
-        # Configure grid weights
-        subtitle_frame.grid_columnconfigure(0, weight=1)
-        subtitle_frame.grid_columnconfigure(1, weight=1)
-        subtitle_frame.grid_rowconfigure(0, weight=1) # Top row for settings
-        subtitle_frame.grid_rowconfigure(1, weight=1) # Bottom row for preview
-
-    def _setup_overlay_effects_tab(self, tab):
-        """Setup the overlay effects tab layout"""
-        overlay_effects_left_column = tk.Frame(tab)
-        overlay_effects_left_column.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        overlay_effects_right_column = tk.Frame(tab)
-        overlay_effects_right_column.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
-
-        tab.grid_rowconfigure(0, weight=1)
-        tab.grid_columnconfigure(0, weight=1)
-        tab.grid_columnconfigure(1, weight=1)
-
-        # Watermark Section
-        watermark_frame = tk.LabelFrame(overlay_effects_right_column, text="Watermark", padx=10, pady=5)
-        watermark_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew", columnspan=2)
-
-        # New checkbox for enabling/disabling watermark (first place)
-        tk.Checkbutton(watermark_frame, text="Enable", variable=self.gui_elements['var_enable_watermark'], command=self.toggle_watermark_controls).grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
-
-        tk.Label(watermark_frame, text="Text:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        text_watermark = tk.Text(watermark_frame, width=30, height=3)
-        self.gui_elements['text_watermark'] = text_watermark # Add to gui_elements
-        text_watermark.insert("1.0", gcm.watermark)
-        text_watermark.grid(row=1, column=1, padx=10, pady=5)
-
-        tk.Label(watermark_frame, text="Font:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        entry_font = tk.OptionMenu(watermark_frame, self.gui_elements['var_watermark_font'], *self.gui_elements['available_fonts'])
-        self.gui_elements['entry_font'] = entry_font # Add to gui_elements
-        entry_font.config(width=20)
-        entry_font.grid(row=2, column=1, padx=10, pady=5)
-
-        tk.Label(watermark_frame, text="Font Size:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
-        entry_watermark_font_size = tk.Entry(watermark_frame, textvariable=self.gui_elements['var_watermark_font_size'], width=30)
-        self.gui_elements['entry_watermark_font_size'] = entry_watermark_font_size # Add to gui_elements
-        entry_watermark_font_size.grid(row=3, column=1, padx=10, pady=5)
-
-        tk.Label(watermark_frame, text="Opacity:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
-        watermark_opacity_slider = ttk.Scale(watermark_frame, from_=0.0, to=1.0, variable=self.gui_elements['var_watermark_opacity'], orient="horizontal")
-        self.gui_elements['watermark_opacity_slider'] = watermark_opacity_slider # Add to gui_elements
-        watermark_opacity_slider.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
-
-        tk.Label(watermark_frame, text="Font Color:").grid(row=5, column=0, padx=10, pady=5, sticky="w")
-        entry_watermark_fontcolor = tk.OptionMenu(watermark_frame, self.gui_elements['var_watermark_fontcolor'], *self.gui_elements['font_colors'])
-        self.gui_elements['entry_watermark_fontcolor'] = entry_watermark_fontcolor # Add to gui_elements
-        entry_watermark_fontcolor.config(width=10)
-        entry_watermark_fontcolor.grid(row=5, column=1, padx=10, pady=5)
-
-        tk.Label(watermark_frame, text="Type:").grid(row=6, column=0, padx=10, pady=5, sticky="w")
-        entry_watermark_type = tk.OptionMenu(watermark_frame, self.gui_elements['var_watermark_type'], *self.gui_elements['watermark_types'])
-        self.gui_elements['entry_watermark_type'] = entry_watermark_type # Add to gui_elements
-        entry_watermark_type.config(width=10)
-        entry_watermark_type.grid(row=6, column=1, padx=10, pady=5)
-
-        tk.Label(watermark_frame, text="Speed (1=Slow, 10=Fast):").grid(row=7, column=0, padx=10, pady=5, sticky="w")
-        watermark_speed_slider = ttk.Scale(watermark_frame, from_=1, to=10, variable=self.gui_elements['var_watermark_speed_intuitive'], orient="horizontal")
-        self.gui_elements['watermark_speed_slider'] = watermark_speed_slider # Add to gui_elements
-        watermark_speed_slider.grid(row=7, column=1, padx=10, pady=5, sticky="ew")
-
-        # Effect Overlay Section
-        effect_frame = tk.LabelFrame(overlay_effects_right_column, text="Effect Overlay", padx=10, pady=5)
-        effect_frame.grid(row=0, column=0, padx=10, pady=5, sticky="nsew", columnspan=2)
-
-        tk.Checkbutton(effect_frame, text="Enable Effect Overlay", variable=self.gui_elements['var_enable_effect_overlay'], command=self.toggle_effect_overlay_controls).grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
-
-        tk.Label(effect_frame, text="Effect:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        effect_dropdown = ttk.Combobox(effect_frame, textvariable=self.gui_elements['var_effect_overlay'], values=self.gui_elements['effect_files'], width=25)
-        self.gui_elements['effect_dropdown'] = effect_dropdown # Add to gui_elements
-        effect_dropdown.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
-
-        tk.Label(effect_frame, text="Blend Mode:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        blend_dropdown = ttk.Combobox(effect_frame, textvariable=self.gui_elements['var_effect_blend'], values=self.gui_elements['SUPPORTED_BLEND_MODES'], width=25)
-        self.gui_elements['blend_dropdown'] = blend_dropdown # Add to gui_elements
-        blend_dropdown.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
-
-        # Opacity with slider and numeric display
-        tk.Label(effect_frame, text="Opacity:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
-        effect_opacity_frame = tk.Frame(effect_frame)
-        effect_opacity_frame.grid(row=3, column=1, sticky="ew", padx=10, pady=5)
-
-        effect_opacity_slider = ttk.Scale(effect_opacity_frame, from_=0, to=1, variable=self.gui_elements['var_effect_opacity'], orient="horizontal")
-        self.gui_elements['effect_opacity_slider'] = effect_opacity_slider # Add to gui_elements
-        effect_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        effect_opacity_slider.bind("<ButtonRelease-1>", self.update_effect_opacity_value)
-
-        effect_opacity_value = tk.Entry(effect_opacity_frame, width=5)
-        self.gui_elements['effect_opacity_value'] = effect_opacity_value # Add to gui_elements
-        effect_opacity_value.pack(side=tk.RIGHT, padx=(5, 0))
-        effect_opacity_value.insert(0, f"{self.gui_elements['var_effect_opacity'].get():.2f}")
-        effect_opacity_value.bind("<Return>", self.update_effect_opacity_from_entry)
-        effect_opacity_value.bind("<FocusOut>", self.update_effect_opacity_from_entry)
-
-        # Subscribe Overlay Section
-        subscribe_overlay_frame = tk.LabelFrame(overlay_effects_left_column, text="Subscribe Overlay", padx=10, pady=5)
-        subscribe_overlay_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew", columnspan=2)
-
-        enable_subscribe_overlay_checkbox = tk.Checkbutton(subscribe_overlay_frame, text="Enable", variable=self.gui_elements['var_enable_subscribe_overlay'], command=self.toggle_subscribe_overlay_controls)
-        self.gui_elements['enable_subscribe_overlay_checkbox'] = enable_subscribe_overlay_checkbox # Add to gui_elements
-        enable_subscribe_overlay_checkbox.grid(row=0, column=0, columnspan=2, padx=10, pady=5, sticky="w")
-
-        tk.Label(subscribe_overlay_frame, text="Overlay File:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        entry_subscribe_overlay_file = ttk.Combobox(subscribe_overlay_frame, textvariable=self.gui_elements['var_subscribe_overlay_file'], values=self.gui_elements['subscribe_overlay_files'], width=25)
-        self.gui_elements['entry_subscribe_overlay_file'] = entry_subscribe_overlay_file # Add to gui_elements
-        entry_subscribe_overlay_file.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
-        # Removed the bind as the command on the checkbox will handle the state update
-
-        tk.Label(subscribe_overlay_frame, text="Appearance Delay (s):").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        entry_subscribe_delay = tk.Entry(subscribe_overlay_frame, textvariable=self.gui_elements['var_subscribe_delay'], width=30)
-        self.gui_elements['entry_subscribe_delay'] = entry_subscribe_delay # Add to gui_elements
-        entry_subscribe_delay.insert(0, gcm.subscribe_delay)
-        entry_subscribe_delay.grid(row=2, column=1, padx=10, pady=5)
-
-        tk.Label(subscribe_overlay_frame, text="Chromakey Color:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
-        entry_chromakey_color = tk.Entry(subscribe_overlay_frame, width=30, textvariable=self.gui_elements['var_chromakey_color'])
-        self.gui_elements['entry_chromakey_color'] = entry_chromakey_color # Add to gui_elements
-        entry_chromakey_color.insert(0, gcm.chromakey_color)
-        entry_chromakey_color.grid(row=3, column=1, padx=10, pady=5)
-
-        tk.Label(subscribe_overlay_frame, text="Chromakey Similarity:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
-        entry_chromakey_similarity = tk.Entry(subscribe_overlay_frame, width=30)
-        self.gui_elements['entry_chromakey_similarity'] = entry_chromakey_similarity # Add to gui_elements
-        entry_chromakey_similarity.insert(0, gcm.chromakey_similarity)
-        entry_chromakey_similarity.grid(row=4, column=1, padx=10, pady=5)
-
-        tk.Label(subscribe_overlay_frame, text="Chromakey Blend:").grid(row=5, column=0, padx=10, pady=5, sticky="w")
-        entry_chromakey_blend = tk.Entry(subscribe_overlay_frame, width=30)
-        self.gui_elements['entry_chromakey_blend'] = entry_chromakey_blend # Add to gui_elements
-        entry_chromakey_blend.insert(0, gcm.chromakey_blend)
-        entry_chromakey_blend.grid(row=5, column=1, padx=10, pady=5)
-
-
+    # Event handlers and utility methods
     def _load_initial_config(self):
         """Load initial configuration"""
         if self.gui_elements['config_files']:
@@ -780,11 +205,9 @@ class VideoCutterGUI:
         gcm.load_config(self.root, self.gui_elements['var_config'], self.gui_elements)
 
         # Initialize control states after all widgets are created and packed
-        self.toggle_shadow_controls()
         self.gui_elements['tab_title_settings_instance'].toggle_title_controls() # Call through instance
-        self.toggle_subscribe_overlay_controls()
-        self.toggle_watermark_controls()
-        self.toggle_effect_overlay_controls()
+        self.gui_elements['tab_subtitles_instance'].update_all_subtitle_controls() # Call through instance
+        self.gui_elements['tab_overlay_effects_instance'].update_all_overlay_controls() # Call through instance
         # Initialize subtitle preview after all subtitle GUI elements are created
         gui_utils.schedule_subtitle_preview_update(self.root, lambda: gui_utils.update_subtitle_preview(self.gui_elements))
         
@@ -794,21 +217,21 @@ class VideoCutterGUI:
         folder_selected = filedialog.askdirectory()
         if folder_selected:
             self.gui_elements['var_batch_input_folder'].set(folder_selected)
-            self.gui_elements['entry_input_folder'].config(state=tk.DISABLED)
-            self.gui_elements['entry_input_folder'].delete(0, tk.END)
-            self.gui_elements['entry_input_folder'].insert(0, "BATCH MODE ACTIVE")
+            self.gui_elements['tab_main_settings_instance'].gui_elements['entry_input_folder'].config(state=tk.DISABLED)
+            self.gui_elements['tab_main_settings_instance'].gui_elements['entry_input_folder'].delete(0, tk.END)
+            self.gui_elements['tab_main_settings_instance'].gui_elements['entry_input_folder'].insert(0, "BATCH MODE ACTIVE")
         else:
             if not self.gui_elements['var_batch_input_folder'].get():
-                self.gui_elements['entry_input_folder'].config(state=tk.NORMAL)
-                self.gui_elements['entry_input_folder'].delete(0, tk.END)
-                self.gui_elements['entry_input_folder'].insert(0, gcm.input_folder)
+                self.gui_elements['tab_main_settings_instance'].gui_elements['entry_input_folder'].config(state=tk.NORMAL)
+                self.gui_elements['tab_main_settings_instance'].gui_elements['entry_input_folder'].delete(0, tk.END)
+                self.gui_elements['tab_main_settings_instance'].gui_elements['entry_input_folder'].insert(0, gcm.input_folder)
                 
     def clear_batch_folder(self):
         """Clear batch input folder selection"""
         self.gui_elements['var_batch_input_folder'].set("")
-        self.gui_elements['entry_input_folder'].config(state=tk.NORMAL)
-        self.gui_elements['entry_input_folder'].delete(0, tk.END)
-        self.gui_elements['entry_input_folder'].insert(0, gcm.input_folder)
+        self.gui_elements['tab_main_settings_instance'].gui_elements['entry_input_folder'].config(state=tk.NORMAL)
+        self.gui_elements['tab_main_settings_instance'].gui_elements['entry_input_folder'].delete(0, tk.END)
+        self.gui_elements['tab_main_settings_instance'].gui_elements['entry_input_folder'].insert(0, gcm.input_folder)
         
     def schedule_subtitle_preview_update(self):
         """Debounce mechanism for preview updates"""
@@ -821,71 +244,6 @@ class VideoCutterGUI:
         # This would contain the actual preview update logic
         pass
         
-    def toggle_shadow_controls(self, *args):
-        """Toggle background color and opacity controls based on shadow checkbox"""
-        if self.gui_elements['var_subtitle_shadow'].get():
-            self.gui_elements['bg_color_entry'].config(state=tk.NORMAL)
-            self.gui_elements['bg_opacity_slider'].config(state=tk.NORMAL)
-            self.gui_elements['bg_opacity_value_entry'].config(state=tk.NORMAL)
-        else:
-            self.gui_elements['bg_color_entry'].config(state=tk.DISABLED)
-            self.gui_elements['bg_opacity_slider'].config(state=tk.DISABLED)
-            self.gui_elements['bg_opacity_value_entry'].config(state=tk.DISABLED)
-            
-        gui_utils.schedule_subtitle_preview_update(
-            self.root, 
-            lambda: gui_utils.update_subtitle_preview(self.gui_elements)
-        )
-        
-    def toggle_subscribe_overlay_controls(self, *args):
-        """Toggle subscribe overlay controls based on enable_subscribe_overlay checkbox"""
-        state = tk.NORMAL if self.gui_elements['var_enable_subscribe_overlay'].get() else tk.DISABLED
-        
-        controls = [
-            'entry_subscribe_overlay_file',
-            'entry_subscribe_delay',
-            'entry_chromakey_color',
-            'entry_chromakey_similarity',
-            'entry_chromakey_blend'
-        ]
-        
-        for control in controls:
-            if control in self.gui_elements:
-                self.gui_elements[control].config(state=state)
-                
-    def toggle_watermark_controls(self, *args):
-        """Toggle watermark controls based on enable_watermark checkbox"""
-        state = tk.NORMAL if self.gui_elements['var_enable_watermark'].get() else tk.DISABLED
-        
-        controls = [
-            'text_watermark',
-            'entry_font',
-            'entry_watermark_font_size',
-            'watermark_opacity_slider',
-            'entry_watermark_fontcolor',
-            'entry_watermark_type',
-            'watermark_speed_slider'
-        ]
-        
-        for control in controls:
-            if control in self.gui_elements:
-                self.gui_elements[control].config(state=state)
-                
-    def toggle_effect_overlay_controls(self, *args):
-        """Toggle effect overlay controls based on enable_effect_overlay checkbox"""
-        state = tk.NORMAL if self.gui_elements['var_enable_effect_overlay'].get() else tk.DISABLED
-        
-        controls = [
-            'effect_dropdown',
-            'blend_dropdown',
-            'effect_opacity_slider',
-            'effect_opacity_value'
-        ]
-        
-        for control in controls:
-            if control in self.gui_elements:
-                self.gui_elements[control].config(state=state)
-                
     def _run_pipeline_in_thread(self, config_file_path, gui_settings, batch_folder_path, input_folder):
         """Helper function to run the pipeline in a separate thread"""
         try:
@@ -914,9 +272,6 @@ class VideoCutterGUI:
                     project_input_folder=input_folder,
                     cfg=cfg_single_project
                 )
-                self.root.after(0, lambda: messagebox.showinfo("Success", "Single video processing pipeline finished!"))
-                
-            else:
                 self.root.after(0, lambda: messagebox.showerror("Input Error", "Please specify a valid Input Folder or Batch Input Folder."))
                 return
                 
@@ -929,51 +284,11 @@ class VideoCutterGUI:
             
     def _collect_gui_settings(self):
         """Collect all GUI settings into a dictionary"""
-        # Get values from entry fields
-        title = self.gui_elements['entry_title'].get()
-        watermark = self.gui_elements['text_watermark'].get("1.0", tk.END).rstrip('\n')
-        watermark = watermark.replace('\n', '\\n')
-        
-        # Calculate watermark speed
-        watermark_speed_intuitive = self.gui_elements['var_watermark_speed_intuitive'].get()
-        watermark_speed = int(100 - (watermark_speed_intuitive - 1) * 9)
-        
         # Collect all settings
         gui_settings = {
-            'title': title,
-            'watermark': watermark.replace('\\n', '\n'),
-            'watermark_type': self.gui_elements['var_watermark_type'].get(),
-            'watermark_speed': watermark_speed,
-            'enable_watermark': self.gui_elements['var_enable_watermark'].get(),
-            'watermark_font_size': self.gui_elements['var_watermark_font_size'].get(),
-            'watermark_opacity': self.gui_elements['var_watermark_opacity'].get(),
-            'watermark_fontcolor': self.gui_elements['var_watermark_fontcolor'].get(),
-            'watermark_speed_intuitive': watermark_speed_intuitive,
-            'segment_duration': self.gui_elements['entry_segment_duration'].get(),
-            'input_folder': self.gui_elements['entry_input_folder'].get(),
-            'template_folder': self.gui_elements['entry_template_folder'].get(),
-            'depthflow': self.gui_elements['var_depthflow'].get(),
-            'time_limit': self.gui_elements['entry_time_limit'].get(),
-            'video_orientation': self.gui_elements['var_video_orientation'].get(),
-            'blur': self.gui_elements['var_add_blur'].get(),
-            'watermark_font': self.gui_elements['var_watermark_font'].get(),
-            
-            # Subscribe overlay settings
-            'enable_subscribe_overlay': self.gui_elements['var_enable_subscribe_overlay'].get(),
-            'subscribe_delay': self.gui_elements['var_subscribe_delay'].get(),
-            'chromakey_color': self.gui_elements['var_chromakey_color'].get(),
-            'chromakey_similarity': self.gui_elements['entry_chromakey_similarity'].get(),
-            'chromakey_blend': self.gui_elements['entry_chromakey_blend'].get(),
-            
-            # Audio settings
-            'vo_delay': self.gui_elements['entry_voiceover_delay'].get(),
-            
-            # Effect overlay settings
-            'effect_overlay': None if self.gui_elements['var_effect_overlay'].get() == "None" else self.gui_elements['var_effect_overlay'].get(),
-            'effect_opacity': self.gui_elements['var_effect_opacity'].get(),
-            'effect_blend': self.gui_elements['var_effect_blend'].get(),
-            'enable_effect_overlay': self.gui_elements['var_enable_effect_overlay'].get(),
-            
+            # Main settings (from MainSettingsFrame)
+            **self.gui_elements['tab_main_settings_instance'].collect_settings(),
+
             # Subtitle settings (now nested)
             'subtitles': {
                 'enabled': self.gui_elements['var_generate_srt'].get(), # Renamed from generate_srt
@@ -1015,8 +330,14 @@ class VideoCutterGUI:
             'title_duration': self.gui_elements['var_title_duration'].get(),
             'title_bg_color': self.gui_elements['var_title_bg_color'].get(),
             'title_bg_opacity': self.gui_elements['var_title_bg_opacity'].get(),
-            'enable_title_background': self.gui_elements['var_enable_title_background'].get()
+            'enable_title_background': self.gui_elements['var_enable_title_background'].get(),
+
+            # Overlay effects settings (from OverlayEffectsFrame)
+            **self.gui_elements['tab_overlay_effects_instance'].collect_settings()
         }
+        
+        # Get title from title settings instance
+        gui_settings['title'] = self.gui_elements['tab_title_settings_instance'].collect_settings()['title_text']
         
         return gui_settings
         
@@ -1037,19 +358,11 @@ class VideoCutterGUI:
         pipeline_thread = threading.Thread(target=self._run_pipeline_in_thread, args=(config_file_path, gui_settings, self.gui_elements['var_batch_input_folder'].get(), self.gui_elements['entry_input_folder'].get()))
         pipeline_thread.start()
         
-    def update_effect_opacity_value(self, *args):
-        """Update effect opacity value display"""
-        self.gui_elements['effect_opacity_value'].delete(0, tk.END)
-        self.gui_elements['effect_opacity_value'].insert(0, f"{self.gui_elements['var_effect_opacity'].get():.2f}")
-
-    def update_effect_opacity_from_entry(self, *args):
-        """Update effect opacity from entry"""
-        try:
-            value = float(self.gui_elements['effect_opacity_value'].get())
-            if 0 <= value <= 1:
-                self.gui_elements['var_effect_opacity'].set(value)
-        except ValueError:
-            pass
+    # Removed update_effect_opacity_value()
+    # Removed update_effect_opacity_from_entry()
+    # Removed toggle_subscribe_overlay_controls()
+    # Removed toggle_watermark_controls()
+    # Removed toggle_effect_overlay_controls()
 
 # Main execution block
 if __name__ == "__main__":
