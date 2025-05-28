@@ -15,6 +15,16 @@ class SubtitleSettingsFrame(ttk.Frame):
     def _initialize_variables(self):
         """Initialize subtitle-related variables"""
         # Default subtitle settings
+        # Define the ASS alignment values and their corresponding labels/grid positions
+        # ASS Alignment:
+        # 7 8 9 (Top Left, Top Center, Top Right)
+        # 4 5 6 (Middle Left, Middle Center, Middle Right)
+        # 1 2 3 (Bottom Left, Bottom Center, Bottom Right)
+        self.ass_positions = [
+            (7, "Top Left", 0, 0), (8, "Top Center", 0, 1), (9, "Top Right", 0, 2),
+            (4, "Middle Left", 1, 0), (5, "Middle Center", 1, 1), (6, "Middle Right", 1, 2),
+            (1, "Bottom Left", 2, 0), (2, "Bottom Center", 2, 1), (3, "Bottom Right", 2, 2)
+        ]
         self.gui_elements['default_subtitle_font'] = gcm.subtitle_font
         self.gui_elements['default_subtitle_fontsize'] = gcm.subtitle_fontsize
         self.gui_elements['default_subtitle_fontcolor'] = gcm.subtitle_fontcolor
@@ -181,20 +191,10 @@ class SubtitleSettingsFrame(ttk.Frame):
         # Create a frame for the 9 radio buttons
         position_grid_frame = tk.Frame(position_frame)
         position_grid_frame.pack(fill="both", expand=True)
-
-        # Define the ASS alignment values and their corresponding labels/grid positions
-        # ASS Alignment:
-        # 7 8 9 (Top Left, Top Center, Top Right)
-        # 4 5 6 (Middle Left, Middle Center, Middle Right)
-        # 1 2 3 (Bottom Left, Bottom Center, Bottom Right)
-        self.ass_positions = [ # Make it an instance variable
-            (7, "Top Left", 0, 0), (8, "Top Center", 0, 1), (9, "Top Right", 0, 2),
-            (4, "Middle Left", 1, 0), (5, "Middle Center", 1, 1), (6, "Middle Right", 1, 2),
-            (1, "Bottom Left", 2, 0), (2, "Bottom Center", 2, 1), (3, "Bottom Right", 2, 2)
-        ]
+        self.gui_elements['position_grid_frame'] = position_grid_frame # Add to gui_elements
 
         # Create 9 radio buttons
-        for ass_val, label, row, col in self.ass_positions: # Use instance variable
+        for ass_val, label, row, col in self.ass_positions:
             rb = tk.Radiobutton(
                 position_grid_frame,
                 text="",
@@ -208,7 +208,7 @@ class SubtitleSettingsFrame(ttk.Frame):
 
         # Ensure the correct radio button is selected initially
         initial_pos_val = self.gui_elements['var_subtitle_position'].get()
-        for ass_val, label, row, col in self.ass_positions: # Use instance variable
+        for ass_val, label, row, col in self.ass_positions:
             if ass_val == initial_pos_val:
                 self.gui_elements['var_subtitle_position'].set(ass_val) # Explicitly set to trigger update if needed
                 break
@@ -344,13 +344,7 @@ class SubtitleSettingsFrame(ttk.Frame):
         for control_name in controls:
             if control_name in self.gui_elements:
                 widget = self.gui_elements[control_name]
-                if control_name == 'position_grid_frame':
-                    # Special handling for radio buttons within position_grid_frame
-                    for ass_val, _, _, _ in self.ass_positions: # Use the ass_positions list from create_widgets
-                        rb = self.gui_elements.get(f'rb_subtitle_position_{ass_val}')
-                        if rb:
-                            rb.config(state=state)
-                elif isinstance(widget, tk.Frame): # Handle other frames by iterating children
+                if isinstance(widget, tk.Frame): # Handle frames by iterating children
                     for child in widget.winfo_children():
                         child.config(state=state)
                 else:
@@ -397,11 +391,7 @@ class SubtitleSettingsFrame(ttk.Frame):
         
         # Ensure the correct radio button for position is selected
         initial_pos_val = self.gui_elements['var_subtitle_position'].get()
-        for ass_val, label, row, col in [
-            (7, "Top Left", 0, 0), (8, "Top Center", 0, 1), (9, "Top Right", 0, 2),
-            (4, "Middle Left", 1, 0), (5, "Middle Center", 1, 1), (6, "Middle Right", 1, 2),
-            (1, "Bottom Left", 2, 0), (2, "Bottom Center", 2, 1), (3, "Bottom Right", 2, 2)
-        ]:
+        for ass_val, label, row, col in self.ass_positions:
             rb = self.gui_elements[f'rb_subtitle_position_{ass_val}']
             if ass_val == initial_pos_val:
                 rb.select()
