@@ -2,24 +2,40 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 import os
+import _tkinter # Import the internal module
 
 # Direct update for preview (removed debounce for debugging)
 def schedule_subtitle_preview_update(root, update_function):
     update_function()
 
 # Function to update slider value entry
-def update_slider_value(var, entry):
+def update_slider_value(value, entry): # Changed var to value
     entry.delete(0, tk.END)
-    # Format to 2 decimal places for float values
-    if isinstance(var.get(), float):
-        entry.insert(0, f"{var.get():.2f}")
-    else:
-        entry.insert(0, str(var.get()))
+    display_value = 0.0 # Default display value
+
+    try:
+        # Directly use the passed value
+        if isinstance(value, (float, int)):
+            display_value = round(float(value), 2) # Round to 2 decimal places
+        elif isinstance(value, str) and value.strip():
+            display_value = round(float(value), 2) # Round to 2 decimal places
+        elif isinstance(value, str) and not value.strip(): # Handle empty string explicitly
+            display_value = 0.0
+        # If value is None or other unexpected type, display_value remains 0.0
+    except ValueError: # Only ValueError is possible now from float(value)
+        # If ValueError occurs, display_value remains 0.0.
+        # We don't print a warning here to avoid spamming.
+        pass
+    except Exception as e:
+        print(f"Unexpected error in update_slider_value (processing value): {e}")
+        display_value = 0.0
+
+    entry.insert(0, f"{display_value:.2f}") # Format to 2 decimal places for display
 
 # Function to update slider from entry
 def update_slider_from_entry(entry, var, slider, min_val, max_val, root, update_function):
     try:
-        value = float(entry.get())
+        value = round(float(entry.get()), 2) # Round to 2 decimal places
         if min_val <= value <= max_val:
             var.set(value)
             schedule_subtitle_preview_update(root, update_function) # Use debounced update

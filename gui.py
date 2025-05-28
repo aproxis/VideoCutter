@@ -14,6 +14,7 @@ from videocutter.gui.title_settings_frame import TitleSettingsFrame
 from videocutter.gui.subtitle_settings_frame import SubtitleSettingsFrame
 from videocutter.gui.overlay_effects_frame import OverlayEffectsFrame # New import for overlay effects
 from videocutter.gui.main_settings_frame import MainSettingsFrame # New import for main settings
+from videocutter.gui.depthflow_settings_frame import DepthflowSettingsFrame # New import for DepthFlow settings
 from videocutter.gui import gui_utils
 from videocutter import config_manager
 
@@ -57,12 +58,20 @@ class VideoCutterGUI:
         self.gui_elements['root'] = self.root
         self.gui_elements['gui_utils'] = gui_utils # Add gui_utils to gui_elements
         
-        # Removed _init_video_processing_variables(), _init_batch_variables()
+        # Initialize main video processing variables at the top level
+        self.gui_elements['var_transition_duration'] = tk.DoubleVar(self.root, value=gcm.transition_duration)
+        self.gui_elements['var_fps'] = tk.IntVar(self.root, value=gcm.fps)
+        self.gui_elements['var_segment_duration'] = tk.IntVar(self.root, value=gcm.segment_duration)
+        self.gui_elements['var_video_orientation'] = tk.StringVar(self.root, value=gcm.video_orientation)
+        self.gui_elements['var_depthflow'] = tk.BooleanVar(value=gcm.depthflow) # Initialize var_depthflow at top level
+        
         self._init_title_variables()
         
         # Global lists from config manager
         self._init_global_lists()
         
+    # Removed _init_video_processing_variables() as its contents are moved
+
     def _init_title_variables(self):
         """Initialize title-related variables"""
         self.gui_elements['var_enable_title'] = tk.BooleanVar(value=gcm.enable_title if hasattr(gcm, 'enable_title') else False)
@@ -186,12 +195,15 @@ class VideoCutterGUI:
         self.gui_elements['tab_overlay_effects_instance'] = tab_overlay_effects # Store instance
         tab_title_settings = TitleSettingsFrame(notebook, self.gui_elements)
         self.gui_elements['tab_title_settings_instance'] = tab_title_settings # Store instance
+        tab_depthflow_settings = DepthflowSettingsFrame(notebook, self.gui_elements) # Instantiate DepthflowSettingsFrame
+        self.gui_elements['tab_depthflow_settings_instance'] = tab_depthflow_settings # Store instance
         
         # Add tabs to notebook
         notebook.add(tab_main_settings, text="Main Settings")
         notebook.add(tab_title_settings, text="Title Settings")
         notebook.add(tab_subtitles_new, text="Subtitles")
         notebook.add(tab_overlay_effects, text="Overlay Effects")
+        notebook.add(tab_depthflow_settings, text="DepthFlow")
         
     # Event handlers and utility methods
     def _load_initial_config(self):
@@ -333,7 +345,10 @@ class VideoCutterGUI:
             'enable_title_background': self.gui_elements['var_enable_title_background'].get(),
 
             # Overlay effects settings (from OverlayEffectsFrame)
-            **self.gui_elements['tab_overlay_effects_instance'].collect_settings()
+            **self.gui_elements['tab_overlay_effects_instance'].collect_settings(),
+
+            # DepthFlow settings (from DepthflowSettingsFrame)
+            **self.gui_elements['tab_depthflow_settings_instance'].collect_settings()
         }
         
         # Get title from title settings instance

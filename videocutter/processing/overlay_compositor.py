@@ -87,7 +87,7 @@ def apply_final_overlays(
     title_visible_time = title_cfg.get('visible_time', 5)
     title_x_offset = title_cfg.get('x_offset', 110)
     title_y_offset = title_cfg.get('y_offset', -35)
-    enable_title = title_cfg.get('enable_title', True) # Get enable status
+    enable_title = title_cfg.get('enable_title', False) # Get enable status, default to False
     title_opacity = title_cfg.get('opacity', 1.0) # Get title opacity
     enable_title_background = title_cfg.get('enable_background', False) # New: Get enable status for background
     title_background_color = title_cfg.get('background_color', '000000') # New: Get background color
@@ -351,6 +351,7 @@ def apply_final_overlays(
             '-map', '[v_final]', # Explicitly map [v_final] as it's always the last video stream label
             '-map', '[aout]', # From audio_mix
             '-c:v', 'libx264', '-crf', str(config.get('video_crf', 22)), '-preset', config.get('video_preset', 'medium'),
+            '-r', str(config.get('fps', 30)), # Add FPS from config
             '-c:a', 'aac', '-b:a', config.get('audio_bitrate', '192k'),
             output_video_path
         ])

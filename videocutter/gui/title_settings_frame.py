@@ -9,32 +9,54 @@ class TitleSettingsFrame(ttk.Frame):
         self.create_widgets()
 
     def toggle_title_controls(self, *args):
-        state = tk.NORMAL if self.gui_elements['var_enable_title'].get() else tk.DISABLED
-        self.gui_elements['entry_title'].config(state=state)
-        self.gui_elements['entry_title_font'].config(state=state)
-        self.gui_elements['entry_title_fontcolor'].config(state=state)
-        self.gui_elements['entry_calculated_title_font_size'].config(state=state)
-        self.gui_elements['entry_title_font_size'].config(state=state)
-        self.gui_elements['entry_title_appearance_delay'].config(state=state)
-        self.gui_elements['entry_title_visible_time'].config(state=state)
-        self.gui_elements['entry_title_x_offset'].config(state=state)
-        self.gui_elements['entry_title_y_offset'].config(state=state)
-        self.gui_elements['title_opacity_slider'].config(state=state)
-        self.gui_elements['title_opacity_value_entry'].config(state=state)
-        self.gui_elements['title_background_checkbox'].config(state=state)
-        self.gui_elements['title_background_color_entry'].config(state=state)
-        self.gui_elements['title_background_opacity_slider'].config(state=state)
-        self.gui_elements['title_background_opacity_value_entry'].config(state=state)
-        self.gui_elements['enable_title_video_overlay_checkbox'].config(state=state)
-        self.gui_elements['entry_title_video_overlay_file'].config(state=state)
-        self.gui_elements['entry_title_video_overlay_delay'].config(state=state)
-        self.gui_elements['entry_title_video_chromakey_color'].config(state=state)
-        self.gui_elements['entry_title_video_chromakey_similarity'].config(state=state)
-        self.gui_elements['entry_title_video_chromakey_blend'].config(state=state)
+        # Determine overall state based on main "Enable Text Title" checkbox
+        main_enable_state = self.gui_elements['var_enable_title'].get()
 
-        self.gui_elements['entry_title_font']['state'] = state
-        self.gui_elements['entry_title_fontcolor']['state'] = state
-        self.gui_elements['entry_title_video_overlay_file']['state'] = state
+        # Text Title related controls (excluding background and video overlay)
+        text_controls = [
+            self.gui_elements['entry_title'],
+            self.gui_elements['entry_title_font'],
+            self.gui_elements['entry_title_fontcolor'],
+            self.gui_elements['entry_calculated_title_font_size'],
+            self.gui_elements['entry_title_font_size'],
+            self.gui_elements['entry_title_appearance_delay'],
+            self.gui_elements['entry_title_visible_time'],
+            self.gui_elements['entry_title_x_offset'],
+            self.gui_elements['entry_title_y_offset'],
+            self.gui_elements['title_opacity_slider'],
+            self.gui_elements['title_opacity_value_entry'],
+            self.gui_elements['title_background_checkbox'], # This checkbox itself
+            self.gui_elements['enable_title_video_overlay_checkbox'] # This checkbox itself
+        ]
+        for widget in text_controls:
+            widget.config(state=tk.NORMAL if main_enable_state else tk.DISABLED)
+            # Special handling for OptionMenu and Combobox 'state'
+            if isinstance(widget, tk.OptionMenu) or isinstance(widget, ttk.Combobox):
+                widget['state'] = tk.NORMAL if main_enable_state else tk.DISABLED
+
+        # Background related controls
+        bg_enable_state = main_enable_state and self.gui_elements['var_enable_title_background'].get()
+        bg_controls = [
+            self.gui_elements['title_background_color_entry'],
+            self.gui_elements['title_background_opacity_slider'],
+            self.gui_elements['title_background_opacity_value_entry']
+        ]
+        for widget in bg_controls:
+            widget.config(state=tk.NORMAL if bg_enable_state else tk.DISABLED)
+
+        # Title Video Overlay related controls
+        video_overlay_enable_state = main_enable_state and self.gui_elements['var_enable_title_video_overlay'].get()
+        video_overlay_controls = [
+            self.gui_elements['entry_title_video_overlay_file'],
+            self.gui_elements['entry_title_video_overlay_delay'],
+            self.gui_elements['entry_title_video_chromakey_color'],
+            self.gui_elements['entry_title_video_chromakey_similarity'],
+            self.gui_elements['entry_title_video_chromakey_blend']
+        ]
+        for widget in video_overlay_controls:
+            widget.config(state=tk.NORMAL if video_overlay_enable_state else tk.DISABLED)
+            if isinstance(widget, ttk.Combobox): # Special handling for Combobox 'state'
+                widget['state'] = tk.NORMAL if video_overlay_enable_state else tk.DISABLED
 
     def update_font_size(self, event):
         title = self.gui_elements['entry_title'].get()

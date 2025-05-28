@@ -347,8 +347,14 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     # -------------------------------------------------------------------------
     print(f"\n--- {project_name} - Phase 7: Audio Processing ---")
     video_with_audio_path = os.path.join(work_datetime_folder, "slideshow_with_audio.mp4")
+    # Calculate num_slides for audio processing (excluding the outro video)
+    num_slides_for_audio = len(media_for_ffmpeg_slideshow) - 1 
+    if num_slides_for_audio < 0: num_slides_for_audio = 0 # Ensure it's not negative
+
     video_with_audio_path = audio_processor.process_audio(
-        slideshow_base_path, video_with_audio_path, cfg, work_datetime_folder
+        slideshow_base_path, video_with_audio_path, cfg, work_datetime_folder,
+        num_slides=num_slides_for_audio, # Pass the calculated number of slides
+        slide_duration=cfg.slide_duration # Pass the slide duration from config
     )
     if not video_with_audio_path:
         print(f"Error for {project_name}: Audio processing failed. Aborting project.")

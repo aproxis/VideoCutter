@@ -52,13 +52,13 @@ def generate_base_slideshow(
     
     # Use slide_duration from config (which defaults to segment_duration - 1)
     # This is the effective display time for each item before transition.
-    slide_duration = config.get('slide_duration', 5) 
+    slide_duration = config.get('slide_duration', config.get('segment_duration', 5)) # Use segment_duration from config
     if slide_duration <= 0: slide_duration = 1 # Ensure positive
     
     video_orientation = config.get('video_orientation', 'vertical')
     target_width, target_height = _get_video_dimensions(config, video_orientation)
 
-    fps = config.get('fps', 25)
+    fps = config.get('fps') # Now always present from GUI
     watermark_config = config.get('watermark_settings') # Use 'watermark_settings' to get the dict
     outro_duration = config.get('outro_duration', 14) # Duration of the actual outro clip
 
@@ -67,7 +67,7 @@ def generate_base_slideshow(
     watermark_opacity = config.get('watermark_opacity', 0.7)
     watermark_fontcolor = config.get('watermark_fontcolor', 'random')
 
-    ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error']
+    ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'verbose']
     filter_complex_parts = []
     inputs = []
 
@@ -102,18 +102,24 @@ def generate_base_slideshow(
                 ("(iw-iw/zoom)/2", "(ih-ih/zoom)/2"),          # center
             ]
 
-            zoom_speed = round(random.uniform(0.0005, 0.002), 6)
-            
+            # Define zoom parameters
+            start_zoom_in = 1.0
+            end_zoom_in = 1.25
+            start_zoom_out = 1.25
+            end_zoom_out = 1.0
+
             # Randomly choose between zoom-in and zoom-out
             zoom_direction = random.choice(['in', 'out'])
 
             if zoom_direction == 'in':
                 x_expr, y_expr = random.choice(positions_zoom_in)
-                zoom_expr = f"1+{zoom_speed}*on"
+                zoom_speed = (end_zoom_in - start_zoom_in) / zoompan_duration_frames
+                zoom_expr = f"{start_zoom_in}+{zoom_speed}*on"
             else: # zoom_direction == 'out'
                 # Zoom out always from center
                 x_expr, y_expr = ("(iw-iw/zoom)/2", "(ih-ih/zoom)/2")
-                zoom_expr = f"if(lte(zoom,1.0),1.5,max(1.001,zoom-{zoom_speed}))" # Use random speed for zoom out
+                zoom_speed = (start_zoom_out - end_zoom_out) / zoompan_duration_frames
+                zoom_expr = f"{start_zoom_out}-{zoom_speed}*on"
 
             # Apply pre-scaling and then zoompan
             filter_part = (
@@ -152,36 +158,46 @@ def generate_base_slideshow(
             
     # Build transition chain
     current_stream = "v0"
+    cumulative_duration = slide_duration # Duration of the first segment
+    
     for i in range(len(media_file_paths) - 1):
         next_stream = f"v{i+1}"
         output_stream_label = f"f{i}"
         
         transition_type = random.choice(config.get('transitions', ['hblur', 'smoothup', 'horzopen', 'circleopen', 'diagtr', 'diagbl']))
-        transition_duration = config.get('transition_duration', 0.5) # seconds
+        transition_duration = config.get('transition_duration')
         
         # Calculate offset for the transition
-        # If current item is an image, its duration is slide_duration.
-        # If it's a video, its actual duration should be used (this needs ffprobe if segments vary)
-        # For now, assuming all non-outro segments effectively run for slide_duration in the slideshow context
-        item_effective_duration = slide_duration
-        if i == len(media_file_paths) - 2: # Transitioning to the outro
-             # The item before the outro runs for its full slide_duration
-            pass
-
-
-        offset = (i + 1) * slide_duration - transition_duration 
+        # The offset is where the next_stream starts to fade in on the current_stream
+        # It should be the duration of the current_stream minus the transition duration
+        offset = cumulative_duration - transition_duration
         
         filter_part = f"[{current_stream}][{next_stream}]xfade=transition={transition_type}:duration={transition_duration}:offset={offset}[{output_stream_label}]"
         
+        # Update cumulative duration for the next iteration
+        # The output duration of xfade is (duration of first input) + (duration of second input) - (transition duration)
+        # Here, duration of first input is cumulative_duration
+        # Duration of second input is slide_duration (for all non-outro segments)
+        # For the outro, its actual duration should be used.
+        
+        # Check if this is the transition to the outro
+        actual_outro_duration = config.get('outro_duration', 14) # Get the actual duration
+        if i == len(media_file_paths) - 2: # This is the last transition, leading to the outro
+            # The second input is the outro video, use its actual duration
+            cumulative_duration = cumulative_duration + actual_outro_duration - transition_duration
+        else:
+            # For all other segments, assume slide_duration
+            cumulative_duration = cumulative_duration + slide_duration - transition_duration
+            
         # Apply watermark if configured, enabled, and not the transition to the very last (outro) clip
-        enable_watermark = config.get('enable_watermark', True) # Get enable_watermark setting
-        if enable_watermark and watermark_config and (i < len(media_file_paths) - 2): # Don't watermark over the outro transition
+        enable_watermark = config.get('enable_watermark', True)
+        if enable_watermark and watermark_config and (i < len(media_file_paths) - 2):
             new_current_stream, watermark_filter_part = _apply_watermark_filter(
                 output_stream_label, 
                 watermark_config,
-                watermark_font_size, # Pass new argument
-                watermark_opacity,   # Pass new argument
-                watermark_fontcolor  # Pass new argument
+                watermark_font_size,
+                watermark_opacity,
+                watermark_fontcolor
             )
             if watermark_filter_part:
                 filter_part += watermark_filter_part
@@ -195,14 +211,10 @@ def generate_base_slideshow(
 
     final_filter_complex = ";".join(filter_complex_parts)
     
-    # Calculate total duration for -frames:v or -t
-    # Number of image/video segments (excluding outro) * slide_duration + actual_outro_duration
-    num_main_segments = len(media_file_paths) -1 
-    # cfg.outro_duration should now hold the actual duration of the outro file (set in main.py)
-    actual_outro_duration = config.get('outro_duration', 14) # Get the actual duration
-    total_video_duration = (num_main_segments * slide_duration) + actual_outro_duration
+    # The total_video_duration is the final cumulative_duration after all transitions
+    total_video_duration = cumulative_duration
     
-    print(f"Slideshow Generator: num_main_segments={num_main_segments}, slide_duration={slide_duration}, actual_outro_duration={actual_outro_duration}, total_video_duration={total_video_duration}")
+    print(f"Slideshow Generator: num_main_segments={len(media_file_paths) - 1}, slide_duration={slide_duration}, actual_outro_duration={actual_outro_duration}, total_video_duration={total_video_duration}")
 
 
     ffmpeg_cmd.extend(inputs)

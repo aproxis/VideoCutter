@@ -44,7 +44,7 @@ Alongside this, ongoing work includes documentation updates and potential furthe
         -   `videocutter/processing/video_processor.py`: Handles video splitting, conversion, and image processing.
         -   `videocutter/processing/depth_processor.py`: Applies 3D parallax effects to images.
         -   `videocutter/processing/slideshow_generator.py`: Generates base video slideshows with transitions and watermarks.
-        -   `videocutter/processing/audio_processor.py`: Manages audio mixing, voiceover integration, and sidechain compression.
+        -   `videocutter/processing/audio_processor.py`: Manages audio mixing, voiceover integration, sidechain compression, and **now dynamically generates transition audio based on the number of slides/segments.**
         -   `videocutter/processing/subtitle_generator.py`: Transcribes audio and generates SRT/ASS subtitle files.
         -   `videocutter/processing/overlay_compositor.py`: Applies final visual overlays (subscribe, effects, title text/video) and renders subtitles.
     -   `videocutter/utils/`: Contains utility functions.
@@ -55,6 +55,9 @@ Alongside this, ongoing work includes documentation updates and potential furthe
         -   `videocutter/gui/gui_utils.py`: Provides GUI utility functions (slider-entry sync, subtitle preview rendering).
         -   `videocutter/gui/title_settings_frame.py`: Encapsulates title-specific GUI controls.
         -   `videocutter/gui/main_settings_frame.py`: Encapsulates main settings GUI controls with a two-column layout, now including batch processing controls.
+        -   `videocutter/gui/depthflow_settings_frame.py`: Encapsulates DepthFlow GUI controls.
+        -   `videocutter/gui/subtitle_settings_frame.py`: Encapsulates subtitle GUI controls.
+        -   `videocutter/gui/overlay_effects_frame.py`: Encapsulates overlay effects GUI controls.
 
 ### Subtitle Rendering Improvements
 
@@ -74,7 +77,7 @@ Alongside this, ongoing work includes documentation updates and potential furthe
 - Implemented proper masking for complex text shapes with outlines
 - Reorganized GUI layout for better user experience:
     - Increased window size to 1400x900.
-    - Restructured tabs into "Main Settings", "Subtitles", and "Overlay Effects" (renamed from "Advanced Effects").
+    - Restructured tabs into "Main Settings", "Title Settings", "Subtitles", "Overlay Effects", and "DepthFlow".
     - Relocated settings to more logical tabs:
         - "Generate Subtitles .srt" and "Characters per line (max)" moved to "Subtitles" tab.
         - "Effect Overlay" and "Chromakey Settings" moved to "Overlay Effects" tab.
@@ -222,7 +225,8 @@ Alongside this, ongoing work includes documentation updates and potential furthe
 
 **Considerations**:
 - Preview must match final output exactly
-- Layer ordering is critical for proper visual appearance
+- Handling different rendering engines (PIL vs. FFmpeg)
+- Managing layer ordering consistently
 - Alpha compositing provides accurate shadow and outline effects
 - Real-time updates enhance user experience
 
@@ -279,7 +283,7 @@ Alongside this, ongoing work includes documentation updates and potential furthe
 ## Recent Insights
 
 1.  **GUI Reorganization Benefits**:
-    - The new tab structure ("Main Settings", "Subtitles", "Overlay Effects") provides a clearer separation of concerns.
+    - The new tab structure ("Main Settings", "Title Settings", "Subtitles", "Overlay Effects", "DepthFlow") provides a clearer separation of concerns.
     - Grouping related settings (e.g., all subtitle-specific options under the "Subtitles" tab, and visual effects under "Overlay Effects") improves navigability and reduces clutter in each tab.
     - This reorganization is expected to make the GUI more intuitive for users.
     - The addition of dedicated controls for title video chromakey and title background further enhances user control and customization.
@@ -288,6 +292,9 @@ Alongside this, ongoing work includes documentation updates and potential furthe
     - Implemented GUI control disabling (greying out) for Watermark, Subscribe Overlay, and Title Overlay sections based on their respective "Enable" checkboxes, ensuring all relevant widgets are correctly enabled/disabled.
     - Centralized default GUI values in `videocutter/utils/gui_config_manager.py`.
     - Implemented threading for `start_process` to keep the GUI responsive during video processing.
+    - Fixed `KeyError: 'gui_utils'` by ensuring `gui_utils` module is correctly passed to `gui_config_manager` via the `gui_elements` dictionary.
+    - **Updated `10-project-files.md` with descriptions for new GUI frames and updated `gui.py` description.**
+    - **Updated `README.md` to reflect new GUI frames in system architecture and directory structure.**
 
 2.  **Layer Management Importance**
     - Proper layer ordering is critical for subtitle appearance

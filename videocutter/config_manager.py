@@ -95,29 +95,70 @@ class ConfigManager:
 
 
         # Slideshow specific
-        # slide_duration is the effective time each main segment/image is shown *before* transition starts eating into it.
-        # Original slideshow.py used segment_duration - 1 for this.
-        default_slide_duration = self.config.segment_duration - 1 if self.config.segment_duration > 1 else 1
-        self.config.slide_duration = int(self.config.get('slide_duration', default_slide_duration))
+        # slide_duration is the effective time each main segment/image is shown.
+        # It should generally be equal to segment_duration, with transitions overlapping.
+        self.config.slide_duration = int(self.config.get('slide_duration', self.config.segment_duration))
         self.config.outro_duration = int(self.config.get('outro_duration', 14)) # Duration of the outro video itself
         self.config.transition_duration = float(self.config.get('transition_duration', 0.5))
         self.config.transitions = list(self.config.get('transitions', ['hblur', 'smoothup', 'horzopen', 'circleopen', 'diagtr', 'diagbl']))
 
 
         # DepthFlow
-        depthflow_config_source = self.config.get('depthflow')
-        if not isinstance(depthflow_config_source, (dict, DotMap)):
-            # If 'depthflow' was a boolean (e.g., from JSON) or not present, initialize as DotMap
-            self.config.depthflow = DotMap()
-            self.config.depthflow.enabled = bool(depthflow_config_source) # Use the boolean if it was one
-        else: # It was already a dict/DotMap, ensure it's a DotMap
-            self.config.depthflow = DotMap(depthflow_config_source)
+        # The 'enable_depthflow' boolean comes from the GUI's top-level settings
+        # The nested 'depthflow' dictionary comes from the DepthflowSettingsFrame
         
-        self.config.depthflow.enabled = bool(self.config.depthflow.get('enabled', depthflow_config_source if isinstance(depthflow_config_source, bool) else False))
+        # Ensure self.config.depthflow is a DotMap
+        if not isinstance(self.config.get('depthflow'), (dict, DotMap)):
+            self.config.depthflow = DotMap()
+        else:
+            self.config.depthflow = DotMap(self.config.depthflow) # Ensure it's a DotMap if it came from JSON as dict
+
+        # Set the 'enabled' flag for depthflow based on the top-level 'enable_depthflow' boolean from GUI
+        # This is crucial for correctly reflecting the checkbox state.
+        self.config.depthflow.enabled = bool(self.config.get('enable_depthflow', False))
+        
+        # Then process other nested depthflow settings, using values from the nested 'depthflow' dict if present
         self.config.depthflow.segment_duration = int(self.config.depthflow.get('segment_duration', self.config.segment_duration))
         self.config.depthflow.render_height = int(self.config.depthflow.get('render_height', 1920))
         self.config.depthflow.render_fps = int(self.config.depthflow.get('render_fps', self.config.fps))
-        # Add other depthflow specific params from depth_processor.py defaults if needed
+        self.config.depthflow.vignette_enable = bool(self.config.depthflow.get('vignette_enable', True))
+        self.config.depthflow.dof_enable = bool(self.config.depthflow.get('dof_enable', True))
+        self.config.depthflow.isometric_min = float(self.config.depthflow.get('isometric_min', 0.3))
+        self.config.depthflow.isometric_max = float(self.config.depthflow.get('isometric_max', 0.6))
+        self.config.depthflow.height_min = float(self.config.depthflow.get('height_min', 0.05))
+        self.config.depthflow.height_max = float(self.config.depthflow.get('height_max', 0.2))
+        self.config.depthflow.zoom_min = float(self.config.depthflow.get('zoom_min', 0.5))
+        self.config.depthflow.zoom_max = float(self.config.depthflow.get('zoom_max', 0.85))
+        self.config.depthflow.min_effects_per_image = int(self.config.depthflow.get('min_effects_per_image', 1))
+        self.config.depthflow.max_effects_per_image = int(self.config.depthflow.get('max_effects_per_image', 5)) # Updated default
+        self.config.depthflow.base_zoom_loops = bool(self.config.depthflow.get('base_zoom_loops', False))
+        self.config.depthflow.workers = int(self.config.depthflow.get('workers', 1))
+
+        # New DepthFlow parameters
+        self.config.depthflow.height = float(self.config.depthflow.get('height', 0.3))
+        self.config.depthflow.offset_x = float(self.config.depthflow.get('offset_x', 0.0))
+        self.config.depthflow.offset_y = float(self.config.depthflow.get('offset_y', 0.0))
+        self.config.depthflow.steady = float(self.config.depthflow.get('steady', 0.0))
+        self.config.depthflow.isometric = float(self.config.depthflow.get('isometric', 0.5))
+        self.config.depthflow.dolly = float(self.config.depthflow.get('dolly', 0.0))
+        self.config.depthflow.focus = float(self.config.depthflow.get('focus', 0.0))
+        self.config.depthflow.zoom = float(self.config.depthflow.get('zoom', 1.0))
+        self.config.depthflow.invert = float(self.config.depthflow.get('invert', 0.0))
+        self.config.depthflow.center_x = float(self.config.depthflow.get('center_x', 0.0))
+        self.config.depthflow.center_y = float(self.config.depthflow.get('center_y', 0.0))
+        self.config.depthflow.origin_x = float(self.config.depthflow.get('origin_x', 0.0))
+        self.config.depthflow.origin_y = float(self.config.depthflow.get('origin_y', 0.0))
+        self.config.depthflow.zoom_probability = float(self.config.depthflow.get('zoom_probability', 0.3)) # New
+
+        # Update default animations list
+        self.config.depthflow.animations = list(self.config.depthflow.get('animations', [
+            ("Circle", {"intensity_min": 0.4, "intensity_max": 0.8}),
+            ("Orbital", {"intensity_min": 0.4, "intensity_max": 0.8}),
+            ("Dolly", {"intensity_min": 0.3, "intensity_max": 0.7}),
+            ("Horizontal", {"intensity_min": 0.3, "intensity_max": 0.7}),
+            ("Vertical", {"intensity_min": 0.3, "intensity_max": 0.7}),
+            ("Zoom", {"intensity_min": 0.2, "intensity_max": 0.4}),
+        ]))
 
         # Title Overlay
         if not isinstance(self.config.get('title_overlay'), (dict, DotMap)): self.config.title_overlay = DotMap()

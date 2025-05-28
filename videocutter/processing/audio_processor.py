@@ -13,6 +13,7 @@ from .video_processor import get_video_duration # This is for VIDEO duration
 from mutagen.mp3 import MP3
 from dotmap import DotMap
 
+
 def get_mp3_duration(file_path: str) -> float | None:
     """Determine the duration of an MP3 file using mutagen."""
     try:
@@ -37,10 +38,13 @@ def process_audio(
     base_video_path: str, 
     output_video_with_audio_path: str, 
     config: DotMap,
-    working_directory: str # Directory to store intermediate files and find voiceover.mp3
+    working_directory: str, # Directory to store intermediate files and find voiceover.mp3
+    num_slides: int, # New: Number of slides/segments in the video
+    slide_duration: int # New: Duration of each slide/segment
     ):
     """
     Adds a complete audio mix (soundtrack, voiceover, transitions) to a base video.
+    Dynamically generates transition audio based on the number of slides.
 
     Args:
         base_video_path (str): Path to the input video (e.g., slideshow_base.mp4).
@@ -82,12 +86,14 @@ def process_audio(
     print(f"Using template folder for audio: {template_folder_path}")
 
     soundtrack_path = os.path.join(template_folder_path, 'soundtrack.mp3')
-    transition_sound_path = os.path.join(template_folder_path, 'transition_long.mp3') # Use template_folder_path
-    voiceover_end_path = os.path.join(template_folder_path, 'voiceover_end.mp3') # Use template_folder_path
-    voiceover_path = os.path.join(working_directory, 'voiceover.mp3') # Assumes voiceover.mp3 is in the working dir
+    base_transition_500ms_path = os.path.join(template_folder_path, 'transition_500ms.mp3') # New base transition sound
+    voiceover_end_path = os.path.join(template_folder_path, 'voiceover_end.mp3')
+    voiceover_path = os.path.join(working_directory, 'voiceover.mp3')
 
     # Intermediate file paths
     soundtrack_adj_path = os.path.join(working_directory, 'adjusted_soundtrack.mp3')
+    # Dynamically generated transition sound path
+    dynamic_transitions_path = os.path.join(working_directory, 'dynamic_transitions.mp3') 
     transitions_adj_path = os.path.join(working_directory, 'adjusted_transitions.mp3')
     vo_adj_path = os.path.join(working_directory, 'adjusted_voiceover.mp3')
     vo_long_adj_path = os.path.join(working_directory, 'adjusted_long_voiceover.mp3')
@@ -97,9 +103,9 @@ def process_audio(
     mixed_final_audio_path = os.path.join(working_directory, 'mixed_final_audio.mp3')
 
     intermediate_files = [
-        soundtrack_adj_path, transitions_adj_path, vo_adj_path, vo_long_adj_path,
-        compressed_main_soundtrack_path, vo_end_long_path, compressed_final_soundtrack_path,
-        mixed_final_audio_path
+        soundtrack_adj_path, dynamic_transitions_path, transitions_adj_path, 
+        vo_adj_path, vo_long_adj_path, compressed_main_soundtrack_path, 
+        vo_end_long_path, compressed_final_soundtrack_path, mixed_final_audio_path
     ]
 
     try:
@@ -110,7 +116,7 @@ def process_audio(
         print(f"Base video duration for audio processing: {video_duration:.2f}s")
 
         # Verify template files exist
-        required_templates = [soundtrack_path, transition_sound_path, voiceover_end_path]
+        required_templates = [soundtrack_path, base_transition_500ms_path, voiceover_end_path]
         for t_path in required_templates:
             if not os.path.exists(t_path):
                 print(f"Error: Required audio template not found: {t_path}. Aborting audio processing.")
@@ -126,15 +132,40 @@ def process_audio(
         subprocess.run(cmd_soundtrack, check=True)
         print(f"1. Soundtrack prepared: {soundtrack_adj_path}")
 
-        # 2. Prepare Transitions
-        cmd_transitions = [
-            'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
-            '-i', transition_sound_path, '-ss', '0', '-t', str(video_duration - audio_cfg.get('outro_duration', 14)),
-            '-af', f"volume={audio_cfg.get('transition_volume', 1.6)}",
-            '-q:a', '0', '-ac', '2', transitions_adj_path
-        ]
-        subprocess.run(cmd_transitions, check=True)
-        print(f"2. Transitions prepared: {transitions_adj_path}")
+        # 2. Prepare Individual Transition Sounds and Calculate their Offsets
+        num_transitions_needed = max(0, num_slides - 1)
+        transition_duration = config.get('transition_duration', 0.5) # Default from config_manager.py
+        actual_outro_duration = config.get('outro_duration', 14) # Get the actual duration
+
+        transition_audio_inputs = [] # List of (input_path, offset_seconds)
+        
+        # Replicate the video transition timing logic from slideshow_generator.py
+        current_cumulative_duration = slide_duration # Duration of the first segment
+        
+        for i in range(num_transitions_needed):
+            # Calculate offset for the transition
+            # The offset is where the next_stream starts to fade in on the current_stream
+            # It should be the duration of the current_stream minus the transition duration
+            offset = current_cumulative_duration - transition_duration
+            
+            # Add this transition sound input and its offset
+            transition_audio_inputs.append((base_transition_500ms_path, offset))
+            
+            # Update cumulative duration for the next iteration
+            # The output duration of xfade is (duration of first input) + (duration of second input) - (transition duration)
+            # Here, duration of first input is current_cumulative_duration
+            # Duration of second input is slide_duration (for all non-outro segments)
+            # For the outro, its actual duration should be used.
+            
+            # Check if this is the transition to the outro
+            if i == num_transitions_needed - 1: # This is the last transition, leading to the outro
+                # The second input is the outro video, use its actual duration
+                current_cumulative_duration = current_cumulative_duration + actual_outro_duration - transition_duration
+            else:
+                # For all other segments, assume slide_duration
+                current_cumulative_duration = current_cumulative_duration + slide_duration - transition_duration
+        
+        print(f"2. Calculated {len(transition_audio_inputs)} transition audio offsets.")
 
         if not os.path.exists(voiceover_path):
             print(f"Voiceover file not found at {voiceover_path}. Proceeding without voiceover.")
@@ -228,11 +259,52 @@ def process_audio(
 
         vol_main = audio_cfg.get('final_mix_main_volume', 2.0)
         vol_trans = audio_cfg.get('final_mix_transition_volume', 2.0)
+        
+        # Build the filter complex for mixing main soundtrack with individual transition sounds
+        audio_filter_complex_parts = []
+        audio_inputs_for_ffmpeg = ['-i', compressed_final_soundtrack_path] # Main soundtrack is the first input (index 0)
+        
+        current_audio_stream = "[0:a]" # Start with the main soundtrack stream
+        
+        for i, (trans_sound_path, offset) in enumerate(transition_audio_inputs):
+            # Add each transition sound as a new input to FFmpeg
+            audio_inputs_for_ffmpeg.extend(['-i', trans_sound_path])
+            
+            # The index of the current transition sound input in FFmpeg command
+            # It will be 1, 2, 3... after the main soundtrack at 0
+            trans_input_idx = i + 1 
+            
+            # Trim the transition sound to transition_duration and apply volume
+            # Then apply adelay to shift it to the correct offset
+            # Finally, mix it with the current main audio stream
+            
+            # Stream for the processed transition sound
+            processed_trans_stream = f"[trans_proc{i}]"
+            audio_filter_complex_parts.append(
+                f"[{trans_input_idx}:a]atrim=duration={transition_duration},volume={vol_trans},adelay={int(offset*1000)}|{int(offset*1000)}{processed_trans_stream}"
+            )
+            
+            # Mix the current main audio stream with the processed transition sound
+            mixed_output_stream = f"[mixed_audio{i}]"
+            audio_filter_complex_parts.append(
+                f"{current_audio_stream}{processed_trans_stream}amix=inputs=2:normalize=0{mixed_output_stream}"
+            )
+            current_audio_stream = mixed_output_stream # Update current_audio_stream for next iteration
+
+        final_audio_mix_stream = current_audio_stream # The last mixed stream is the final output
+        
+        # If there are no transitions, the final audio mix stream is just the main soundtrack
+        if not transition_audio_inputs:
+            final_audio_mix_stream = "[0:a]" # Map directly to the main soundtrack
+
+        final_audio_filter_complex = ";".join(audio_filter_complex_parts)
+
         cmd_mix_final = [
             'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
-            '-i', compressed_final_soundtrack_path, '-i', transitions_adj_path,
-            '-filter_complex', f"[0:a]volume={vol_main}[a0];[1:a]volume={vol_trans}[a1];[a0][a1]amix=inputs=2:normalize=0[aout]",
-            '-map', '[aout]', mixed_final_audio_path
+            *audio_inputs_for_ffmpeg, # All audio inputs (main soundtrack + individual transitions)
+            '-filter_complex', final_audio_filter_complex,
+            '-map', final_audio_mix_stream,
+            mixed_final_audio_path
         ]
         subprocess.run(cmd_mix_final, check=True)
         print(f"8. Final audio mixed: {mixed_final_audio_path}")
@@ -262,7 +334,7 @@ def process_audio(
         for f_path in intermediate_files:
             if os.path.exists(f_path):
                 try:
-                    os.remove(f_path)
+                    # os.remove(f_path)
                     print(f"Cleaned up intermediate file: {f_path}")
                 except OSError as e:
                     print(f"Error cleaning up intermediate file {f_path}: {e}")

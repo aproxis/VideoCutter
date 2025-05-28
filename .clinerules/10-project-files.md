@@ -169,9 +169,9 @@ This module centralizes default values for all GUI elements and provides functio
 **Core Purpose and Logic:**
 This script defines the main graphical user interface (GUI) for the VideoCutter application using Tkinter. The `VideoCutterGUI` class encapsulates the entire GUI logic, including window setup, variable initialization, interface creation (tabs, controls, buttons), and event handling.
 -   **Initialization**: Sets up the main Tkinter window, initializes `tk.StringVar`, `tk.IntVar`, `tk.DoubleVar`, and `tk.BooleanVar` for all configurable parameters, and loads initial configuration settings.
--   **Layout Management**: Organizes the GUI into a tabbed interface (`ttk.Notebook`) with "Main Settings", "Title Settings", "Subtitles", and "Overlay Effects" tabs. Each tab contains various input widgets (Entry, Text, OptionMenu, Combobox, Scale, Checkbutton, Radiobutton) for user input.
+-   **Layout Management**: Organizes the GUI into a tabbed interface (`ttk.Notebook`) with "Main Settings", "Title Settings", "Subtitles", "Overlay Effects", and "DepthFlow" tabs. Each tab contains various input widgets (Entry, Text, OptionMenu, Combobox, Scale, Checkbutton, Radiobutton) for user input.
 -   **Configuration Management**: Integrates with `gui_config_manager.py` to load, save, and delete configuration presets, and to update the config file dropdown.
--   **Input Handling**: Collects all user-defined settings from the GUI widgets into a dictionary (`_collect_gui_settings`).
+-   **Input Handling**: Collects all user-defined settings from the GUI widgets into a dictionary (`_collect_gui_settings`) by delegating to the `collect_settings` method of each individual frame instance.
 -   **Process Orchestration**: Triggers the video processing pipeline (`run_pipeline_for_project` or `run_batch_pipeline` from `videocutter.main`) in a separate thread to keep the GUI responsive during long-running operations.
 -   **Dynamic UI**: Includes logic to enable/disable related controls based on checkbox states (e.g., watermark, subscribe overlay, effect overlay, subtitle shadow, title settings). It also dynamically updates the subtitle preview based on changes to subtitle parameters.
 -   **File Browsing**: Allows users to browse for batch input folders.
@@ -180,6 +180,10 @@ This script defines the main graphical user interface (GUI) for the VideoCutter 
 -   `videocutter.main`: `run_pipeline_for_project`, `run_batch_pipeline` (for starting the processing pipeline).
 -   `videocutter.utils.gui_config_manager` (as `gcm`): Provides default values, functions for loading/saving/deleting configs, and lists of available fonts/overlays.
 -   `videocutter.gui.title_settings_frame.TitleSettingsFrame`: A custom Tkinter frame for title-specific settings.
+-   `videocutter.gui.subtitle_settings_frame.SubtitleSettingsFrame`: A custom Tkinter frame for subtitle-specific settings.
+-   `videocutter.gui.overlay_effects_frame.OverlayEffectsFrame`: A custom Tkinter frame for overlay effects settings.
+-   `videocutter.gui.main_settings_frame.MainSettingsFrame`: A custom Tkinter frame for main settings.
+-   `videocutter.gui.depthflow_settings_frame.DepthflowSettingsFrame`: A custom Tkinter frame for DepthFlow settings.
 -   `videocutter.gui.gui_utils`: Provides utility functions like `update_slider_value`, `update_slider_from_entry`, `schedule_subtitle_preview_update`, `update_subtitle_preview`.
 -   `videocutter.config_manager`: `load_config` (used when starting the pipeline to load the full config).
 
@@ -221,7 +225,7 @@ This module provides utility functions specifically designed to support the Tkin
     -   Draw sample text.
     -   Apply outline and shadow effects by drawing the text multiple times with offsets and using alpha compositing for layering.
     -   Convert the PIL image to a Tkinter `PhotoImage` and update a `tk.Label` in the GUI to display the preview.
--   **Debouncing (Commented Out)**: The `schedule_subtitle_preview_update` function is intended for debouncing updates to the subtitle preview, preventing excessive redraws during rapid user input. However, in the provided code, it's commented out to directly call the update function, indicating it might be under development or for debugging purposes.
+-   **Debouncing**: The `schedule_subtitle_preview_update` function is intended for debouncing updates to the subtitle preview, preventing excessive redraws during rapid user input.
 
 **Internal Dependencies:**
 -   None directly within the `videocutter` package, but it relies on `gui.py` to provide the `gui_elements` dictionary containing references to Tkinter variables and widgets.
@@ -250,9 +254,6 @@ This module provides utility functions specifically designed to support the Tkin
 **`update_subtitle_preview` function:**
 -   `gui_elements` (dict): A dictionary containing references to various Tkinter variables (`var_subtitle_font`, `var_subtitle_fontsize`, `var_subtitle_fontcolor`, etc.), widgets (`preview_label`, `preview_frame`), and other necessary data (`fonts_dir`, `var_video_orientation`).
 
-**Files (read by the script):**
--   Font files (`.ttf`, `.otf`) from the `fonts_dir` (passed via `gui_elements`).
-
 **Outputs:**
 
 **`update_slider_value` and `update_slider_from_entry` functions:**
@@ -264,20 +265,86 @@ This module provides utility functions specifically designed to support the Tkin
 
 ---
 
-**File: `videocutter/gui/title_settings_frame.py`**
+**File: `videocutter/gui/depthflow_settings_frame.py`**
 
 **Core Purpose and Logic:**
-This module defines a custom Tkinter `ttk.Frame` subclass, `TitleSettingsFrame`, specifically designed to encapsulate all GUI controls related to text titles and title video overlays. It is intended to be embedded as a tab within the main `VideoCutterGUI`.
--   **Widget Creation**: It creates and arranges various Tkinter widgets (Checkbuttons, Labels, Entries, OptionMenus, Sliders) for configuring:
-    -   **Text Title**: Text content, font, size (auto-calculated and manual), color, appearance delay, visible time, position offsets (X, Y), opacity, and background color/opacity.
-    -   **Title Video Overlay**: Enable/disable, selection of overlay video file, appearance delay, and chromakey settings (color, similarity, blend).
--   **Control Toggling**: The `toggle_title_controls` method enables or disables all related widgets based on the state of the "Enable Text Title" checkbox, ensuring that only relevant controls are active.
--   **Dynamic Font Size Calculation**: The `update_font_size` method calculates a suggested font size for the text title based on its length, providing a visual guide for users.
+This module defines a custom Tkinter `ttk.Frame` subclass, `DepthflowSettingsFrame`, specifically designed to encapsulate all GUI controls related to DepthFlow effects. It is intended to be embedded as a tab within the main `VideoCutterGUI`.
+-   **Widget Creation**: It creates and arranges various Tkinter widgets (Checkbuttons, Labels, Entries, Sliders) for configuring DepthFlow parameters such as vignette, depth of field, isometric, height, zoom ranges, number of effects per image, base zoom loops, and worker threads. It also includes new single-value parameters for fine-grained control over DepthFlow animations (offset_x, offset_y, steady, dolly, focus, invert, center_x, center_y, origin_x, origin_y, zoom_probability).
+-   **Control Toggling**: The `toggle_depthflow_controls` method enables or disables all related widgets based on the state of the "Enable DepthFlow" checkbox, ensuring that only relevant controls are active.
+-   **Integration with `gui_elements`**: It receives and uses the `gui_elements` dictionary from the main GUI to access and update shared Tkinter variables and other GUI components, ensuring seamless integration.
+-   **Settings Collection**: The `collect_settings` method gathers all DepthFlow-related parameters from the GUI widgets into a dictionary, ready to be passed to the processing pipeline.
+
+**Internal Dependencies:**
+-   `videocutter.gui.gui_utils`: Used for `update_slider_value` and `update_slider_from_entry` functions to synchronize sliders and entry fields.
+
+**External Dependencies:**
+-   `tkinter` (as `tk`): Core GUI toolkit.
+-   `tkinter.ttk`: For themed Tkinter widgets (`ttk.Frame`, `ttk.Scale`).
+
+**Inputs:**
+-   `parent`: The parent Tkinter widget (typically a `ttk.Notebook`) where this frame will be placed.
+-   `gui_elements` (dict): A dictionary containing references to various Tkinter variables and widgets from the main GUI, allowing this frame to interact with the overall application state.
+-   User interactions with the widgets within this frame.
+
+**Outputs:**
+-   **GUI Display**: Renders the DepthFlow settings section of the GUI.
+-   **GUI State Modification**: Updates the state (enabled/disabled) of its own widgets based on user input.
+-   **Tkinter Variables**: Modifies the values of Tkinter variables (e.g., `var_depthflow_vignette_enable`, `var_depthflow_isometric_min`) stored in the `gui_elements` dictionary, which are then used by the main application logic.
+-   **Collected Settings**: Returns a dictionary of DepthFlow configuration parameters via `collect_settings`.
+
+---
+
+**File: `videocutter/gui/main_settings_frame.py`**
+
+**Core Purpose and Logic:**
+This module defines a custom Tkinter `ttk.Frame` subclass, `MainSettingsFrame`, specifically designed to encapsulate the primary settings for the VideoCutter application. It is intended to be embedded as a tab within the main `VideoCutterGUI`.
+-   **Widget Creation**: It creates and arranges various Tkinter widgets (Labels, Entries, Radiobuttons, Checkbuttons, Buttons) for configuring:
+    -   **Folders**: Input and template directories.
+    -   **Video Duration**: Segment duration, maximum length limit, transition duration, and FPS.
+    -   **Batch Processing**: Input folder for batch processing with browse and clear options.
+    -   **Audio Settings**: Voiceover start delay.
+    -   **Video Processing**: Video orientation (vertical/horizontal) and a checkbox for side blur.
+-   **Integration with `gui_elements`**: It receives and uses the `gui_elements` dictionary from the main GUI to access and update shared Tkinter variables and other GUI components, ensuring seamless integration.
+-   **File Browsing**: Provides methods (`_browse_batch_folder`, `_clear_batch_folder`) to interact with `tkinter.filedialog` for selecting batch input folders and managing the state of the single input folder entry.
+-   **Settings Collection**: The `collect_settings` method gathers all main settings parameters from the GUI widgets into a dictionary, ready to be passed to the processing pipeline.
+
+**Internal Dependencies:**
+-   `videocutter.utils.gui_config_manager` (as `gcm`): Provides default values for various settings.
+-   `videocutter.gui.gui_utils`: Used for utility functions (though not directly called in the provided snippet, it's imported).
+
+**External Dependencies:**
+-   `tkinter` (as `tk`): Core GUI toolkit.
+-   `tkinter.ttk`: For themed Tkinter widgets (`ttk.Frame`).
+-   `tkinter.filedialog`: For opening folder selection dialogs.
+
+**Inputs:**
+-   `parent`: The parent Tkinter widget (typically a `ttk.Notebook`) where this frame will be placed.
+-   `gui_elements` (dict): A dictionary containing references to various Tkinter variables and widgets from the main GUI, allowing this frame to interact with the overall application state.
+-   User interactions with the widgets within this frame.
+
+**Outputs:**
+-   **GUI Display**: Renders the main settings section of the GUI.
+-   **GUI State Modification**: Updates the state of its own widgets (e.g., disabling input folder entry in batch mode).
+-   **Tkinter Variables**: Modifies the values of Tkinter variables (e.g., `var_batch_input_folder`, `var_video_orientation`) stored in the `gui_elements` dictionary, which are then used by the main application logic.
+-   **Collected Settings**: Returns a dictionary of main configuration parameters via `collect_settings`.
+
+---
+
+**File: `videocutter/gui/subtitle_settings_frame.py`**
+
+**Core Purpose and Logic:**
+This module defines a custom Tkinter `ttk.Frame` subclass, `SubtitleSettingsFrame`, specifically designed to encapsulate all GUI controls related to subtitle generation and styling. It is intended to be embedded as a tab within the main `VideoCutterGUI`.
+-   **Widget Creation**: It creates and arranges various Tkinter widgets (Checkbuttons, Labels, Entries, Comboboxes, Sliders, Radiobuttons) for configuring:
+    -   **Basic Settings**: Enable/disable subtitles, characters per line, font, font size, text color, outline thickness and color, shadow enable/color/opacity, and position (using a 3x3 grid of radio buttons for ASS alignment).
+    -   **Advanced Settings (ASS Specific)**: Secondary color, bold/italic/underline/strikeout styles, X/Y scaling, letter spacing, angle, border style, shadow distance, margins (left, right, vertical), and encoding.
+-   **Control Toggling**: The `toggle_subtitle_controls` method enables or disables all related widgets based on the state of the "Enable Subtitles" checkbox. The `toggle_subtitle_shadow_controls` method specifically manages the shadow-related controls.
+-   **Slider-Entry Synchronization**: Integrates with `gui_utils` to keep sliders and entry fields synchronized for font size, outline thickness, and background opacity.
+-   **Subtitle Preview**: Triggers the `update_subtitle_preview` function from `gui_utils` (with debouncing) whenever relevant subtitle settings are changed, providing real-time visual feedback.
 -   **Integration with `gui_elements`**: It receives and uses the `gui_elements` dictionary from the main GUI to access and update shared Tkinter variables and other GUI components, ensuring seamless integration.
 
 **Internal Dependencies:**
--   `videocutter.utils.gui_config_manager` (as `gcm`): Provides default values for title-related settings.
--   `videocutter.gui.gui_utils`: Used for `update_slider_value` and `update_slider_from_entry` functions to synchronize sliders and entry fields for opacity controls.
+-   `videocutter.utils.gui_config_manager` (as `gcm`): Provides default values for subtitle settings.
+-   `videocutter.gui.gui_utils`: Used for `update_slider_value`, `update_slider_from_entry`, `schedule_subtitle_preview_update`, and `update_subtitle_preview` functions.
 
 **External Dependencies:**
 -   `tkinter` (as `tk`): Core GUI toolkit.
@@ -289,9 +356,9 @@ This module defines a custom Tkinter `ttk.Frame` subclass, `TitleSettingsFrame`,
 -   User interactions with the widgets within this frame.
 
 **Outputs:**
--   **GUI Display**: Renders the title settings section of the GUI.
+-   **GUI Display**: Renders the subtitle settings section of the GUI, including a live preview.
 -   **GUI State Modification**: Updates the state (enabled/disabled) of its own widgets based on user input.
--   **Tkinter Variables**: Modifies the values of Tkinter variables (e.g., `var_enable_title`, `var_title_font`, `var_title_opacity`) stored in the `gui_elements` dictionary, which are then used by the main application logic.
+-   **Tkinter Variables**: Modifies the values of Tkinter variables (e.g., `var_generate_srt`, `var_subtitle_font`, `var_subtitle_fontsize`) stored in the `gui_elements` dictionary, which are then used by the main application logic.
 
 ---
 
@@ -908,7 +975,7 @@ This script is an older, monolithic component responsible for mixing various aud
     -   **Sidechain Compression (Steps 6 & 8)**: Applies sidechain compression to the soundtrack, using the main voiceover (Step 6) and then the end voiceover (Step 8) as key inputs. This ducks the music volume when voiceovers are present.
     -   **End Voiceover Preparation (Step 7)**: Adds initial silence to `voiceover_end.mp3` to align it with the end of the video.
     -   **Final Audio Mix (Step 9)**: Mixes the compressed soundtrack with the adjusted transition sounds.
-    -   **Video-Audio Combination (Final Step)**: Combines the input slideshow video with the newly mixed audio track, copying the video stream and encoding the audio to AAC.
+    -   **Video-Audio Combination (Final Step)**: Combines the input slideshow video with the newly mixed audio track, copying the video stream and re-encoding the audio to AAC.
 
 **Internal Dependencies:**
 -   `srt_generator.py`: Called as a subprocess for subtitle generation.
@@ -1365,7 +1432,7 @@ This script is an older, monolithic component responsible for applying various f
         -   Converting hex colors (RGB to BGR) and handling opacity for ASS-style parameters.
         -   Constructing the `force_style` string for the `subtitles` filter.
     -   **FFmpeg Filter Complex Construction**:
-        -   **Audio Mix**: Mixes the subscribe overlay's audio (with a delay) with the main video's audio.
+        -   **Audio Mix**: Mixes the subscribe overlay's audio with the main video's audio (with a delay).
         -   **Video Base**: Sets the main video stream and applies chromakey to the subscribe overlay video, then overlays it onto the main video.
         -   **Effect Overlay (Conditional)**: If `effect_overlay` is specified and exists, it adds the effect overlay. It supports different blend modes (`normal`, `overlay`, `screen`, etc.) and opacity.
         -   **Title Text Overlay**: Adds the title text using FFmpeg's `drawtext` filter, with timing based on `delay`, `title_appearance_delay`, and `title_visible_time`.
@@ -1460,7 +1527,7 @@ This script is an older, monolithic component responsible for applying various f
         -   Converting hex colors (RGB to BGR) and handling opacity for ASS-style parameters.
         -   Constructing the `force_style` string for the `subtitles` filter.
     -   **FFmpeg Filter Complex Construction**:
-        -   **Audio Mix**: Mixes the subscribe overlay's audio (with a delay) with the main video's audio.
+        -   **Audio Mix**: Mixes the subscribe overlay's audio with the main video's audio (with a delay).
         -   **Video Base**: Sets the main video stream and applies chromakey to the subscribe overlay video, then overlays it onto the main video.
         -   **Title Text Overlay**: Adds the title text using FFmpeg's `drawtext` filter, with timing based on `delay`, `title_appearance_delay`, and `title_visible_time`.
         -   **Subtitle Rendering (Conditional)**: If `generate_srt` is enabled and the SRT file exists, it adds the `subtitles` filter to render the subtitles.

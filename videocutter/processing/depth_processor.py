@@ -32,11 +32,22 @@ def _combinations(**options):
 
 # YourScene is simple, can be defined here or passed as a type if more complex scenes are needed.
 class DefaultDepthScene(DepthScene): # Renamed from YourScene for clarity
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Randomize parameters for continuous base motion
+        self._offset_x_amplitude = random.uniform(0.1, 0.2) # Amplitude for horizontal motion (reduced)
+        self._offset_x_frequency = random.uniform(0.8, 1.2) # Frequency for horizontal motion
+        self._zoom_amplitude = random.uniform(0.01, 0.05) # Amplitude for zoom motion (significantly reduced)
+        self._zoom_frequency = random.uniform(1.5, 2.5) # Frequency for zoom motion
+        self._initial_phase_x = random.uniform(0, 2 * math.pi) # Random initial phase for x
+        self._initial_phase_zoom = random.uniform(0, 2 * math.pi) # Random initial phase for zoom
+
     def update(self):
-        # Example animation, can be made configurable
-        self.state.offset_x = 0.3 * math.sin(self.cycle)
+        # Reintroduce continuous motion with randomized parameters
+        self.state.offset_x = self._offset_x_amplitude * math.sin(self.cycle * self._offset_x_frequency + self._initial_phase_x)
+        self.state.zoom = 0.7 + self._zoom_amplitude * math.sin(self.cycle * self._zoom_frequency + self._initial_phase_zoom)
         self.state.isometric = 1 # Example, can be driven by config
-        self.state.zoom = 0.7 + 0.2 * math.sin(self.cycle * 2) # Example
+        # Removed hardcoded zoom animation. Zoom is now controlled by ConfigurableDepthManager.animate
 
 @define
 class ConfigurableDepthManager: # No longer inherits from a local DepthManager
@@ -117,67 +128,105 @@ class ConfigurableDepthManager: # No longer inherits from a local DepthManager
             dof_enable=self.config.get('depthflow.dof_enable', True),
         ))
 
+        # Configure available animations with their parameters
         animations_config = self.config.get('depthflow.animations', [
-            ("Circle", {"intensity_min": 0.6, "intensity_max": 0.8}),
-            ("Orbital", {"intensity_min": 0.6, "intensity_max": 0.8}),
-            ("Dolly", {"intensity_min": 0.5, "intensity_max": 0.7}),
-            ("Horizontal", {"intensity_min": 0.5, "intensity_max": 0.7}),
+            ("Circle", {"intensity_min": 0.3, "intensity_max": 0.5}),
+            ("Orbital", {"intensity_min": 0.3, "intensity_max": 0.5}),
+            ("Dolly", {"intensity_min": 0.2, "intensity_max": 0.4}),
+            ("Horizontal", {"intensity_min": 0.2, "intensity_max": 0.4}),
+            ("Vertical", {"intensity_min": 0.2, "intensity_max": 0.4}),
+            ("Zoom", {"intensity_min": 0.15, "intensity_max": 0.25}),  # Much lower zoom intensity
         ])
         
+        # Build available animations list
         possible_animations = []
         for name, params in animations_config:
             intensity = round(random.uniform(params["intensity_min"], params["intensity_max"]), 2)
             reverse = random.choice([True, False])
-            if name == "Circle": possible_animations.append(("Circle", Presets.Circle(intensity=intensity, loop=True, reverse=reverse)))
-            elif name == "Orbital": possible_animations.append(("Orbital", Presets.Orbital(intensity=intensity, loop=True, reverse=reverse)))
-            elif name == "Dolly": possible_animations.append(("Dolly", Presets.Dolly(intensity=intensity, loop=True, reverse=reverse)))
-            elif name == "Horizontal": possible_animations.append(("Horizontal", Presets.Horizontal(intensity=intensity, loop=True, reverse=reverse)))
+            
+            if name == "Circle": 
+                possible_animations.append(("Circle", Presets.Circle(intensity=intensity, loop=True, reverse=reverse)))
+            elif name == "Orbital": 
+                possible_animations.append(("Orbital", Presets.Orbital(intensity=intensity, loop=True, reverse=reverse)))
+            elif name == "Dolly": 
+                possible_animations.append(("Dolly", Presets.Dolly(intensity=intensity, loop=True, reverse=reverse)))
+            elif name == "Horizontal": 
+                possible_animations.append(("Horizontal", Presets.Horizontal(intensity=intensity, loop=True, reverse=reverse)))
+            elif name == "Vertical":
+                possible_animations.append(("Vertical", Presets.Vertical(intensity=intensity, loop=True, reverse=reverse)))
+            elif name == "Zoom":
+                possible_animations.append(("Zoom", Presets.Zoom(intensity=intensity, loop=True, reverse=reverse)))
 
-        isometric_value = round(random.uniform(self.config.get('depthflow.isometric_min', 0.4), self.config.get('depthflow.isometric_max', 0.5)), 2)
-        height_value = round(random.uniform(self.config.get('depthflow.height_min', 0.1), self.config.get('depthflow.height_max', 0.15)), 2)
-        zoom_value = round(random.uniform(self.config.get('depthflow.zoom_min', 0.65), self.config.get('depthflow.zoom_max', 0.75)), 2)
+        # Set base 3D properties (these don't create motion, just set the 3D appearance)
+        isometric_value = round(random.uniform(
+            self.config.get('depthflow.isometric_min', 0.4), 
+            self.config.get('depthflow.isometric_max', 0.5)
+        ), 2)
+        height_value = round(random.uniform(
+            self.config.get('depthflow.height_min', 0.1), 
+            self.config.get('depthflow.height_max', 0.15)
+        ), 2)
 
         data.scene.add_animation(Components.Set(target=Target.Isometric, value=isometric_value))
         data.scene.add_animation(Components.Set(target=Target.Height, value=height_value))
         
-        # Apply the base zoom, make its loop configurable, default to False to avoid "too much looping"
-        # if other looping animations are added.
-        zoom_loops = self.config.get('depthflow.base_zoom_loops', False)
-        data.scene.add_animation(Presets.Zoom(intensity=zoom_value, loop=zoom_loops))
+        # REMOVED: The always-applied base zoom that was causing excessive zoom
+        # Old code: data.scene.add_animation(Presets.Zoom(intensity=zoom_value, loop=zoom_loops))
 
-        applied_animations_log = [f"BaseZoom: intensity={zoom_value}, loop={zoom_loops}"]
+        # Apply multiple random animations
+        applied_animations_log = []
         applied_names = set()
-        num_animations_to_apply = random.randint(self.config.get('depthflow.min_effects_per_image', 1), self.config.get('depthflow.max_effects_per_image', 2))
+        
+        # Allow more effects per image for variety
+        num_animations_to_apply = random.randint(
+            self.config.get('depthflow.min_effects_per_image', 2), 
+            self.config.get('depthflow.max_effects_per_image', 4)
+        )
 
+        # Control zoom probability - make zoom less likely to be selected
+        zoom_probability = self.config.get('depthflow.zoom_probability', 0.3)  # 30% chance
+        
         if possible_animations:
             for _ in range(num_animations_to_apply):
                 available_choices = [anim for anim in possible_animations if anim[0] not in applied_names]
-                if not available_choices: break
-                name, animation_preset = random.choice(available_choices)
-                applied_names.add(name)
-                data.scene.add_animation(animation_preset)
-                applied_animations_log.append(f"Animation: {name}, Preset: {animation_preset}")
+                if not available_choices: 
+                    break
+                    
+                # Filter out zoom if we want to reduce its probability
+                if random.random() > zoom_probability:
+                    available_choices = [anim for anim in available_choices if anim[0] != "Zoom"]
+                
+                if not available_choices:  # If no non-zoom choices, allow zoom
+                    available_choices = [anim for anim in possible_animations if anim[0] not in applied_names]
+                
+                if available_choices:
+                    name, animation_preset = random.choice(available_choices)
+                    applied_names.add(name)
+                    data.scene.add_animation(animation_preset)
+                    applied_animations_log.append(f"Animation: {name}, Preset: {animation_preset}")
         
+        # Enhanced logging
         log_file_path = Path(self.config.get('output_datetime_folder', '.')) / "_depth_log.txt"
         with open(log_file_path, "a") as f:
             log_entry = (
                 f"Image: {data.image.stem}\n"
                 f"Isometric: {isometric_value}\n"
                 f"Height: {height_value}\n"
-                f"Zoom: {zoom_value}\n"
+                f"Applied {len(applied_animations_log)} animations:\n"
             )
             for anim_log in applied_animations_log:
-                log_entry += f"{anim_log}\n"
+                log_entry += f"  {anim_log}\n"
             f.write(log_entry + "\n")
 
     def variants(self, image: Path) -> DotMap:
         # segment_duration should come from the main config
+        # segment_duration and fps should come from the main config (top level)
         # If DepthFlow produces videos 1s shorter, let's try adding 1 to the time passed to it.
-        segment_duration_for_df = self.config.get('depthflow.segment_duration', 5) + 1 
-        render_height = self.config.get('depthflow.render_height', 1920)
-        render_fps = self.config.get('depthflow.render_fps', 25)
+        segment_duration_for_df = self.config.get('segment_duration', 5)
+        render_height = self.config.get('depthflow.render_height', 1920) # This is correct, render_height is a depthflow specific setting
+        render_fps = self.config.get('fps', 25) # Use top-level fps
         
-        print(f"DepthFlow variants: Requesting time={segment_duration_for_df}s for output (target segment duration {self.config.get('depthflow.segment_duration', 5)}s)")
+        print(f"DepthFlow variants: Requesting time={segment_duration_for_df}s for output (target segment duration {self.config.get('segment_duration', 5)}s)")
 
         return DotMap(
             variation=[0], # From original YourManager

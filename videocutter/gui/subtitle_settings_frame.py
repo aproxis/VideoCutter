@@ -69,8 +69,8 @@ class SubtitleSettingsFrame(ttk.Frame):
         subtitle_frame.grid_rowconfigure(1, weight=1) # Bottom row for preview
 
         # Left column for basic settings
-        subtitle_settings_basic = tk.LabelFrame(subtitle_frame, text="Basic Subtitle Settings", padx=10, pady=10)
-        subtitle_settings_basic.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=10, pady=10)
+        subtitle_settings_basic = tk.LabelFrame(subtitle_frame, text="Basic Subtitle Settings", padx=10, pady=5)
+        subtitle_settings_basic.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=10, pady=5)
 
         # Add Enable Subtitles checkbox to subtitle_settings_basic
         tk.Checkbutton(subtitle_settings_basic, text="Enable Subtitles", variable=self.gui_elements['var_generate_srt'], command=self.toggle_subtitle_controls).grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="w")
@@ -187,14 +187,14 @@ class SubtitleSettingsFrame(ttk.Frame):
         # 7 8 9 (Top Left, Top Center, Top Right)
         # 4 5 6 (Middle Left, Middle Center, Middle Right)
         # 1 2 3 (Bottom Left, Bottom Center, Bottom Right)
-        ass_positions = [
+        self.ass_positions = [ # Make it an instance variable
             (7, "Top Left", 0, 0), (8, "Top Center", 0, 1), (9, "Top Right", 0, 2),
             (4, "Middle Left", 1, 0), (5, "Middle Center", 1, 1), (6, "Middle Right", 1, 2),
             (1, "Bottom Left", 2, 0), (2, "Bottom Center", 2, 1), (3, "Bottom Right", 2, 2)
         ]
 
         # Create 9 radio buttons
-        for ass_val, label, row, col in ass_positions:
+        for ass_val, label, row, col in self.ass_positions: # Use instance variable
             rb = tk.Radiobutton(
                 position_grid_frame,
                 text="",
@@ -208,14 +208,14 @@ class SubtitleSettingsFrame(ttk.Frame):
 
         # Ensure the correct radio button is selected initially
         initial_pos_val = self.gui_elements['var_subtitle_position'].get()
-        for ass_val, label, row, col in ass_positions:
+        for ass_val, label, row, col in self.ass_positions: # Use instance variable
             if ass_val == initial_pos_val:
                 self.gui_elements['var_subtitle_position'].set(ass_val) # Explicitly set to trigger update if needed
                 break
 
         # Right column for advanced settings
-        subtitle_settings_advanced = tk.LabelFrame(subtitle_frame, text="Advanced Subtitle Settings", padx=10, pady=10)
-        subtitle_settings_advanced.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+        subtitle_settings_advanced = tk.LabelFrame(subtitle_frame, text="Advanced Subtitle Settings", padx=10, pady=5)
+        subtitle_settings_advanced.grid(row=0, column=1, sticky="nsew", padx=10, pady=5)
 
         # Bold, Italic, Underline, StrikeOut
         font_style_frame = tk.LabelFrame(subtitle_settings_advanced, text="Font Style", padx=5, pady=5)
@@ -301,8 +301,8 @@ class SubtitleSettingsFrame(ttk.Frame):
 
 
         # Right column for preview
-        preview_frame = tk.LabelFrame(subtitle_frame, text="Preview", padx=10, pady=10)
-        preview_frame.grid(row=1, column=1, sticky="nsew", padx=10, pady=10) # Moved to bottom-right
+        preview_frame = tk.LabelFrame(subtitle_frame, text="Preview", padx=10, pady=5)
+        preview_frame.grid(row=1, column=1, sticky="nsew", padx=10, pady=5) # Moved to bottom-right
         self.gui_elements['preview_frame'] = preview_frame # Add preview_frame to gui_elements
         
         # Preview label
@@ -344,29 +344,29 @@ class SubtitleSettingsFrame(ttk.Frame):
         for control_name in controls:
             if control_name in self.gui_elements:
                 widget = self.gui_elements[control_name]
-                if isinstance(widget, tk.Frame): # Handle frames by iterating children
+                if control_name == 'position_grid_frame':
+                    # Special handling for radio buttons within position_grid_frame
+                    for ass_val, _, _, _ in self.ass_positions: # Use the ass_positions list from create_widgets
+                        rb = self.gui_elements.get(f'rb_subtitle_position_{ass_val}')
+                        if rb:
+                            rb.config(state=state)
+                elif isinstance(widget, tk.Frame): # Handle other frames by iterating children
                     for child in widget.winfo_children():
                         child.config(state=state)
                 else:
                     widget.config(state=state)
         
         # Special handling for font style checkboxes (Bold, Italic, Underline, StrikeOut)
-        font_style_frame = self.gui_elements['font_style_frame'] # Assuming this is stored
-        if font_style_frame:
-            for child in font_style_frame.winfo_children():
-                child.config(state=state)
-
-        # Special handling for scaling entries (ScaleX, ScaleY)
-        scale_frame = self.gui_elements['scale_frame'] # Assuming this is stored
-        if scale_frame:
-            for child in scale_frame.winfo_children():
-                child.config(state=state)
-
-        # Special handling for margins entries
-        margins_frame = self.gui_elements['margins_frame'] # Assuming this is stored
-        if margins_frame:
-            for child in margins_frame.winfo_children():
-                child.config(state=state)
+        # Ensure these frames are also disabled if the main subtitle control is disabled
+        frames_to_toggle = [
+            self.gui_elements.get('font_style_frame'),
+            self.gui_elements.get('scale_frame'),
+            self.gui_elements.get('margins_frame')
+        ]
+        for frame in frames_to_toggle:
+            if frame:
+                for child in frame.winfo_children():
+                    child.config(state=state)
 
         self.toggle_subtitle_shadow_controls() # Update shadow controls based on new state
         gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements))

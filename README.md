@@ -39,12 +39,12 @@ VideoCutter follows a modular architecture with a clear separation of concerns, 
 ┌─────────────────────┐       ┌─────────────────────────┐
 │ GUI Interface       │       │ videocutter/main.py     │
 │ (gui.py)            │──────►│ (Main Orchestrator)     │
-└──────────┬──────────┘       └───────────┬─────────────┘
-           │                               │
-           │                               ▼
-           │                  ┌─────────────────────────┐
-           │                  │ videocutter/config_     │
-           │                  │ manager.py              │
+│ ├─ MainSettingsFrame│       └───────────┬─────────────┘
+│ ├─ TitleSettingsFrame│                  │
+│ ├─ SubtitleSettingsFrame│               ▼
+│ ├─ OverlayEffectsFrame│      ┌─────────────────────────┐
+│ └─ DepthflowSettingsFrame│    │ videocutter/config_     │
+└──────────┬──────────┘       │ manager.py              │
            │                  │ (Configuration Manager) │
            │                  └───────────┬─────────────┘
            │                               │
@@ -242,6 +242,10 @@ VideoCutter/
 │   ├── main.py
 │   ├── gui/
 │   │   ├── gui_utils.py
+│   │   ├── depthflow_settings_frame.py
+│   │   ├── main_settings_frame.py
+│   │   ├── overlay_effects_frame.py
+│   │   ├── subtitle_settings_frame.py
 │   │   └── title_settings_frame.py
 │   ├── processing/
 │   │   ├── audio_processor.py
@@ -303,8 +307,8 @@ A **major refactoring is actively underway**, transitioning from a collection of
 
 ### Recent Progress
 *   **Core Refactoring**: Established new `videocutter` package structure with `main.py` as orchestrator, and migrated core functionalities into modular components (`config_manager`, `processing/` modules, `utils/` modules). `gui.py` has been updated to interact with this new modular backend.
+*   **GUI Reorganization**: Increased window size, restructured GUI tabs ("Main Settings", "Title Settings", "Subtitles", "Overlay Effects", "DepthFlow"), relocated settings for improved user experience, implemented new overlay directory structure, and enhanced control disabling for various sections.
 *   **Subtitle System Enhancements**: Implemented full ASS style parameter support, fixed color conversion and opacity handling, enhanced preview accuracy, and integrated new subtitle parameters into the GUI and configuration system.
-*   **GUI Reorganization**: Increased window size, restructured GUI tabs ("Main Settings", "Subtitles", "Overlay Effects"), relocated settings for improved user experience, implemented new overlay directory structure, and enhanced control disabling for various sections.
 
 ## Future Enhancements
 

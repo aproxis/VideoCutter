@@ -213,10 +213,23 @@ def process_image_for_video(image_path: str, target_final_height: int, target_vi
                 if scaled_to_width.height >= target_final_height: 
                     top = (scaled_to_width.height - target_final_height) // 2
                     final_image = scaled_to_width.crop((0, top, target_final_width, top + target_final_height))
-                elif apply_blur: 
+                elif apply_blur: # Vertical image for vertical video, smaller height (letterbox with blur and gradients)
                     bg = original_image.resize((target_final_width, target_final_height), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(radius=20))
-                    y_offset = (target_final_height - scaled_to_width.height) // 2
-                    bg.paste(scaled_to_width, (0, y_offset))
+                    fg_w, fg_h = scaled_to_width.size
+                    
+                    # Add top and bottom gradients (letterbox effect)
+                    border_fraction = int(fg_h * 0.1) # Fade 10% of the image height from top and bottom
+                    gradient = Image.new('L', (fg_w, fg_h), color=255)
+                    draw = ImageDraw.Draw(gradient)
+                    for y_coord in range(border_fraction):
+                        alpha = int(255 * (y_coord / border_fraction))
+                        draw.line([(0, y_coord), (fg_w - 1, y_coord)], fill=alpha)  # Top fade
+                        draw.line([(0, fg_h - 1 - y_coord), (fg_w - 1, fg_h - 1 - y_coord)], fill=alpha)  # Bottom fade
+                    
+                    scaled_to_width.putalpha(gradient)
+                    x_offset = (target_final_width - fg_w) // 2 # Center horizontally
+                    y_offset = (target_final_height - fg_h) // 2 
+                    bg.paste(scaled_to_width, (x_offset, y_offset), mask=scaled_to_width)
                     final_image = bg
                 else: # No blur, just scale and pad with black (or center)
                     final_image = Image.new('RGB', (target_final_width, target_final_height), (0,0,0))
@@ -261,10 +274,23 @@ def process_image_for_video(image_path: str, target_final_height: int, target_vi
                 if scaled_to_height.width >= target_final_width: 
                     left = (scaled_to_height.width - target_final_width) // 2
                     final_image = scaled_to_height.crop((left, 0, left + target_final_width, target_final_height))
-                elif apply_blur: 
+                elif apply_blur: # Horizontal image for horizontal video, smaller width (pillarbox with blur and gradients)
                     bg = original_image.resize((target_final_width, target_final_height), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(radius=20))
-                    x_offset = (target_final_width - scaled_to_height.width) // 2
-                    bg.paste(scaled_to_height, (x_offset, 0))
+                    fg_w, fg_h = scaled_to_height.size
+                    
+                    # Add side gradients (pillarbox effect)
+                    border_fraction = int(fg_w * 0.1) # Fade 10% of the image width from left and right
+                    gradient = Image.new('L', (fg_w, fg_h), color=255) 
+                    draw = ImageDraw.Draw(gradient)
+                    for x_coord in range(border_fraction):
+                        alpha = int(255 * (x_coord / border_fraction))
+                        draw.line([(x_coord, 0), (x_coord, fg_h - 1)], fill=alpha)  # Left fade
+                        draw.line([(fg_w - 1 - x_coord, 0), (fg_w - 1 - x_coord, fg_h - 1)], fill=alpha)  # Right fade
+                    
+                    scaled_to_height.putalpha(gradient)
+                    x_offset = (target_final_width - fg_w) // 2 
+                    y_offset = (target_final_height - fg_h) // 2 # Center vertically
+                    bg.paste(scaled_to_height, (x_offset, y_offset), mask=scaled_to_height)
                     final_image = bg
                 else: # No blur, just scale and pad with black (or center)
                     final_image = Image.new('RGB', (target_final_width, target_final_height), (0,0,0))

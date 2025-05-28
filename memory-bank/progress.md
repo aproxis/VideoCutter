@@ -34,6 +34,7 @@
     - ✅ Voiceover mixing with sidechain compression
     - ✅ Transition sound effects
     - ✅ Audio synchronization with video
+    - ✅ **Dynamic generation of transition audio based on number of slides/segments, using `transition_500ms.mp3` for concatenation.**
 
 6.  **Branding & Overlays**
     - ✅ Model name overlay with configurable font size
@@ -221,6 +222,8 @@ A **major refactoring is actively underway**, transitioning from a collection of
     - ✅ Created and integrated `videocutter/processing/` modules for video, depth, slideshow, audio, subtitle, and overlay processing.
     - ✅ Created and integrated `videocutter/utils/` modules for file, font, and GUI config utilities.
     - ✅ Updated `gui.py` to interact with the new modular backend.
+    - ✅ **Modified `videocutter/processing/audio_processor.py` to dynamically generate transition audio based on the number of slides/segments.**
+    - ✅ **Updated `videocutter/main.py` to pass the number of slides and slide duration to the audio processor.**
 
 2.  **Subtitle System Enhancements**
     - ✅ Fixed RGB to BGR color conversion for ASS subtitles
@@ -240,6 +243,8 @@ A **major refactoring is actively underway**, transitioning from a collection of
     - ✅ Documented ASS format specifics and color handling
     - ✅ Added subtitle workflow documentation
     - ✅ Updated system patterns with subtitle processing architecture
+    - ✅ **Updated `10-project-files.md` with descriptions for new GUI frames and updated `gui.py` description.**
+    - ✅ **Updated `README.md` to reflect new GUI frames in system architecture and directory structure.**
 
 4.  **Organization**
     - ✅ Refactored subtitle preview rendering for better accuracy
@@ -250,7 +255,7 @@ A **major refactoring is actively underway**, transitioning from a collection of
 
 5.  **GUI Reorganization**
     - ✅ Increased window size to 1400x900 for better layout.
-    - ✅ Restructured GUI tabs into "Main Settings", "Subtitles", and "Overlay Effects" (renamed from "Advanced Effects").
+    - ✅ Restructured GUI tabs into "Main Settings", "Title Settings", "Subtitles", "Overlay Effects", and "DepthFlow".
     - ✅ Relocated settings to more logical tabs for improved user experience:
         - "Generate Subtitles .srt" and "Characters per line (max)" moved to "Subtitles" tab.
         - "Effect Overlay" and "Chromakey Settings" moved to the left column of "Overlay Effects" tab.

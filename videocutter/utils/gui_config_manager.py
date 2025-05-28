@@ -22,6 +22,8 @@ watermark_font_size = 40
 watermark_opacity = 0.7
 watermark_fontcolor = 'random'
 watermark_speed_intuitive = 5 # Intuitive speed 1-10
+transition_duration = 0.5 # New: Default transition duration in seconds
+fps = 30 # New: Default frames per second
 subscribe_delay = 21
 title_fontcolor = 'random'
 title_font = 'Montserrat-Semi-Bold.otf'
@@ -81,6 +83,37 @@ effect_blend = 'overlay'
 enable_effect_overlay = True # Added this line
 video_orientation = 'vertical' # Default video orientation
 blur = 0 # Default blur setting
+
+# DepthFlow settings
+enable_depthflow = False
+depthflow_vignette_enable = True
+depthflow_dof_enable = True
+depthflow_isometric_min = 0.4
+depthflow_isometric_max = 0.5
+depthflow_height_min = 0.1
+depthflow_height_max = 0.15
+depthflow_zoom_min = 0.65
+depthflow_zoom_max = 0.75
+depthflow_min_effects_per_image = 2 # Updated default
+depthflow_max_effects_per_image = 4 # Updated default
+depthflow_base_zoom_loops = False
+depthflow_workers = 1
+
+# New DepthFlow parameters
+depthflow_height = 0.3
+depthflow_offset_x = 0.0
+depthflow_offset_y = 0.0
+depthflow_steady = 0.0
+depthflow_isometric = 0.5
+depthflow_dolly = 0.0
+depthflow_focus = 0.0
+depthflow_zoom = 1.0
+depthflow_invert = 0.0
+depthflow_center_x = 0.0
+depthflow_center_y = 0.0
+depthflow_origin_x = 0.0
+depthflow_origin_y = 0.0
+depthflow_zoom_probability = 0.3 # New
 
 # Define watermark types
 watermark_types = ['ccw', 'random']
@@ -144,6 +177,8 @@ def create_default_config():
         'watermark_opacity': watermark_opacity,
         'watermark_fontcolor': watermark_fontcolor,
         'watermark_speed_intuitive': watermark_speed_intuitive,
+        'transition_duration': transition_duration, # New
+        'fps': fps, # New
         'subscribe_delay': subscribe_delay,
         'title_fontcolor': title_fontcolor,
         'title_font': title_font,
@@ -198,7 +233,36 @@ def create_default_config():
         'effect_overlay': effect_overlay,
         'effect_opacity': effect_opacity,
         'effect_blend': effect_blend,
-        'enable_effect_overlay': enable_effect_overlay
+        'enable_effect_overlay': enable_effect_overlay,
+        # DepthFlow settings
+        'enable_depthflow': enable_depthflow,
+        'depthflow_vignette_enable': depthflow_vignette_enable,
+        'depthflow_dof_enable': depthflow_dof_enable,
+        'depthflow_isometric_min': depthflow_isometric_min,
+        'depthflow_isometric_max': depthflow_isometric_max,
+        'depthflow_height_min': depthflow_height_min,
+        'depthflow_height_max': depthflow_height_max,
+        'depthflow_zoom_min': depthflow_zoom_min,
+        'depthflow_zoom_max': depthflow_zoom_max,
+        'depthflow_min_effects_per_image': depthflow_min_effects_per_image,
+        'depthflow_max_effects_per_image': depthflow_max_effects_per_image,
+        'depthflow_base_zoom_loops': depthflow_base_zoom_loops,
+        'depthflow_workers': depthflow_workers,
+        # New DepthFlow parameters
+        'depthflow_height': depthflow_height,
+        'depthflow_offset_x': depthflow_offset_x,
+        'depthflow_offset_y': depthflow_offset_y,
+        'depthflow_steady': depthflow_steady,
+        'depthflow_isometric': depthflow_isometric,
+        'depthflow_dolly': depthflow_dolly,
+        'depthflow_focus': depthflow_focus,
+        'depthflow_zoom': depthflow_zoom,
+        'depthflow_invert': depthflow_invert,
+        'depthflow_center_x': depthflow_center_x,
+        'depthflow_center_y': depthflow_center_y,
+        'depthflow_origin_x': depthflow_origin_x,
+        'depthflow_origin_y': depthflow_origin_y,
+        'depthflow_zoom_probability': depthflow_zoom_probability # New
     }
     default_filename = "default_config.json"
     config_file = os.path.join(config_folder, default_filename)
@@ -264,7 +328,27 @@ def load_config(root_widget, var_config_str, gui_elements):
     # Helper to safely update StringVar/IntVar/DoubleVar
     def update_var(tk_var, value):
         if tk_var:
-            tk_var.set(value)
+            try:
+                if isinstance(tk_var, tk.DoubleVar):
+                    # Attempt to convert value to float, use default if it fails
+                    tk_var.set(float(value))
+                elif isinstance(tk_var, tk.IntVar):
+                    # Attempt to convert value to int, use default if it fails
+                    tk_var.set(int(value))
+                else:
+                    # For StringVar and BooleanVar, direct set is usually fine
+                    tk_var.set(value)
+            except (ValueError, tk.TclError):
+                # If conversion fails, set to a sensible default (e.g., 0.0 for DoubleVar, 0 for IntVar)
+                print(f"Warning: Could not set Tkinter variable {tk_var} with value '{value}'. Setting to default.")
+                if isinstance(tk_var, tk.DoubleVar):
+                    tk_var.set(0.0)
+                elif isinstance(tk_var, tk.IntVar):
+                    tk_var.set(0)
+                elif isinstance(tk_var, tk.BooleanVar):
+                    tk_var.set(False) # Sensible default for boolean
+                else:
+                    tk_var.set("") # Sensible default for string
 
     # Update GUI elements based on loaded config
     update_entry(gui_elements.get('entry_title'), config.get('title', title))
@@ -293,6 +377,8 @@ def load_config(root_widget, var_config_str, gui_elements):
     update_entry(gui_elements.get('entry_template_folder'), config.get('template_folder', template_folder))
     update_var(gui_elements.get('var_depthflow'), config.get('depthflow', depthflow))
     update_entry(gui_elements.get('entry_time_limit'), config.get('time_limit', time_limit))
+    update_var(gui_elements.get('var_transition_duration'), config.get('transition_duration', transition_duration)) # New
+    update_var(gui_elements.get('var_fps'), config.get('fps', fps)) # New
     update_var(gui_elements.get('var_video_orientation'), config.get('video_orientation', video_orientation))
     update_var(gui_elements.get('var_add_blur'), config.get('blur', blur))
 
@@ -338,6 +424,21 @@ def load_config(root_widget, var_config_str, gui_elements):
     update_var(gui_elements.get('var_effect_opacity'), config.get('effect_opacity', effect_opacity))
     update_var(gui_elements.get('var_effect_blend'), config.get('effect_blend', effect_blend))
     update_var(gui_elements.get('var_enable_effect_overlay'), config.get('enable_effect_overlay', enable_effect_overlay))
+    # DepthFlow settings
+    update_var(gui_elements.get('var_enable_depthflow'), config.get('enable_depthflow', enable_depthflow))
+    update_var(gui_elements.get('var_depthflow_vignette_enable'), config.get('depthflow_vignette_enable', depthflow_vignette_enable))
+    update_var(gui_elements.get('var_depthflow_dof_enable'), config.get('depthflow_dof_enable', depthflow_dof_enable))
+    update_var(gui_elements.get('var_depthflow_isometric_min'), config.get('depthflow_isometric_min', depthflow_isometric_min))
+    update_var(gui_elements.get('var_depthflow_isometric_max'), config.get('depthflow_isometric_max', depthflow_isometric_max))
+    update_var(gui_elements.get('var_depthflow_height_min'), config.get('depthflow_height_min', depthflow_height_min))
+    update_var(gui_elements.get('var_depthflow_height_max'), config.get('depthflow_height_max', depthflow_height_max))
+    update_var(gui_elements.get('var_depthflow_zoom_min'), config.get('depthflow_zoom_min', depthflow_zoom_min))
+    update_var(gui_elements.get('var_depthflow_zoom_max'), config.get('depthflow_zoom_max', depthflow_zoom_max))
+    update_var(gui_elements.get('var_depthflow_min_effects_per_image'), config.get('depthflow_min_effects_per_image', depthflow_min_effects_per_image))
+    update_var(gui_elements.get('var_depthflow_max_effects_per_image'), config.get('depthflow_max_effects_per_image', depthflow_max_effects_per_image))
+    update_var(gui_elements.get('var_depthflow_base_zoom_loops'), config.get('depthflow_base_zoom_loops', depthflow_base_zoom_loops))
+    update_var(gui_elements.get('var_depthflow_workers'), config.get('depthflow_workers', depthflow_workers))
+
     if gui_elements.get('update_effect_opacity_value'): # This function is in gui.py, not here
         gui_elements['update_effect_opacity_value']()
 
@@ -390,12 +491,10 @@ def load_config(root_widget, var_config_str, gui_elements):
         gui_elements['entry_calculated_title_font_size'].config(state=tk.DISABLED)
 
     # Update toggle controls
-    if gui_elements.get('toggle_title_controls'): gui_elements['toggle_title_controls']()
-    if gui_elements.get('toggle_subscribe_overlay_controls'): gui_elements['toggle_subscribe_overlay_controls']()
-    if gui_elements.get('toggle_watermark_controls'): gui_elements['toggle_watermark_controls']()
-    if gui_elements.get('toggle_effect_overlay_controls'): gui_elements['toggle_effect_overlay_controls']()
-    if gui_elements.get('tab_subtitles_instance'):
-        gui_elements['tab_subtitles_instance'].update_all_subtitle_controls()
+    if gui_elements.get('tab_title_settings_instance'): gui_elements['tab_title_settings_instance'].toggle_title_controls()
+    if gui_elements.get('tab_overlay_effects_instance'): gui_elements['tab_overlay_effects_instance'].update_all_overlay_controls()
+    if gui_elements.get('tab_subtitles_instance'): gui_elements['tab_subtitles_instance'].update_all_subtitle_controls()
+    if gui_elements.get('tab_depthflow_settings_instance'): gui_elements['tab_depthflow_settings_instance'].toggle_depthflow_controls()
 
 
 def _get_numeric_value(tk_var, default_value, value_type=float):
@@ -420,6 +519,8 @@ def save_config(gui_elements):
             'watermark_opacity': _get_numeric_value(gui_elements['var_watermark_opacity'], watermark_opacity),
             'watermark_fontcolor': gui_elements['var_watermark_fontcolor'].get(),
             'watermark_speed_intuitive': _get_numeric_value(gui_elements['var_watermark_speed_intuitive'], watermark_speed_intuitive, int),
+            'transition_duration': _get_numeric_value(gui_elements['var_transition_duration'], transition_duration), # New
+            'fps': _get_numeric_value(gui_elements['var_fps'], fps, int), # New
             'title_font_size': _get_numeric_value(gui_elements['entry_title_font_size'], title_font_size, int),
             'segment_duration': _get_numeric_value(gui_elements['entry_segment_duration'], segment_duration, int),
             'input_folder': gui_elements['entry_input_folder'].get(),
@@ -464,7 +565,7 @@ def save_config(gui_elements):
             'subtitle_outline': _get_numeric_value(gui_elements['var_subtitle_outline'], subtitle_outline),
             'subtitle_outlinecolor': gui_elements['var_subtitle_outlinecolor'].get(),
             'subtitle_shadow': gui_elements['var_subtitle_shadow'].get(),
-            'subtitle_format': gui_elements['var_subtitle_format'].get(), # New: Save subtitle format
+            'subtitle_format': gui_elements['var_subtitle_format'].get(),
             'subtitle_secondary_color': gui_elements['var_subtitle_secondary_color'].get(),
             'subtitle_bold': _get_numeric_value(gui_elements['var_subtitle_bold'], subtitle_bold, int),
             'subtitle_italic': _get_numeric_value(gui_elements['var_subtitle_italic'], subtitle_italic, int),
@@ -483,7 +584,22 @@ def save_config(gui_elements):
             'effect_overlay': gui_elements['var_effect_overlay'].get(),
             'effect_opacity': _get_numeric_value(gui_elements['var_effect_opacity'], effect_opacity),
             'effect_blend': gui_elements['var_effect_blend'].get(),
-            'enable_effect_overlay': gui_elements['var_enable_effect_overlay'].get()
+            'enable_effect_overlay': gui_elements['var_enable_effect_overlay'].get(),
+            # DepthFlow settings
+            'enable_depthflow': gui_elements['var_depthflow'].get(),
+            'depthflow_vignette_enable': gui_elements['var_depthflow_vignette_enable'].get(),
+            'depthflow_dof_enable': gui_elements['var_depthflow_dof_enable'].get(),
+            'depthflow_isometric_min': _get_numeric_value(gui_elements['var_depthflow_isometric_min'], depthflow_isometric_min),
+            'depthflow_isometric_max': _get_numeric_value(gui_elements['var_depthflow_isometric_max'], depthflow_isometric_max),
+            'depthflow_height_min': _get_numeric_value(gui_elements['var_depthflow_height_min'], depthflow_height_min),
+            'depthflow_height_max': _get_numeric_value(gui_elements['var_depthflow_height_max'], depthflow_height_max),
+            'depthflow_zoom_min': _get_numeric_value(gui_elements['var_depthflow_zoom_min'], depthflow_zoom_min),
+            'depthflow_zoom_max': _get_numeric_value(gui_elements['var_depthflow_zoom_max'], depthflow_zoom_max),
+            'depthflow_min_effects_per_image': _get_numeric_value(gui_elements['var_depthflow_min_effects_per_image'], depthflow_min_effects_per_image, int),
+            'depthflow_max_effects_per_image': _get_numeric_value(gui_elements['var_depthflow_max_effects_per_image'], depthflow_max_effects_per_image, int),
+            'depthflow_base_zoom_loops': gui_elements['var_depthflow_base_zoom_loops'].get(),
+            'depthflow_workers': _get_numeric_value(gui_elements['var_depthflow_workers'], depthflow_workers, int),
+            'depthflow_zoom_probability': _get_numeric_value(gui_elements['var_depthflow_zoom_probability'], depthflow_zoom_probability)
         }, f, indent=4)
     messagebox.showinfo("Success", "Config saved successfully!")
 
@@ -492,9 +608,31 @@ def save_new_config(gui_elements):
     if not new_filename.endswith('.json'):
         new_filename += '.json'
     config_file = os.path.join(config_folder, new_filename)
+
     if os.path.exists(config_file):
-        messagebox.showerror("Error", "File already exists. Please choose a different name.")
-        return
+        response = messagebox.askyesnocancel(
+            "Config Exists",
+            f"A config file named '{new_filename}' already exists.\n\n"
+            "Do you want to:\n"
+            "  - Yes: Overwrite it\n"
+            "  - No: Save with a new name (e.g., add a number)\n"
+            "  - Cancel: Abort saving"
+        )
+
+        if response is True:  # Yes, overwrite
+            pass  # Continue to save
+        elif response is False:  # No, save with new name
+            base_name, ext = os.path.splitext(new_filename)
+            i = 1
+            while os.path.exists(os.path.join(config_folder, f"{base_name}_{i}{ext}")):
+                i += 1
+            new_filename = f"{base_name}_{i}{ext}"
+            config_file = os.path.join(config_folder, new_filename)
+            messagebox.showinfo("New Name", f"Saving as '{new_filename}'")
+        else:  # Cancel
+            messagebox.showinfo("Save Aborted", "Config save operation cancelled.")
+            return
+
     with open(config_file, 'w') as f:
         json.dump({
             'title': gui_elements['entry_title'].get(),
@@ -505,6 +643,8 @@ def save_new_config(gui_elements):
             'watermark_opacity': _get_numeric_value(gui_elements['var_watermark_opacity'], watermark_opacity),
             'watermark_fontcolor': gui_elements['var_watermark_fontcolor'].get(),
             'watermark_speed_intuitive': _get_numeric_value(gui_elements['var_watermark_speed_intuitive'], watermark_speed_intuitive, int),
+            'transition_duration': _get_numeric_value(gui_elements['var_transition_duration'], transition_duration),
+            'fps': _get_numeric_value(gui_elements['var_fps'], fps, int),
             'title_font_size': _get_numeric_value(gui_elements['entry_title_font_size'], title_font_size, int),
             'segment_duration': _get_numeric_value(gui_elements['entry_segment_duration'], segment_duration, int),
             'input_folder': gui_elements['entry_input_folder'].get(),
@@ -549,7 +689,7 @@ def save_new_config(gui_elements):
             'subtitle_outline': _get_numeric_value(gui_elements['var_subtitle_outline'], subtitle_outline),
             'subtitle_outlinecolor': gui_elements['var_subtitle_outlinecolor'].get(),
             'subtitle_shadow': gui_elements['var_subtitle_shadow'].get(),
-            'subtitle_format': gui_elements['var_subtitle_format'].get(), # New: Save subtitle format
+            'subtitle_format': gui_elements['var_subtitle_format'].get(),
             'subtitle_secondary_color': gui_elements['var_subtitle_secondary_color'].get(),
             'subtitle_bold': _get_numeric_value(gui_elements['var_subtitle_bold'], subtitle_bold, int),
             'subtitle_italic': _get_numeric_value(gui_elements['var_subtitle_italic'], subtitle_italic, int),
@@ -568,9 +708,23 @@ def save_new_config(gui_elements):
             'effect_overlay': gui_elements['var_effect_overlay'].get(),
             'effect_opacity': _get_numeric_value(gui_elements['var_effect_opacity'], effect_opacity),
             'effect_blend': gui_elements['var_effect_blend'].get(),
-            'enable_effect_overlay': gui_elements['var_enable_effect_overlay'].get()
+            'enable_effect_overlay': gui_elements['var_enable_effect_overlay'].get(),
+            # DepthFlow settings
+            'enable_depthflow': gui_elements['var_depthflow'].get(),
+            'depthflow_vignette_enable': gui_elements['var_depthflow_vignette_enable'].get(),
+            'depthflow_dof_enable': gui_elements['var_depthflow_dof_enable'].get(),
+            'depthflow_isometric_min': _get_numeric_value(gui_elements['var_depthflow_isometric_min'], depthflow_isometric_min),
+            'depthflow_isometric_max': _get_numeric_value(gui_elements['var_depthflow_isometric_max'], depthflow_isometric_max),
+            'depthflow_height_min': _get_numeric_value(gui_elements['var_depthflow_height_min'], depthflow_height_min),
+            'depthflow_height_max': _get_numeric_value(gui_elements['var_depthflow_height_max'], depthflow_height_max),
+            'depthflow_zoom_min': _get_numeric_value(gui_elements['var_depthflow_zoom_min'], depthflow_zoom_min),
+            'depthflow_zoom_max': _get_numeric_value(gui_elements['var_depthflow_zoom_max'], depthflow_zoom_max),
+            'depthflow_min_effects_per_image': _get_numeric_value(gui_elements['var_depthflow_min_effects_per_image'], depthflow_min_effects_per_image, int),
+            'depthflow_max_effects_per_image': _get_numeric_value(gui_elements['var_depthflow_max_effects_per_image'], depthflow_max_effects_per_image, int),
+            'depthflow_base_zoom_loops': gui_elements['var_depthflow_base_zoom_loops'].get(),
+            'depthflow_workers': _get_numeric_value(gui_elements['var_depthflow_workers'], depthflow_workers, int)
         }, f, indent=4)
-    messagebox.showinfo("Success", "New config saved successfully!")
+    messagebox.showinfo("Success", f"New config saved as '{new_filename}'!")
 
     global config_files
     config_files = [file for file in os.listdir(config_folder) if file.endswith(".json")]
