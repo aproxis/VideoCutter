@@ -4,6 +4,8 @@
 import os
 import shutil
 from datetime import datetime
+import logging
+logger = logging.getLogger(__name__)
 
 def setup_project_directories(base_input_folder: str) -> tuple[str, str, str, str]:
     """
@@ -17,22 +19,24 @@ def setup_project_directories(base_input_folder: str) -> tuple[str, str, str, st
         tuple[str, str, str, str]: Paths to result_folder, source_folder, 
                                    run_specific_source_folder, and the datetime_str.
     """
+    
     result_folder = os.path.join(base_input_folder, 'RESULT')
     if not os.path.exists(result_folder):
         os.makedirs(result_folder)
-        print(f"Created result folder: {result_folder}")
+    
+        logger.info(f"Created result folder: {result_folder}")
 
     source_folder = os.path.join(base_input_folder, 'SOURCE')
     if not os.path.exists(source_folder):
         os.makedirs(source_folder)
-        print(f"Created source folder: {source_folder}")
+        logger.info(f"Created source folder: {source_folder}")
 
     current_datetime = datetime.now()
     datetime_str = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
 
     run_specific_source_folder = os.path.join(source_folder, datetime_str)
     os.makedirs(run_specific_source_folder, exist_ok=True)
-    print(f"Created run-specific source folder: {run_specific_source_folder}")
+    logger.info(f"Created run-specific source folder: {run_specific_source_folder}")
 
     return result_folder, source_folder, run_specific_source_folder, datetime_str
 
@@ -45,16 +49,16 @@ def backup_original_file(original_file_path: str, run_specific_source_folder: st
         run_specific_source_folder (str): Path to the backup folder for the current run.
     """
     if not os.path.isfile(original_file_path):
-        print(f"Warning: Original file not found for backup: {original_file_path}")
+        logger.warning(f"Original file not found for backup: {original_file_path}")
         return
     
     try:
         base_filename = os.path.basename(original_file_path)
         backup_path = os.path.join(run_specific_source_folder, base_filename)
         shutil.copy(original_file_path, backup_path)
-        print(f"Backed up '{original_file_path}' to '{backup_path}'")
+        logger.info(f"Backed up '{original_file_path}' to '{backup_path}'")
     except Exception as e:
-        print(f"Error backing up file {original_file_path}: {e}")
+        logger.error(f"Error backing up file {original_file_path}: {e}")
 
 def find_files_by_extension(directory: str, extensions: list[str]) -> list[str]:
     """
@@ -91,7 +95,7 @@ def organize_files_to_timestamped_folder(source_directory: str, datetime_string:
     """
     timestamped_folder_path = os.path.join(source_directory, datetime_string)
     os.makedirs(timestamped_folder_path, exist_ok=True)
-    print(f"Ensured timestamped folder exists: {timestamped_folder_path}")
+    logger.info(f"Ensured timestamped folder exists: {timestamped_folder_path}")
 
     files_in_source = sorted(os.listdir(source_directory)) # Sort to ensure consistent numbering
     counters = {} # To keep track of renaming sequence per extension
@@ -147,12 +151,12 @@ def organize_files_to_timestamped_folder(source_directory: str, datetime_string:
         
         try:
             shutil.move(original_filepath, new_filepath)
-            print(f"Moved and renamed '{original_filepath}' to '{new_filepath}'")
+            logger.info(f"Moved and renamed '{original_filepath}' to '{new_filepath}'")
         except Exception as e:
-            print(f"Error moving file {original_filepath} to {new_filepath}: {e}")
+            logger.error(f"Error moving file {original_filepath} to {new_filepath}: {e}")
             # If it's a duplicate voiceover.mp3, we might want to handle it (e.g., rename uniquely or skip)
             if new_filename == 'voiceover.mp3' and os.path.exists(new_filepath):
-                print(f"Warning: '{new_filepath}' already exists. Original '{original_filepath}' was not moved.")
+                logger.warning(f"'{new_filepath}' already exists. Original '{original_filepath}' was not moved.")
 
 
     return timestamped_folder_path
@@ -201,7 +205,7 @@ def limit_media_files_by_duration(directory: str, total_time_limit_seconds: int,
     sorted_media_filenames = sorted(all_media_filenames, key=lambda x: x.lower())
 
     if segment_duration_seconds <= 0:
-        print("Warning: segment_duration_seconds must be positive. Skipping file limiting.")
+        logger.warning("Warning: segment_duration_seconds must be positive. Skipping file limiting.")
         return sorted_media_filenames
 
     # Calculate the limit. Consider if a -1 is needed in the divisor for specific contexts
@@ -213,8 +217,8 @@ def limit_media_files_by_duration(directory: str, total_time_limit_seconds: int,
     limit = int(total_time_limit_seconds / segment_duration_seconds)
     if limit <= 0 : limit = 1 # Ensure at least one file can be kept if time limit allows
 
-    print(f"Original media count in '{directory}': {len(sorted_media_filenames)}")
-    print(f"Calculated limit based on time_limit ({total_time_limit_seconds}s) and segment_duration ({segment_duration_seconds}s): {limit} files")
+    logger.info(f"Original media count in '{directory}': {len(sorted_media_filenames)}")
+    logger.info(f"Calculated limit based on time_limit ({total_time_limit_seconds}s) and segment_duration ({segment_duration_seconds}s): {limit} files")
 
     kept_filenames = sorted_media_filenames[:limit]
     files_to_delete = set(sorted_media_filenames) - set(kept_filenames)
@@ -223,25 +227,25 @@ def limit_media_files_by_duration(directory: str, total_time_limit_seconds: int,
         try:
             file_path_to_delete = os.path.join(directory, filename_to_delete)
             os.remove(file_path_to_delete)
-            print(f"Deleted surplus file: {file_path_to_delete}")
+            logger.info(f"Deleted surplus file: {file_path_to_delete}")
         except Exception as e:
-            print(f"Error deleting file {file_path_to_delete}: {e}")
+            logger.error(f"Error deleting file {file_path_to_delete}: {e}")
             
-    print(f"Kept {len(kept_filenames)} files in '{directory}'.")
+    logger.info(f"Kept {len(kept_filenames)} files in '{directory}'.")
     return kept_filenames
 
 
 if __name__ == "__main__":
-    print("Testing file_utils.py...")
+    logger.info("Testing file_utils.py...")
     # Create a dummy INPUT folder for testing
     if not os.path.exists("INPUT_test"):
         os.makedirs("INPUT_test")
     
     res_folder, src_folder, run_src_folder, dt_str = setup_project_directories("INPUT_test")
-    print(f"Result Folder: {res_folder}")
-    print(f"Source Folder: {src_folder}")
-    print(f"Run Source Folder: {run_src_folder}")
-    print(f"Datetime String: {dt_str}")
+    logger.info(f"Result Folder: {res_folder}")
+    logger.info(f"Source Folder: {src_folder}")
+    logger.info(f"Run Source Folder: {run_src_folder}")
+    logger.info(f"Datetime String: {dt_str}")
 
     # Create a dummy file to backup
     dummy_file_path = os.path.join("INPUT_test", "dummy.txt")
@@ -255,7 +259,7 @@ if __name__ == "__main__":
         os.remove(dummy_file_path)
     
     # Test find_files_by_extension
-    print("\nTesting find_files_by_extension...")
+    logger.info("\nTesting find_files_by_extension...")
     dummy_mp4_path_in_result = os.path.join(res_folder, "test_in_result.mp4") 
     dummy_jpg_path_in_result = os.path.join(res_folder, "test_in_result.jpg")
     if not os.path.exists(res_folder): os.makedirs(res_folder)
@@ -263,14 +267,14 @@ if __name__ == "__main__":
     with open(dummy_jpg_path_in_result, "w") as f: f.write("dummy jpg")
     
     found_videos = find_files_by_extension(res_folder, [".mp4"])
-    print(f"Found videos in {res_folder}: {found_videos}")
+    logger.info(f"Found videos in {res_folder}: {found_videos}")
     found_media_in_input_test = find_files_by_extension("INPUT_test", [".mp4", ".jpg", ".txt"])
-    print(f"Found media in INPUT_test: {found_media_in_input_test}")
+    logger.info(f"Found media in INPUT_test: {found_media_in_input_test}")
 
     if os.path.exists(dummy_mp4_path_in_result): os.remove(dummy_mp4_path_in_result)
     if os.path.exists(dummy_jpg_path_in_result): os.remove(dummy_jpg_path_in_result)
 
-    print("\nTesting organize_files_to_timestamped_folder...")
+    logger.info("\nTesting organize_files_to_timestamped_folder...")
     org_test_files_dir = res_folder 
     if not os.path.exists(org_test_files_dir): os.makedirs(org_test_files_dir)
     test_files_for_org = {
@@ -282,16 +286,16 @@ if __name__ == "__main__":
 
     org_datetime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_orgtest")
     organized_folder = organize_files_to_timestamped_folder(org_test_files_dir, org_datetime_str)
-    print(f"Files organized into: {organized_folder}")
+    logger.info(f"Files organized into: {organized_folder}")
     if os.path.exists(organized_folder):
-        print(f"Contents of {organized_folder}: {os.listdir(organized_folder)}")
+        logger.info(f"Contents of {organized_folder}: {os.listdir(organized_folder)}")
         shutil.rmtree(organized_folder, ignore_errors=True)
     # Clean up original files left by organize function if any (should be moved)
     for fname in test_files_for_org.keys():
         if os.path.exists(os.path.join(org_test_files_dir, fname)):
              os.remove(os.path.join(org_test_files_dir, fname))
 
-    print("\nTesting limit_media_files_by_duration...")
+    logger.info("\nTesting limit_media_files_by_duration...")
     limit_test_dir = os.path.join(res_folder, "limit_test")
     if not os.path.exists(limit_test_dir): os.makedirs(limit_test_dir)
     test_files_for_limit = [f"file{i:02d}.jpg" for i in range(10)] + [f"vid{i:02d}.mp4" for i in range(5)]
@@ -299,8 +303,8 @@ if __name__ == "__main__":
         with open(os.path.join(limit_test_dir, fname), "w") as f: f.write("limit_test_content")
     
     kept_files = limit_media_files_by_duration(limit_test_dir, total_time_limit_seconds=30, segment_duration_seconds=6)
-    print(f"Kept files after limiting: {kept_files}")
-    print(f"Remaining files in {limit_test_dir}: {os.listdir(limit_test_dir)}")
+    logger.info(f"Kept files after limiting: {kept_files}")
+    logger.info(f"Remaining files in {limit_test_dir}: {os.listdir(limit_test_dir)}")
     shutil.rmtree(limit_test_dir, ignore_errors=True)
 
 
@@ -324,4 +328,4 @@ if __name__ == "__main__":
     if os.path.exists("INPUT_test"):
         if not os.listdir("INPUT_test"): 
             os.rmdir("INPUT_test")
-    print("Test complete.")
+    logger.info("Test complete.")

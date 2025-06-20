@@ -21,7 +21,7 @@ class MainSettingsFrame(ttk.Frame):
         # These variables are now expected to be passed in via gui_elements from the main GUI
         self.gui_elements['var_add_blur'] = tk.BooleanVar(value=gcm.blur)
         self.gui_elements['var_depthflow'] = tk.BooleanVar(value=gcm.depthflow)
-        self.gui_elements['var_batch_input_folder'] = tk.StringVar(self.gui_elements['root'])
+        self.gui_elements['var_batch_input_folder'] = tk.StringVar(self.gui_elements['root'], value=gcm.batch_input_folder)
 
     def _create_widgets(self):
         """Create the widgets for the main settings tab."""
@@ -46,22 +46,41 @@ class MainSettingsFrame(ttk.Frame):
         folders_frame = tk.LabelFrame(left_column, text="Folders", padx=10, pady=5)
         folders_frame.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
         folders_frame.grid_columnconfigure(1, weight=1) # Allow entry to expand
+        folders_frame.grid_columnconfigure(2, weight=0) # For buttons
 
+        # Input Folder
         tk.Label(folders_frame, text="Input Folder:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         entry_input_folder = tk.Entry(folders_frame, width=30)
         self.gui_elements['entry_input_folder'] = entry_input_folder
         entry_input_folder.insert(0, gcm.input_folder)
         entry_input_folder.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        browse_input_button = tk.Button(folders_frame, text="Browse", command=self._browse_input_folder)
+        browse_input_button.grid(row=0, column=2, padx=5, pady=5)
 
+        # Template Folder
         tk.Label(folders_frame, text="Template Folder:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
         entry_template_folder = tk.Entry(folders_frame, width=30)
         self.gui_elements['entry_template_folder'] = entry_template_folder
         entry_template_folder.insert(0, gcm.template_folder)
         entry_template_folder.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        browse_template_button = tk.Button(folders_frame, text="Browse", command=self._browse_template_folder)
+        browse_template_button.grid(row=1, column=2, padx=5, pady=5)
 
-        # Video Duration Section (Left Column)
+        # Batch Input Folder (moved from separate frame)
+        tk.Label(folders_frame, text="Batch Input Folder:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        entry_batch_folder = tk.Entry(folders_frame, textvariable=self.gui_elements['var_batch_input_folder'], width=30)
+        entry_batch_folder.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        self.gui_elements['entry_batch_folder'] = entry_batch_folder
+        
+        browse_batch_button = tk.Button(folders_frame, text="Browse", command=self._browse_batch_folder)
+        browse_batch_button.grid(row=2, column=2, padx=5, pady=5)
+        
+        clear_batch_button = tk.Button(folders_frame, text="Clear Batch", command=self._clear_batch_folder)
+        clear_batch_button.grid(row=3, column=2, padx=5, pady=5) # Placed below batch browse button
+
+        # Video Duration Section (Left Column) - This frame's grid row needs to be updated
         duration_frame = tk.LabelFrame(left_column, text="Video Duration", padx=10, pady=5)
-        duration_frame.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
+        duration_frame.grid(row=1, column=0, padx=10, pady=5, sticky="ew") # Updated row from 1 to 2
         duration_frame.grid_columnconfigure(1, weight=1) # Allow entry to expand
 
         tk.Label(duration_frame, text="Segment Duration:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -86,22 +105,6 @@ class MainSettingsFrame(ttk.Frame):
         entry_fps = tk.Entry(duration_frame, textvariable=self.gui_elements['var_fps'], width=30)
         entry_fps.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
         self.gui_elements['entry_fps'] = entry_fps # Add to gui_elements
-
-        # Batch Processing Section (Left Column, below Folders and Duration)
-        batch_frame = tk.LabelFrame(left_column, text="Batch Processing", padx=10, pady=5)
-        batch_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
-        batch_frame.grid_columnconfigure(1, weight=1) # Allow entry to expand
-
-        tk.Label(batch_frame, text="Batch Input Folder:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        entry_batch_folder = tk.Entry(batch_frame, textvariable=self.gui_elements['var_batch_input_folder'], width=30)
-        entry_batch_folder.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        self.gui_elements['entry_batch_folder'] = entry_batch_folder # Add to gui_elements
-        
-        browse_batch_button = tk.Button(batch_frame, text="Browse", command=self._browse_batch_folder)
-        browse_batch_button.grid(row=0, column=2, padx=5, pady=5)
-        
-        clear_batch_button = tk.Button(batch_frame, text="Clear Batch", command=self._clear_batch_folder)
-        clear_batch_button.grid(row=1, column=2, padx=5, pady=5)
 
 
         # Sound/Audio Section (Right Column)
@@ -154,6 +157,7 @@ class MainSettingsFrame(ttk.Frame):
             'video_orientation': self.gui_elements['var_video_orientation'].get(),
             'blur': self.gui_elements['var_add_blur'].get(),
             'vo_delay': self.gui_elements['entry_voiceover_delay'].get(),
+            'batch_input_folder': self.gui_elements['var_batch_input_folder'].get(), # Added batch input folder
         }
         return settings
 
@@ -177,3 +181,17 @@ class MainSettingsFrame(ttk.Frame):
         self.gui_elements['entry_input_folder'].config(state=tk.NORMAL)
         self.gui_elements['entry_input_folder'].delete(0, tk.END)
         self.gui_elements['entry_input_folder'].insert(0, gcm.input_folder)
+
+    def _browse_input_folder(self):
+        """Browse for input folder."""
+        folder_selected = filedialog.askdirectory()
+        if folder_selected:
+            self.gui_elements['entry_input_folder'].delete(0, tk.END)
+            self.gui_elements['entry_input_folder'].insert(0, folder_selected)
+
+    def _browse_template_folder(self):
+        """Browse for template folder."""
+        folder_selected = filedialog.askdirectory()
+        if folder_selected:
+            self.gui_elements['entry_template_folder'].delete(0, tk.END)
+            self.gui_elements['entry_template_folder'].insert(0, folder_selected)

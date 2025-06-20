@@ -8,7 +8,7 @@
     - ✅ Video splitting into segments of configurable duration
     - ✅ Aspect ratio validation (16:9 requirement)
     - ✅ Automatic removal of videos shorter than specified duration
-    - ✅ Support for both vertical (9:16) and horizontal (16:9) output formats
+    - ✅ Support for both vertical (9:16) and horizontal (16:16) output formats
 
 2.  **Image Processing**
     - ✅ Image resizing to target dimensions
@@ -65,6 +65,7 @@
     - **✅ Integrated new ASS subtitle style parameters into `videocutter/config_manager.py` and `videocutter/utils/gui_config_manager.py`.**
     - **✅ Added GUI widgets for all new ASS subtitle style parameters in `gui.py` and updated `_collect_gui_settings`.**
     - **✅ Adjusted the layout of the "Subtitles" tab in `gui.py` by adding `rowspan=2` to the "Basic Subtitle Settings" frame to prevent content cutting and improve vertical spacing.**
+    - ✅ Fixed Pylance warnings in `videocutter/processing/subtitle_generator.py` related to undefined `time_offset` variable.
 
 ### Documentation
 
@@ -273,6 +274,10 @@ A **major refactoring is actively underway**, transitioning from a collection of
     - ✅ **Moved batch processing frame from `gui.py` to `videocutter/gui/main_settings_frame.py`.**
     - ✅ **Removed `_create_batch_frame` from `gui.py` and adjusted `_create_top_controls` accordingly.**
     - ✅ **Re-added "START" and "EXIT" buttons to the `_create_top_controls` method in `gui.py`.**
+
+### Bug Fixes
+
+- ✅ **Fixed `AttributeError: 'dict' object has no attribute 'text'` in `content/youtube_handler.py`**: Modified `search_videos` and `get_channel_videos` methods to directly extract the 'text' from the transcript dictionaries returned by `YouTubeTranscriptApi.get_transcript`, instead of relying on `youtube_transcript_api.formatters.TextFormatter`. Removed the unused `TextFormatter` import and instantiation.
 
 ### FFmpeg Integration
 

@@ -172,6 +172,63 @@ VideoCutter follows a modular architecture with a clear separation of concerns, 
 │ ├─ GUIConfigManager             │
 │ └─ TitleSettingsFrame           │
 └─────────────────────────────────┘
+
+## Content Module Architecture
+
+This section details the architecture of the `content/` module, which focuses on YouTube video processing, transcript handling, image searching, and voiceover generation.
+
+```
++-----------------------------------------------------------------+
+| content/main.py                                                 |
+| (Orchestrates video processing pipeline: fetches videos,        |
+|  rewrites transcripts, finds images, generates voiceovers)      |
++-----------------------------------------------------------------+
+             |
+             | Calls methods from:
+             v
++-----------------------------------------------------------------+
+| content/youtube_handler.py                                      |
+| (Handles YouTube video search, channel video retrieval,         |
+|  and transcript fetching using Selenium and YouTube Transcript API) |
++-----------------------------------------------------------------+
+             |
+             | Passes data to:
+             v
++-----------------------------------------------------------------+
+| content/transcript_processor.py                                 |
+| (Rewrites video transcripts using AI and extracts keywords      |
+|  for image searching)                                           |
++-----------------------------------------------------------------+
+             |
+             | Passes keywords to:
+             v
++-----------------------------------------------------------------+
+| content/image_searcher.py                                       |
+| (Searches and downloads relevant images and short videos        |
+|  based on extracted keywords)                                   |
++-----------------------------------------------------------------+
+             |
+             | Passes rewritten text to:
+             v
++-----------------------------------------------------------------+
+| content/voice_generator.py                                      |
+| (Generates natural-sounding voiceovers from rewritten text)     |
++-----------------------------------------------------------------+
+             |
+             | Utilizes:
+             v
++-----------------------------------------------------------------+
+| content/config.py                                               |
+| (Manages application-wide configuration settings and paths)     |
++-----------------------------------------------------------------+
+             |
+             | Utilizes:
+             v
++-----------------------------------------------------------------+
+| content/utils/logger_config.py                                  |
+| (Sets up and configures logging for the entire application)     |
++-----------------------------------------------------------------+
+```
 ```
 
 ## Key Technologies

@@ -5,6 +5,9 @@ import subprocess
 import os
 import shutil # For cleaning up temp files
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Assuming video_processor contains get_video_duration or similar
 from .video_processor import get_video_duration # This is for VIDEO duration
@@ -20,7 +23,7 @@ def get_mp3_duration(file_path: str) -> float | None:
         audio = MP3(file_path)
         return audio.info.length
     except Exception as e:
-        print(f"Could not determine audio duration for {file_path} using mutagen: {e}")
+        logger.error(f"Could not determine audio duration for {file_path} using mutagen: {e}")
         # Fallback to ffprobe format duration if mutagen fails
         try:
             cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", file_path]
@@ -29,9 +32,9 @@ def get_mp3_duration(file_path: str) -> float | None:
                 metadata = json.loads(result.stdout)
                 if metadata.get("format", {}).get("duration"):
                     return float(metadata["format"]["duration"])
-            print(f"ffprobe fallback for duration of {file_path} also failed.")
+            logger.error(f"ffprobe fallback for duration of {file_path} also failed.")
         except Exception as fe:
-            print(f"ffprobe fallback for duration of {file_path} failed: {fe}")
+            logger.error(f"ffprobe fallback for duration of {file_path} failed: {fe}")
         return None
 
 def process_audio(
@@ -68,8 +71,8 @@ def process_audio(
     Returns:
         str | None: Path to the output video with audio, or None on failure.
     """
-    print(f"Processing audio for {base_video_path}...")
-    print(f"Working directory for audio processing: {working_directory}")
+    logger.info(f"Processing audio for {base_video_path}...")
+    logger.info(f"Working directory for audio processing: {working_directory}")
     
     audio_cfg = config.get('audio', {})
     # Resolve template_folder to an absolute path if it's relative
@@ -83,7 +86,7 @@ def process_audio(
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         template_folder_path = os.path.join(project_root, template_folder_path)
     
-    print(f"Using template folder for audio: {template_folder_path}")
+    logger.info(f"Using template folder for audio: {template_folder_path}")
 
     soundtrack_path = os.path.join(template_folder_path, 'soundtrack.mp3')
     base_transition_500ms_path = os.path.join(template_folder_path, 'transition_500ms.mp3') # New base transition sound
@@ -111,15 +114,15 @@ def process_audio(
     try:
         video_duration = get_video_duration(base_video_path)
         if video_duration is None or video_duration <= 0: # Added check for <= 0
-            print(f"Could not get valid duration for {base_video_path} (duration: {video_duration}). Aborting audio processing.")
+            logger.error(f"Could not get valid duration for {base_video_path} (duration: {video_duration}). Aborting audio processing.")
             return None
-        print(f"Base video duration for audio processing: {video_duration:.2f}s")
+        logger.info(f"Base video duration for audio processing: {video_duration:.2f}s")
 
         # Verify template files exist
         required_templates = [soundtrack_path, base_transition_500ms_path, voiceover_end_path]
         for t_path in required_templates:
             if not os.path.exists(t_path):
-                print(f"Error: Required audio template not found: {t_path}. Aborting audio processing.")
+                logger.error(f"Error: Required audio template not found: {t_path}. Aborting audio processing.")
                 return None
 
         # 1. Prepare Soundtrack
@@ -130,7 +133,7 @@ def process_audio(
             '-q:a', '0', '-ac', '2', soundtrack_adj_path
         ]
         subprocess.run(cmd_soundtrack, check=True)
-        print(f"1. Soundtrack prepared: {soundtrack_adj_path}")
+        logger.info(f"1. Soundtrack prepared: {soundtrack_adj_path}")
 
         # 2. Prepare Individual Transition Sounds and Calculate their Offsets
         num_transitions_needed = max(0, num_slides - 1)
@@ -165,13 +168,13 @@ def process_audio(
                 # For all other segments, assume slide_duration
                 current_cumulative_duration = current_cumulative_duration + slide_duration - transition_duration
         
-        print(f"2. Calculated {len(transition_audio_inputs)} transition audio offsets.")
+        logger.info(f"2. Calculated {len(transition_audio_inputs)} transition audio offsets.")
 
         if not os.path.exists(voiceover_path):
-            print(f"Voiceover file not found at {voiceover_path}. Proceeding without voiceover.")
+            logger.info(f"Voiceover file not found at {voiceover_path}. Proceeding without voiceover.")
             # If no voiceover, the compressed soundtrack is just the adjusted soundtrack
             shutil.copy(soundtrack_adj_path, compressed_final_soundtrack_path)
-            print("Skipped voiceover processing steps as voiceover.mp3 not found.")
+            logger.info("Skipped voiceover processing steps as voiceover.mp3 not found.")
         else:
             # 3. Prepare Main Voiceover (add initial delay)
             cmd_vo_delay = [
@@ -182,15 +185,15 @@ def process_audio(
                 '-ac', '2', vo_adj_path
             ]
             subprocess.run(cmd_vo_delay, check=True)
-            print(f"3. Main voiceover initial delay added: {vo_adj_path}")
+            logger.info(f"3. Main voiceover initial delay added: {vo_adj_path}")
 
             # 4. Pad Main Voiceover with silence at the end
             vo_adj_duration = get_mp3_duration(vo_adj_path) # Use get_mp3_duration for audio file
             if vo_adj_duration is None: 
-                print(f"Error: Could not get duration for adjusted voiceover {vo_adj_path}. Aborting audio processing for voiceover.")
+                logger.error(f"Error: Could not get duration for adjusted voiceover {vo_adj_path}. Aborting audio processing for voiceover.")
                 # Fallback: treat as if no voiceover, copy soundtrack_adj to compressed_final_soundtrack
                 shutil.copy(soundtrack_adj_path, compressed_final_soundtrack_path)
-                print("Skipped further voiceover processing due to duration error.")
+                logger.info("Skipped further voiceover processing due to duration error.")
                 # Jump to step 8 (mix with transitions)
             else:
                 main_vo_silence_needed = video_duration - vo_adj_duration
@@ -204,7 +207,7 @@ def process_audio(
                 '-ac', '2', vo_long_adj_path
             ]
             subprocess.run(cmd_vo_pad, check=True)
-            print(f"4. Main voiceover padded: {vo_long_adj_path}")
+            logger.info(f"4. Main voiceover padded: {vo_long_adj_path}")
 
             # 5. Sidechain Compress Soundtrack with Main Voiceover
             sc_ratio = audio_cfg.get('sidechain_ratio', 3)
@@ -218,7 +221,7 @@ def process_audio(
                 '-map', '[aout]', '-q:a', '0', '-ac', '2', compressed_main_soundtrack_path
             ]
             subprocess.run(cmd_sc_main, check=True)
-            print(f"5. Soundtrack compressed with main voiceover: {compressed_main_soundtrack_path}")
+            logger.info(f"5. Soundtrack compressed with main voiceover: {compressed_main_soundtrack_path}")
 
             # 6. Prepare End Voiceover (add initial silence)
             vo_end_silence_needed = video_duration - audio_cfg.get('outro_duration', 14) 
@@ -232,7 +235,7 @@ def process_audio(
                 '-ac', '2', vo_end_long_path
             ]
             subprocess.run(cmd_vo_end_delay, check=True)
-            print(f"6. End voiceover prepared: {vo_end_long_path}")
+            logger.info(f"6. End voiceover prepared: {vo_end_long_path}")
 
             # 7. Sidechain Compress (Main Compressed) Soundtrack with End Voiceover
             cmd_sc_end = [
@@ -242,19 +245,19 @@ def process_audio(
                 '-map', '[aout]', '-q:a', '0', '-ac', '2', compressed_final_soundtrack_path
             ]
             subprocess.run(cmd_sc_end, check=True)
-            print(f"7. Soundtrack compressed with end voiceover: {compressed_final_soundtrack_path}")
+            logger.info(f"7. Soundtrack compressed with end voiceover: {compressed_final_soundtrack_path}")
         # End of "if os.path.exists(voiceover_path):" else block
         
         # 8. Mix Final Compressed Soundtrack with Transitions
         # Ensure compressed_final_soundtrack_path exists (it would if voiceover processing was skipped)
         if not os.path.exists(compressed_final_soundtrack_path):
-            print(f"Error: {compressed_final_soundtrack_path} not found before final mix. This shouldn't happen.")
+            logger.error(f"Error: {compressed_final_soundtrack_path} not found before final mix. This shouldn't happen.")
             # As a fallback, try to use the adjusted_soundtrack if voiceover processing failed catastrophically
             if os.path.exists(soundtrack_adj_path):
                 compressed_final_soundtrack_path = soundtrack_adj_path
-                print(f"Fallback: Using {soundtrack_adj_path} for final mix.")
+                logger.warning(f"Fallback: Using {soundtrack_adj_path} for final mix.")
             else:
-                print("Cannot proceed with final audio mix, essential soundtrack component missing.")
+                logger.error("Cannot proceed with final audio mix, essential soundtrack component missing.")
                 return None
 
         vol_main = audio_cfg.get('final_mix_main_volume', 2.0)
@@ -307,7 +310,7 @@ def process_audio(
             mixed_final_audio_path
         ]
         subprocess.run(cmd_mix_final, check=True)
-        print(f"8. Final audio mixed: {mixed_final_audio_path}")
+        logger.info(f"8. Final audio mixed: {mixed_final_audio_path}")
 
         # 9. Combine Video with Final Mixed Audio
         cmd_combine = [
@@ -318,16 +321,16 @@ def process_audio(
             output_video_with_audio_path
         ]
         subprocess.run(cmd_combine, check=True)
-        print(f"9. Final video with audio created: {output_video_with_audio_path}")
+        logger.info(f"9. Final video with audio created: {output_video_with_audio_path}")
         
         return output_video_with_audio_path
 
     except subprocess.CalledProcessError as e:
-        print(f"Error during audio processing: {e}")
-        print(f"Command that failed: {' '.join(e.cmd)}")
+        logger.error(f"Error during audio processing: {e}")
+        logger.error(f"Command that failed: {' '.join(e.cmd)}")
         return None
     except Exception as e:
-        print(f"An unexpected error occurred during audio processing: {e}")
+        logger.error(f"An unexpected error occurred during audio processing: {e}")
         return None
     finally:
         # Clean up intermediate files
@@ -335,13 +338,13 @@ def process_audio(
             if os.path.exists(f_path):
                 try:
                     # os.remove(f_path)
-                    print(f"Cleaned up intermediate file: {f_path}")
+                    logger.info(f"Cleaned up intermediate file: {f_path}")
                 except OSError as e:
-                    print(f"Error cleaning up intermediate file {f_path}: {e}")
+                    logger.error(f"Error cleaning up intermediate file {f_path}: {e}")
 
 
 if __name__ == "__main__":
-    print("audio_processor.py executed directly (for testing).")
+    logger.info("audio_processor.py executed directly (for testing).")
     # Example usage (requires a base video, template audio files, and a config dict)
     # mock_config_audio = {
     #     'audio': {
@@ -364,8 +367,8 @@ if __name__ == "__main__":
     # #     test_work_dir
     # # )
     # # if result:
-    # #     print(f"Audio processing test successful: {result}")
+    # #     logger.info(f"Audio processing test successful: {result}")
     # # else:
-    # #     print("Audio processing test failed.")
+    # #     logger.info("Audio processing test failed.")
     # # if os.path.exists(test_work_dir): shutil.rmtree(test_work_dir)
-    print("Audio processor test placeholder finished.")
+    logger.info("Audio processor test placeholder finished.")

@@ -1,0 +1,11 @@
+youtube-transcript-api==0.6.0
+openai
+requests
+nltk
+edge-tts
+selenium
+python-dotenv
+pathlib
+librosa
+soundfile
+numpy

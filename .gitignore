@@ -25,6 +25,7 @@ var/
 # Virtual Environment
 venv/
 venv_new/
+venv_rvc/
 ENV/
 env/
 
@@ -108,3 +109,9 @@ VoiceProxy/Base.xlsx
 VoiceProxy/README.md
 VoiceProxy/VOICE_Proxy.py
 VoiceProxy/Voice.py
+
+rvc-cli/
+SpeechCraft/
+GPT-SoVITS/
+voices/
+content/.env

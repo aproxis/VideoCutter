@@ -36,7 +36,7 @@ class SubtitleSettingsFrame(ttk.Frame):
         self.gui_elements['default_subtitle_shadow'] = gcm.subtitle_shadow
         
         # Create subtitle variables
-        self.gui_elements['var_generate_srt'] = tk.BooleanVar(value=gcm.generate_srt)
+        self.gui_elements['var_enable_subtitles'] = tk.BooleanVar(value=gcm.enable_subtitles)
         self.gui_elements['var_subtitle_font'] = tk.StringVar(self.gui_elements['root'], value=gcm.subtitle_font)
         self.gui_elements['var_subtitle_fontsize'] = tk.IntVar(self.gui_elements['root'], value=gcm.subtitle_fontsize)
         self.gui_elements['var_subtitle_fontcolor'] = tk.StringVar(self.gui_elements['root'], value=gcm.subtitle_fontcolor)
@@ -46,6 +46,7 @@ class SubtitleSettingsFrame(ttk.Frame):
         self.gui_elements['var_subtitle_outline'] = tk.DoubleVar(self.gui_elements['root'], value=gcm.subtitle_outline)
         self.gui_elements['var_subtitle_outlinecolor'] = tk.StringVar(self.gui_elements['root'], value=gcm.subtitle_outlinecolor)
         self.gui_elements['var_subtitle_shadow'] = tk.BooleanVar(self.gui_elements['root'], value=gcm.subtitle_shadow)
+        self.gui_elements['var_punctuation_fix_enabled'] = tk.BooleanVar(self.gui_elements['root'], value=gcm.punctuation_fix_enabled)
         self.gui_elements['var_subtitle_format'] = tk.StringVar(self.gui_elements['root'], value='ass') # Always ASS
 
         # New ASS subtitle style variables
@@ -83,110 +84,116 @@ class SubtitleSettingsFrame(ttk.Frame):
         subtitle_settings_basic.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=10, pady=5)
 
         # Add Enable Subtitles checkbox to subtitle_settings_basic
-        tk.Checkbutton(subtitle_settings_basic, text="Enable Subtitles", variable=self.gui_elements['var_generate_srt'], command=self.toggle_subtitle_controls).grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+        tk.Checkbutton(subtitle_settings_basic, text="Enable Subtitles", variable=self.gui_elements['var_enable_subtitles'], command=self.toggle_subtitle_controls).grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+
+        # Add Punctuation Fix checkbox
+        punctuation_fix_checkbox = tk.Checkbutton(subtitle_settings_basic, text="Punctuation Fix", variable=self.gui_elements['var_punctuation_fix_enabled'], command=lambda: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
+        self.gui_elements['punctuation_fix_checkbox'] = punctuation_fix_checkbox
+        punctuation_fix_checkbox.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="w")
 
         # Subtitle line max width
-        tk.Label(subtitle_settings_basic, text="Characters per line (max):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        entry_subtitle_max_width = tk.Entry(subtitle_settings_basic, width=10) # Adjusted width
-        self.gui_elements['entry_subtitle_max_width'] = entry_subtitle_max_width # Add to gui_elements
+        tk.Label(subtitle_settings_basic, text="Characters per line (max):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        entry_subtitle_max_width = tk.Entry(subtitle_settings_basic, width=10)
+        self.gui_elements['entry_subtitle_max_width'] = entry_subtitle_max_width
         entry_subtitle_max_width.insert(0, gcm.subtitle_maxwidth)
-        entry_subtitle_max_width.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        entry_subtitle_max_width.grid(row=2, column=1, padx=5, pady=5, sticky="w")
         entry_subtitle_max_width.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
 
+
         # Font settings
-        tk.Label(subtitle_settings_basic, text="Font:").grid(row=2, column=0, sticky="w", padx=5, pady=5) # Adjusted row
+        tk.Label(subtitle_settings_basic, text="Font:").grid(row=3, column=0, sticky="w", padx=5, pady=5) # Adjusted row
         font_dropdown = ttk.Combobox(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_font'], values=self.gui_elements['available_fonts'], width=25)
-        self.gui_elements['font_dropdown'] = font_dropdown # Add to gui_elements
-        font_dropdown.grid(row=2, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
-        font_dropdown.bind("<<ComboboxSelected>>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements))) # Use debounced update
+        self.gui_elements['font_dropdown'] = font_dropdown
+        font_dropdown.grid(row=3, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
+        font_dropdown.bind("<<ComboboxSelected>>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
 
         # Font size with slider and numeric display
         font_size_frame = tk.Frame(subtitle_settings_basic)
-        font_size_frame.grid(row=3, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
+        font_size_frame.grid(row=4, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
 
-        tk.Label(subtitle_settings_basic, text="Font Size:").grid(row=3, column=0, sticky="w", padx=5, pady=5) # Adjusted row
+        tk.Label(subtitle_settings_basic, text="Font Size:").grid(row=4, column=0, sticky="w", padx=5, pady=5) # Adjusted row
         font_size_slider = ttk.Scale(font_size_frame, from_=12, to=150, variable=self.gui_elements['var_subtitle_fontsize'], orient="horizontal")
-        self.gui_elements['font_size_slider'] = font_size_slider # Add to gui_elements
+        self.gui_elements['font_size_slider'] = font_size_slider
         font_size_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        font_size_slider.bind("<ButtonRelease-1>", lambda e: (gui_utils.update_slider_value(self.gui_elements['var_subtitle_fontsize'], self.gui_elements['font_size_value_entry']), gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))) # Use debounced update
+        font_size_slider.bind("<ButtonRelease-1>", lambda e: (gui_utils.update_slider_value(self.gui_elements['var_subtitle_fontsize'], self.gui_elements['font_size_value_entry']), gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements))))
 
         font_size_value_entry = tk.Entry(font_size_frame, width=4)
-        self.gui_elements['font_size_value_entry'] = font_size_value_entry # Add to gui_elements
+        self.gui_elements['font_size_value_entry'] = font_size_value_entry
         font_size_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
         font_size_value_entry.insert(0, str(self.gui_elements['var_subtitle_fontsize'].get()))
         font_size_value_entry.bind("<Return>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['font_size_value_entry'], self.gui_elements['var_subtitle_fontsize'], self.gui_elements['font_size_slider'], 12, 150, self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
         font_size_value_entry.bind("<FocusOut>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['font_size_value_entry'], self.gui_elements['var_subtitle_fontsize'], self.gui_elements['font_size_slider'], 12, 150, self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
 
-        tk.Label(subtitle_settings_basic, text="Text Color:").grid(row=4, column=0, padx=5, pady=5, sticky="w") # Adjusted row
+        tk.Label(subtitle_settings_basic, text="Text Color:").grid(row=5, column=0, padx=5, pady=5, sticky="w") # Adjusted row
         text_color_entry = tk.Entry(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_fontcolor'], width=10)
-        self.gui_elements['text_color_entry'] = text_color_entry # Add to gui_elements
-        text_color_entry.grid(row=4, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-        text_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements))) # Use debounced update
+        self.gui_elements['text_color_entry'] = text_color_entry
+        text_color_entry.grid(row=5, column=1, sticky="w", padx=5, pady=5) # Adjusted row
+        text_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
 
         # Secondary Color
-        tk.Label(subtitle_settings_basic, text="Secondary Color:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
+        tk.Label(subtitle_settings_basic, text="Secondary Color:").grid(row=6, column=0, padx=5, pady=5, sticky="w") # Adjusted row
         secondary_color_entry = tk.Entry(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_secondary_color'], width=10)
         self.gui_elements['secondary_color_entry'] = secondary_color_entry
-        secondary_color_entry.grid(row=5, column=1, sticky="w", padx=5, pady=5)
+        secondary_color_entry.grid(row=6, column=1, sticky="w", padx=5, pady=5) # Adjusted row
         secondary_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
 
         # Outline thickness with slider and numeric display
         outline_frame = tk.Frame(subtitle_settings_basic)
-        outline_frame.grid(row=6, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
+        outline_frame.grid(row=7, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
 
-        tk.Label(subtitle_settings_basic, text="Outline Thickness:").grid(row=6, column=0, padx=5, pady=5, sticky="w") # Adjusted row
+        tk.Label(subtitle_settings_basic, text="Outline Thickness:").grid(row=7, column=0, padx=5, pady=5, sticky="w") # Adjusted row
         outline_slider = ttk.Scale(outline_frame, from_=0, to=4, variable=self.gui_elements['var_subtitle_outline'], orient="horizontal")
-        self.gui_elements['outline_slider'] = outline_slider # Add to gui_elements
+        self.gui_elements['outline_slider'] = outline_slider
         outline_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        outline_slider.bind("<ButtonRelease-1>", lambda e: (gui_utils.update_slider_value(self.gui_elements['var_subtitle_outline'], self.gui_elements['outline_value_entry']), gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))) # Use debounced update
+        outline_slider.bind("<ButtonRelease-1>", lambda e: (gui_utils.update_slider_value(self.gui_elements['var_subtitle_outline'], self.gui_elements['outline_value_entry']), gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements))))
 
         outline_value_entry = tk.Entry(outline_frame, width=4)
-        self.gui_elements['outline_value_entry'] = outline_value_entry # Add to gui_elements
+        self.gui_elements['outline_value_entry'] = outline_value_entry
         outline_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
         outline_value_entry.insert(0, str(self.gui_elements['var_subtitle_outline'].get()))
         outline_value_entry.bind("<Return>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['outline_value_entry'], self.gui_elements['var_subtitle_outline'], self.gui_elements['outline_slider'], 0, 4, self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
         outline_value_entry.bind("<FocusOut>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['outline_value_entry'], self.gui_elements['var_subtitle_outline'], self.gui_elements['outline_slider'], 0, 4, self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
 
-        tk.Label(subtitle_settings_basic, text="Outline Color:").grid(row=7, column=0, padx=5, pady=5, sticky="w") # Adjusted row
+        tk.Label(subtitle_settings_basic, text="Outline Color:").grid(row=8, column=0, padx=5, pady=5, sticky="w") # Adjusted row
         outline_color_entry = tk.Entry(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_outlinecolor'], width=10)
-        self.gui_elements['outline_color_entry'] = outline_color_entry # Add to gui_elements
-        outline_color_entry.grid(row=7, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-        outline_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements))) # Use debounced update
+        self.gui_elements['outline_color_entry'] = outline_color_entry
+        outline_color_entry.grid(row=8, column=1, sticky="w", padx=5, pady=5) # Adjusted row
+        outline_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
 
         # Shadow checkbox
         shadow_frame = tk.Frame(subtitle_settings_basic)
-        shadow_frame.grid(row=8, column=0, columnspan=2, sticky="w", padx=5, pady=5) # Adjusted row
-        shadow_checkbox = tk.Checkbutton(shadow_frame, text="Enable Text Shadow", variable=self.gui_elements['var_subtitle_shadow'], command=self.toggle_subtitle_shadow_controls) # Use debounced update
-        self.gui_elements['shadow_checkbox'] = shadow_checkbox # Add to gui_elements
+        shadow_frame.grid(row=9, column=0, columnspan=2, sticky="w", padx=5, pady=5) # Adjusted row
+        shadow_checkbox = tk.Checkbutton(shadow_frame, text="Enable Text Shadow", variable=self.gui_elements['var_subtitle_shadow'], command=self.toggle_subtitle_shadow_controls)
+        self.gui_elements['shadow_checkbox'] = shadow_checkbox
         shadow_checkbox.pack(anchor="w")
 
-        tk.Label(subtitle_settings_basic, text="Shadow Color:").grid(row=9, column=0, padx=5, pady=5, sticky="w") # Adjusted row
+        tk.Label(subtitle_settings_basic, text="Shadow Color:").grid(row=10, column=0, padx=5, pady=5, sticky="w") # Adjusted row
         bg_color_entry = tk.Entry(subtitle_settings_basic, textvariable=self.gui_elements['var_subtitle_bgcolor'], width=10)
-        self.gui_elements['bg_color_entry'] = bg_color_entry # Add to gui_elements
-        bg_color_entry.grid(row=9, column=1, sticky="w", padx=5, pady=5) # Adjusted row
-        bg_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements))) # Use debounced update
+        self.gui_elements['bg_color_entry'] = bg_color_entry
+        bg_color_entry.grid(row=10, column=1, sticky="w", padx=5, pady=5) # Adjusted row
+        bg_color_entry.bind("<KeyRelease>", lambda e: gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
 
         # Background opacity with slider and numeric display
         bg_opacity_frame = tk.Frame(subtitle_settings_basic)
-        bg_opacity_frame.grid(row=10, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
+        bg_opacity_frame.grid(row=11, column=1, sticky="ew", padx=5, pady=5) # Adjusted row
 
-        tk.Label(subtitle_settings_basic, text="Shadow Opacity:").grid(row=10, column=0, padx=5, pady=5, sticky="w") # Adjusted row
+        tk.Label(subtitle_settings_basic, text="Shadow Opacity:").grid(row=11, column=0, padx=5, pady=5, sticky="w") # Adjusted row
         bg_opacity_slider = ttk.Scale(bg_opacity_frame, from_=0, to=1, variable=self.gui_elements['var_subtitle_bgopacity'], orient="horizontal")
-        self.gui_elements['bg_opacity_slider'] = bg_opacity_slider # Add to gui_elements
+        self.gui_elements['bg_opacity_slider'] = bg_opacity_slider
         bg_opacity_slider.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        bg_opacity_slider.bind("<ButtonRelease-1>", lambda e: (gui_utils.update_slider_value(self.gui_elements['var_subtitle_bgopacity'], self.gui_elements['bg_opacity_value_entry']), gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))) # Use debounced update
+        bg_opacity_slider.bind("<ButtonRelease-1>", lambda e: (gui_utils.update_slider_value(self.gui_elements['var_subtitle_bgopacity'], self.gui_elements['bg_opacity_value_entry']), gui_utils.schedule_subtitle_preview_update(self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements))))
 
         bg_opacity_value_entry = tk.Entry(bg_opacity_frame, width=4)
-        self.gui_elements['bg_opacity_value_entry'] = bg_opacity_value_entry # Add to gui_elements
+        self.gui_elements['bg_opacity_value_entry'] = bg_opacity_value_entry
         bg_opacity_value_entry.pack(side=tk.RIGHT, padx=(5, 0))
         bg_opacity_value_entry.insert(0, str(self.gui_elements['var_subtitle_bgopacity'].get()))
         bg_opacity_value_entry.bind("<Return>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['bg_opacity_value_entry'], self.gui_elements['var_subtitle_bgopacity'], self.gui_elements['bg_opacity_slider'], 0, 1, self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
         bg_opacity_value_entry.bind("<FocusOut>", lambda e: gui_utils.update_slider_from_entry(self.gui_elements['bg_opacity_value_entry'], self.gui_elements['var_subtitle_bgopacity'], self.gui_elements['bg_opacity_slider'], 0, 1, self.gui_elements['root'], lambda: gui_utils.update_subtitle_preview(self.gui_elements)))
 
         # Position selection
-        tk.Label(subtitle_settings_basic, text="Position:").grid(row=11, column=0, padx=5, pady=5, sticky="w") # Adjusted row
+        tk.Label(subtitle_settings_basic, text="Position:").grid(row=12, column=0, padx=5, pady=5, sticky="w") # Adjusted row
         position_frame = tk.Frame(subtitle_settings_basic)
-        position_frame.grid(row=11, column=1, sticky="w", padx=5, pady=5) # Adjusted row
+        position_frame.grid(row=12, column=1, sticky="w", padx=5, pady=5) # Adjusted row
 
         # Create a frame for the 9 radio buttons
         position_grid_frame = tk.Frame(position_frame)
@@ -317,7 +324,7 @@ class SubtitleSettingsFrame(ttk.Frame):
 
     def toggle_subtitle_controls(self, *args):
         """Toggle subtitle controls based on enable_subtitles checkbox"""
-        state = tk.NORMAL if self.gui_elements['var_generate_srt'].get() else tk.DISABLED
+        state = tk.NORMAL if self.gui_elements['var_enable_subtitles'].get() else tk.DISABLED
         
         controls = [
             'entry_subtitle_max_width',
@@ -330,6 +337,7 @@ class SubtitleSettingsFrame(ttk.Frame):
             'outline_value_entry',
             'outline_color_entry',
             'shadow_checkbox',
+            'punctuation_fix_checkbox', # Add new checkbox to controls
             'bg_color_entry',
             'bg_opacity_slider',
             'bg_opacity_value_entry',
@@ -368,7 +376,7 @@ class SubtitleSettingsFrame(ttk.Frame):
     def toggle_subtitle_shadow_controls(self, *args):
         """Toggle shadow color and opacity controls based on shadow checkbox"""
         # Only enable/disable if the main subtitle controls are enabled
-        if self.gui_elements['var_generate_srt'].get():
+        if self.gui_elements['var_enable_subtitles'].get():
             state = tk.NORMAL if self.gui_elements['var_subtitle_shadow'].get() else tk.DISABLED
         else:
             state = tk.DISABLED # If subtitles are disabled, shadow controls are always disabled

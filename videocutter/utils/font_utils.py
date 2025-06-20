@@ -2,7 +2,10 @@
 # Utility functions for font-related operations.
 
 import os
+import logging
 from fontTools.ttLib import TTFont
+
+logger = logging.getLogger(__name__)
 
 def get_font_name(font_path):
     """
@@ -38,7 +41,7 @@ def get_font_name(font_path):
             if name: return name
 
     except Exception as e:
-        print(f"Error extracting font name from {font_path}: {e}")
+        logger.error(f"Error extracting font name from {font_path}: {e}")
     
     # Fallback to filename without extension if no name could be extracted
     return os.path.basename(font_path).split('.')[0]
@@ -52,7 +55,7 @@ if __name__ == "__main__":
     # test_font_path = "path/to/your/font.otf" 
     # if os.path.exists(test_font_path):
     #     font_name = get_font_name(test_font_path)
-    #     print(f"Extracted font name: {font_name}")
+    #     logger.info(f"Extracted font name: {font_name}")
     # else:
-    #     print(f"Test font file not found at {test_font_path}. Skipping example.")
-    print("font_utils.py executed directly (for testing).")
+    #     logger.info(f"Test font file not found at {test_font_path}. Skipping example.")
+    logger.info("font_utils.py executed directly (for testing).")

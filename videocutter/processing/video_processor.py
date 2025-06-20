@@ -9,6 +9,9 @@ from PIL import Image, ImageFilter, ImageDraw
 
 # --- Video Utilities ---
 
+import logging
+logger = logging.getLogger(__name__)
+
 def get_video_metadata(video_path: str) -> dict | None:
     """Gets video metadata (width, height, duration) using ffprobe, focusing on stream data."""
     try:
@@ -18,22 +21,22 @@ def get_video_metadata(video_path: str) -> dict | None:
             "-show_entries", "stream=width,height,duration,r_frame_rate,avg_frame_rate", # Get duration from stream
             "-of", "json", video_path
         ]
-        # print(f"Executing ffprobe for metadata: {' '.join(cmd)}") # For debugging
+        # logger.debug(f"Executing ffprobe for metadata: {' '.join(cmd)}") # For debugging
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
-            print(f"ffprobe for {video_path} failed with exit code {result.returncode}")
-            print(f"ffprobe stderr: {result.stderr}")
+            logger.error(f"ffprobe for {video_path} failed with exit code {result.returncode}")
+            logger.error(f"ffprobe stderr: {result.stderr}")
             return None
         
         if not result.stdout:
-            print(f"ffprobe for {video_path} produced no output.")
+            logger.error(f"ffprobe for {video_path} produced no output.")
             return None
             
         metadata = json.loads(result.stdout)
         
         if not metadata.get("streams") or not metadata["streams"][0]:
-            print(f"No video stream data found in ffprobe JSON output for {video_path}")
+            logger.error(f"No video stream data found in ffprobe JSON output for {video_path}")
             # Fallback: try to get format duration if stream duration is missing
             cmd_format_duration = [
                 "ffprobe", "-v", "error",
@@ -44,7 +47,7 @@ def get_video_metadata(video_path: str) -> dict | None:
             if result_format.returncode == 0 and result_format.stdout:
                 format_meta = json.loads(result_format.stdout)
                 if format_meta.get("format", {}).get("duration"):
-                     print(f"Using format duration for {video_path} as stream duration was not found.")
+                     logger.info(f"Using format duration for {video_path} as stream duration was not found.")
                      # We don't have width/height here, so this is only partial.
                      # This function primarily needs width/height for video processing.
                      # For now, if stream info is missing, we can't proceed with width/height dependent ops.
@@ -82,9 +85,9 @@ def get_video_metadata(video_path: str) -> dict | None:
             "avg_frame_rate": avg_frame_rate
         }
     except json.JSONDecodeError:
-        print(f"Error decoding JSON from ffprobe output for {video_path}. Output: {result.stdout}")
+        logger.error(f"Error decoding JSON from ffprobe output for {video_path}. Output: {result.stdout}")
     except Exception as e:
-        print(f"An unexpected error occurred while getting metadata for {video_path}: {e}")
+        logger.error(f"An unexpected error occurred while getting metadata for {video_path}: {e}")
     return None
 
 def get_video_duration(video_path: str) -> float | None:
@@ -104,16 +107,16 @@ def split_video_into_segments(input_file: str, output_prefix: str, segment_durat
             f"-sc_threshold 0 -force_key_frames expr:gte\(t,n_forced*{segment_duration}\) "
             f"-f segment -reset_timestamps 1 \"{output_prefix}%03d.mp4\""  # Using %03d for 3-digit padding
         )
-        print(f"Executing split: {cmd}")
+        logger.debug(f"Executing split: {cmd}")
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in iter(process.stdout.readline, b''):
-            print(line.decode().strip())
+            logger.debug(line.decode().strip())
         process.wait()
         if process.returncode != 0:
             raise Exception(f"FFmpeg split failed for {input_file} with exit code {process.returncode}")
-        print(f"Successfully split {input_file} into segments with prefix {output_prefix}")
+        logger.info(f"Successfully split {input_file} into segments with prefix {output_prefix}")
     except Exception as e:
-        print(f"Failed to split video {input_file}: {e}")
+        logger.error(f"Failed to split video {input_file}: {e}")
 
 def convert_to_horizontal_with_blur_bg(input_path: str, output_path: str, target_output_height: int = 1080, apply_blur: bool = True):
     """
@@ -123,24 +126,24 @@ def convert_to_horizontal_with_blur_bg(input_path: str, output_path: str, target
     """
     metadata = get_video_metadata(input_path)
     if not metadata or not metadata.get("width") or not metadata.get("height"):
-        print(f"Could not get dimensions for {input_path}. Skipping conversion.")
+        logger.warning(f"Could not get dimensions for {input_path}. Skipping conversion.")
         return False
 
     original_width = metadata["width"]
     original_height = metadata["height"]
 
     if not original_width or not original_height:
-        print(f"Invalid dimensions from metadata for {input_path}. Skipping conversion.")
+        logger.warning(f"Invalid dimensions from metadata for {input_path}. Skipping conversion.")
         return False
 
     if original_height <= original_width:
-        print(f"{input_path} is not a vertical video. Skipping conversion to horizontal.")
+        logger.info(f"{input_path} is not a vertical video. Skipping conversion to horizontal.")
         if input_path != output_path:
             try:
                 shutil.copy(input_path, output_path)
-                print(f"Copied {input_path} to {output_path} as no conversion needed.")
+                logger.info(f"Copied {input_path} to {output_path} as no conversion needed.")
             except Exception as e:
-                print(f"Error copying {input_path} to {output_path}: {e}")
+                logger.error(f"Error copying {input_path} to {output_path}: {e}")
                 return False
         return False
 
@@ -152,11 +155,11 @@ def convert_to_horizontal_with_blur_bg(input_path: str, output_path: str, target
     filter_complex_parts.append(f"[0:v]scale={scaled_fg_width}:{scaled_fg_height}[fg]")
 
     if apply_blur:
-        print(f"Processing vertical video {input_path} to horizontal format with blur.")
+        logger.info(f"Processing vertical video {input_path} to horizontal format with blur.")
         filter_complex_parts.insert(0, f"[0:v]scale={target_output_width}:{target_output_height},boxblur=20:5[bg]")
         filter_complex_parts.append(f"[bg][fg]overlay=(W-w)/2:(H-h)/2:format=auto[outv]")
     else:
-        print(f"Processing vertical video {input_path} to horizontal format with black padding.")
+        logger.info(f"Processing vertical video {input_path} to horizontal format with black padding.")
         # Pad the 'fg' stream directly
         filter_complex_parts.append(f"[fg]pad={target_output_width}:{target_output_height}:(ow-iw)/2:(oh-ih)/2:color=black[outv]")
 
@@ -170,18 +173,18 @@ def convert_to_horizontal_with_blur_bg(input_path: str, output_path: str, target
         "-map", "[outv]", "-c:v", "libx264", "-crf", "22", "-preset", "medium",
         "-r", "30", "-an", temp_output
     ]
-    print(f"Executing conversion: {' '.join(ffmpeg_cmd_parts)}")
+    logger.debug(f"Executing conversion: {' '.join(ffmpeg_cmd_parts)}")
     try:
         subprocess.run(ffmpeg_cmd_parts, shell=False, check=True)
         shutil.move(temp_output, output_path)
-        print(f"Successfully converted {input_path} to {output_path}")
+        logger.info(f"Successfully converted {input_path} to {output_path}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"Error converting {input_path}: {e}")
+        logger.error(f"Error converting {input_path}: {e}")
         if os.path.exists(temp_output):
             os.remove(temp_output)
     except Exception as e:
-        print(f"An unexpected error occurred during conversion of {input_path}: {e}")
+        logger.error(f"An unexpected error occurred during conversion of {input_path}: {e}")
         if os.path.exists(temp_output):
             os.remove(temp_output)
     return False
@@ -197,7 +200,7 @@ def process_image_for_video(image_path: str, target_final_height: int, target_vi
     try:
         original_image = Image.open(image_path)
         original_width, original_height = original_image.size
-        print(f"Processing image: {image_path} ({original_width}x{original_height}) for {target_video_orientation} output ({target_final_height}p), Blur: {apply_blur}")
+        logger.info(f"Processing image: {image_path} ({original_width}x{original_height}) for {target_video_orientation} output ({target_final_height}p), Blur: {apply_blur}")
 
         is_vertical_image = original_height > original_width
         final_image = None
@@ -330,18 +333,18 @@ def process_image_for_video(image_path: str, target_final_height: int, target_vi
                     x_offset = (target_final_width - scaled_to_fit_height.width) // 2
                     final_image.paste(scaled_to_fit_height, (x_offset, 0))
         else:
-            print(f"Unsupported target_video_orientation: {target_video_orientation}")
+            logger.error(f"Unsupported target_video_orientation: {target_video_orientation}")
             return
 
         if final_image:
             final_image.save(image_path)
-            print(f"Processed and saved image: {image_path}")
+            logger.info(f"Processed and saved image: {image_path}")
         else:
-            print(f"Image processing resulted in no final image for {image_path}")
+            logger.warning(f"Image processing resulted in no final image for {image_path}")
 
 
     except Exception as e:
-        print(f"Error processing image {image_path}: {e}")
+        logger.error(f"Error processing image {image_path}: {e}")
 
 
 # --- Main processing loop (example, to be called by orchestrator) ---
@@ -400,7 +403,7 @@ def clean_short_video_segments(directory_to_clean: str, min_duration_seconds: fl
     # In the final refactored system, the orchestrator would likely get the file list.
     from videocutter.utils.file_utils import find_files_by_extension
 
-    print(f"Cleaning short videos in: {directory_to_clean}, min duration: {min_duration_seconds}s")
+    logger.info(f"Cleaning short videos in: {directory_to_clean}, min duration: {min_duration_seconds}s")
     
     video_files_to_check = find_files_by_extension(directory_to_clean, video_extensions)
     files_to_delete = set()
@@ -410,22 +413,22 @@ def clean_short_video_segments(directory_to_clean: str, min_duration_seconds: fl
         if duration is not None and duration < min_duration_seconds:
             files_to_delete.add(video_file_path)
             if is_dry_run:
-                print(f"[Dry Run] Would delete: {video_file_path} (Duration: {duration:.2f}s)")
+                logger.info(f"[Dry Run] Would delete: {video_file_path} (Duration: {duration:.2f}s)")
         elif duration is None:
-            print(f"Could not determine duration for {video_file_path}. Skipping.")
+            logger.warning(f"Could not determine duration for {video_file_path}. Skipping.")
 
     if not files_to_delete:
-        print("No video files found shorter than the minimum duration.")
+        logger.info("No video files found shorter than the minimum duration.")
         return
 
     if is_dry_run:
-        print(f"\n[Dry Run] Total files that would be deleted: {len(files_to_delete)}")
+        logger.info(f"\n[Dry Run] Total files that would be deleted: {len(files_to_delete)}")
     else:
-        print(f"\nDeleting {len(files_to_delete)} video files shorter than {min_duration_seconds}s...")
+        logger.info(f"\nDeleting {len(files_to_delete)} video files shorter than {min_duration_seconds}s...")
         for file_path in sorted(list(files_to_delete)):
             try:
                 os.unlink(file_path)
-                print(f"Deleted: {file_path}")
+                logger.info(f"Deleted: {file_path}")
                 # Original cleaner.py had logic to remove parent dir if empty.
                 # This can be complex and risky (e.g. if dir is not exclusively for these segments).
                 # Omitting that part for now. Parent directory cleanup can be a separate step if needed.
@@ -433,17 +436,17 @@ def clean_short_video_segments(directory_to_clean: str, min_duration_seconds: fl
                 # if not os.listdir(parent_dir): # Check if directory is empty
                 #     try:
                 #         os.rmdir(parent_dir)
-                #         print(f"Removed empty directory: {parent_dir}")
+                #         logger.error(f"Removed empty directory: {parent_dir}") # Changed to logger.error for consistency
                 #     except OSError as e:
-                #         print(f"Error removing directory {parent_dir}: {e}")
+                #         logger.error(f"Error removing directory {parent_dir}: {e}")
             except OSError as e:
-                print(f"Error deleting file {file_path}: {e}")
-        print("Deletion complete.")
+                logger.error(f"Error deleting file {file_path}: {e}")
+        logger.info("Deletion complete.")
 
 
 if __name__ == "__main__":
-    print("video_processor.py executed directly (for testing).")
-    print("video_processor.py executed directly (for testing).")
+    logger.info("video_processor.py executed directly (for testing).")
+    logger.info("video_processor.py executed directly (for testing).")
     
     # Setup a test directory for clean_short_video_segments
     test_clean_dir = "temp_clean_test_dir"
@@ -462,7 +465,7 @@ if __name__ == "__main__":
     with open(dummy_short_vid, "w") as f: f.write("dummy")
     with open(dummy_long_vid, "w") as f: f.write("dummy")
 
-    print(f"\n--- Testing clean_short_video_segments (Dry Run) ---")
+    logger.info(f"\n--- Testing clean_short_video_segments (Dry Run) ---")
     # Mocking get_video_duration for this test block
     original_get_video_duration = get_video_duration
     def mock_get_video_duration(file_path):
@@ -481,8 +484,8 @@ if __name__ == "__main__":
     # but it will demonstrate the dry_run logic flow.
     clean_short_video_segments(test_clean_dir, min_duration_seconds=5.0, is_dry_run=True)
 
-    # print(f"\n--- Testing clean_short_video_segments (Actual Deletion) ---")
-    # print("Note: This would delete files if get_video_duration could parse them.")
+    # logger.info(f"\n--- Testing clean_short_video_segments (Actual Deletion) ---")
+    # logger.info("Note: This would delete files if get_video_duration could parse them.")
     # clean_short_video_segments(test_clean_dir, min_duration_seconds=5.0, is_dry_run=False)
     
     # Restore original function if it was truly patched (not done effectively here)
@@ -493,4 +496,4 @@ if __name__ == "__main__":
     if os.path.exists(dummy_long_vid): os.remove(dummy_long_vid)
     if os.path.exists(test_clean_dir): os.rmdir(test_clean_dir)
     
-    print("\nVideo_processor.py testing finished.")
+    logger.info("\nVideo_processor.py testing finished.")

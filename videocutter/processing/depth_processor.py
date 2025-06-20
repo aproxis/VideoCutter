@@ -25,6 +25,9 @@ from Broken.Externals.Upscaler import BrokenUpscaler, NoUpscaler
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1" # Should be set once at app start if possible
 
+import logging
+logger = logging.getLogger(__name__)
+
 def _combinations(**options):
     """Helper for generating combinations for DotMap."""
     for combination in itertools.product(*options.values()):
@@ -226,7 +229,7 @@ class ConfigurableDepthManager: # No longer inherits from a local DepthManager
         render_height = self.config.get('depthflow.render_height', 1920) # This is correct, render_height is a depthflow specific setting
         render_fps = self.config.get('fps', 25) # Use top-level fps
         
-        print(f"DepthFlow variants: Requesting time={segment_duration_for_df}s for output (target segment duration {self.config.get('segment_duration', 5)}s)")
+        logger.debug(f"DepthFlow variants: Requesting time={segment_duration_for_df}s for output (target segment duration {self.config.get('segment_duration', 5)}s)")
 
         return DotMap(
             variation=[0], # From original YourManager
@@ -262,7 +265,8 @@ def apply_depth_effects(image_file_paths: List[str], config_params: DotMap) -> L
     Returns:
         List[str]: List of paths to the generated depth video files.
     """
-    print("Applying DepthFlow effects...")
+    # import logging # Already imported at the top
+    logger.info("Applying DepthFlow effects...")
     
     # Convert config_params dict to DotMap for easier access if DepthManager expects it
     # Or adapt DepthManager to use dicts. For now, assuming DotMap is fine.
@@ -295,24 +299,24 @@ def apply_depth_effects(image_file_paths: List[str], config_params: DotMap) -> L
             ) as manager:
             for image_path_obj in image_paths_as_path_obj:
                 if image_path_obj.suffix.lower() in ['.jpg', '.jpeg', '.png']:
-                    print(f"Processing image with DepthFlow: {image_path_obj}")
+                    logger.info(f"Processing image with DepthFlow: {image_path_obj}")
                     # Scene type can also be made configurable if needed
                     manager.parallax(DefaultDepthScene, image_path_obj) 
                 else:
-                    print(f"Skipping non-image file for DepthFlow: {image_path_obj}")
+                    logger.info(f"Skipping non-image file for DepthFlow: {image_path_obj}")
             
             manager.join() # Wait for all threads to complete
             processed_video_paths = [str(p) for p in manager.outputs]
 
     except Exception as e:
-        print(f"An error occurred during DepthFlow processing: {e}")
+        logger.error(f"An error occurred during DepthFlow processing: {e}")
         # Potentially re-raise or handle more gracefully
 
-    print(f"DepthFlow effects application complete. Generated {len(processed_video_paths)} videos.")
+    logger.info(f"DepthFlow effects application complete. Generated {len(processed_video_paths)} videos.")
     return processed_video_paths
 
 if __name__ == "__main__":
-    print("depth_processor.py executed directly (for testing).")
+    logger.info("depth_processor.py executed directly (for testing).")
     # This requires setting up a dummy config and image files.
     # Example (conceptual):
     # test_image_dir = "temp_depth_test_images"
@@ -343,8 +347,8 @@ if __name__ == "__main__":
     # test_images = [os.path.abspath(os.path.join(test_image_dir, "test01.jpg"))]
     # if os.path.exists(test_images[0]): # Check if dummy image was created
     #    generated_videos = apply_depth_effects(test_images, mock_config)
-    #    print(f"Generated videos: {generated_videos}")
+    #    logger.info(f"Generated videos: {generated_videos}")
     # else:
-    #    print(f"Test image {test_images[0]} not found. Skipping apply_depth_effects test.")
+    #    logger.warning(f"Test image {test_images[0]} not found. Skipping apply_depth_effects test.")
     # shutil.rmtree(test_image_dir, ignore_errors=True)
-    print("Depth processor test placeholder finished.")
+    logger.info("Depth processor test placeholder finished.")

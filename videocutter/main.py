@@ -6,6 +6,7 @@ import shutil # For potential cleanup
 from datetime import datetime
 from dotmap import DotMap # Import DotMap for type hinting
 import json
+import logging
 
 # Import a load_config function (assuming it's defined in config_manager.py)
 from .config_manager import load_config 
@@ -13,6 +14,7 @@ from .config_manager import load_config
 # Import utility modules
 from .utils import file_utils
 from .utils import font_utils # Though font_utils might be used more by overlay_compositor
+from .utils.logger_config import setup_logging
 
 # Import processing modules
 from .processing import video_processor
@@ -22,7 +24,7 @@ from .processing import audio_processor
 from .processing import subtitle_generator
 from .processing import overlay_compositor
 
-# Renamed original run_pipeline to specify it's for a single project
+
 def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: DotMap):
     """
     Runs the full VideoCutter processing pipeline for a single project.
@@ -32,10 +34,16 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
         project_input_folder (str): Path to the specific project's input files.
         cfg (DotMap): The fully resolved configuration object for this project.
     """
+    setup_logging(cfg) # Configure logging based on the project's config
+    logger = logging.getLogger("videocutter.main") # Get logger for this module
+    logger.debug(f"DEBUG: Main logger initialized with level: {logger.level} (should be 10 for DEBUG)")
+    # Force subtitle_generator logger to DEBUG as well
+    logging.getLogger("videocutter.processing.subtitle_generator").setLevel(logging.DEBUG)
+
     start_time_project = datetime.now()
-    print(f"\n{'='*20} Starting Project: {project_name} at {start_time_project.strftime('%Y-%m-%d %H:%M:%S')} {'='*20}")
-    print(f"Using Input Folder: {project_input_folder}")
-    # print(f"Effective Config for {project_name}: {cfg}") # For debugging
+    logger.info(f"\n{'='*20} Starting Project: {project_name} at {start_time_project.strftime('%Y-%m-%d %H:%M:%S')} {'='*20}")
+    logger.info(f"Using Input Folder: {project_input_folder}")
+    # logger.debug(f"Effective Config for {project_name}: {cfg}") # For debugging
 
     # Define a temporary directory within the project root for intermediate files
     project_root_dir = os.path.dirname(os.path.abspath(__file__)) # videocutter/
@@ -47,7 +55,7 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     # Directories (RESULT, SOURCE/timestamp) are now created *inside* the project_input_folder
     # The `base_input_folder` for setup_project_directories is now the project_input_folder itself.
     # -------------------------------------------------------------------------
-    print(f"\n--- {project_name} - Phase 1: Initial Setup & File Preparation ---")
+    logger.info(f"\n--- {project_name} - Phase 1: Initial Setup & File Preparation ---")
     
     # result_base_folder becomes project_input_folder/RESULT
     # run_source_backup_folder becomes project_input_folder/SOURCE/datetime_str
@@ -69,7 +77,7 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     work_datetime_folder = os.path.join(result_in_project_folder, run_datetime_str) # This is correct.
     os.makedirs(work_datetime_folder, exist_ok=True) # Ensure this specific folder is created
 
-    print(f"Working directory for {project_name}: {work_datetime_folder}")
+    logger.info(f"Working directory for {project_name}: {work_datetime_folder}")
 
     # Collect initial media files from project_input_folder (top level of it)
     initial_media_files = []
@@ -107,15 +115,15 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
         
         file_utils.backup_original_file(original_path, run_source_backup_folder)
         shutil.copy(original_path, destination_path)
-        print(f"Copied '{original_path}' to staging area '{destination_path}'")
+        logger.debug(f"Copied '{original_path}' to staging area '{destination_path}'")
         
         # Remove from original project_input_folder (top-level) after backup and copy
         try:
             if os.path.dirname(original_path) == project_input_folder: # Only remove if it's at the root of project folder
                 os.remove(original_path)
-                print(f"Removed original from {project_input_folder}: {original_path}")
+                logger.debug(f"Removed original from {project_input_folder}: {original_path}")
         except OSError as e:
-            print(f"Error removing original file {original_path} from {project_input_folder}: {e}")
+            logger.warning(f"Error removing original file {original_path} from {project_input_folder}: {e}")
 
     # Now, organize and rename files from the staging directory into the work_datetime_folder
     # This will apply the renaming rules (001.jpg, voiceover.mp3, original_text.txt etc.)
@@ -127,11 +135,11 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     
     # Clean up the staging directory
     shutil.rmtree(staging_dir)
-    print(f"Cleaned up staging directory: {staging_dir}")
+    logger.info(f"Cleaned up staging directory: {staging_dir}")
 
     # 3. Initial Video & Image Processing (in work_datetime_folder for the current project)
     # -------------------------------------------------------------------------
-    print(f"\n--- {project_name} - Phase 2: Initial Media Processing ---")
+    logger.info(f"\n--- {project_name} - Phase 2: Initial Media Processing ---")
     
     temp_video_files_to_remove = [] 
 
@@ -144,7 +152,7 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     for media_path_in_work_dir in processed_raw_media_paths_in_work_dir:
         filename = os.path.basename(media_path_in_work_dir)
         if any(filename.lower().endswith(ext) for ext in ['.mp4', '.mov', '.avi']):
-            print(f"Processing video for {project_name}: {media_path_in_work_dir}")
+            logger.info(f"Processing video for {project_name}: {media_path_in_work_dir}")
             
             converted_video_path = media_path_in_work_dir 
             if cfg.video_orientation == 'horizontal':
@@ -169,7 +177,7 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
                 temp_video_files_to_remove.append(converted_video_path)
 
         elif any(filename.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
-            print(f"Processing image for {project_name}: {media_path_in_work_dir}")
+            logger.info(f"Processing image for {project_name}: {media_path_in_work_dir}")
             target_h = cfg.get('target_resolution',{}).get('vertical_height', 1920) if cfg.video_orientation == 'vertical' \
                 else cfg.get('target_resolution',{}).get('horizontal_height', 1080)
             apply_blur_for_image = cfg.get('image_options', {}).get('apply_side_blur', False)
@@ -183,13 +191,13 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     for f_path in temp_video_files_to_remove:
         if os.path.exists(f_path):
             os.remove(f_path)
-            print(f"Removed intermediate processed video for {project_name}: {f_path}")
+            logger.debug(f"Removed intermediate processed video for {project_name}: {f_path}")
 
     video_processor.clean_short_video_segments(work_datetime_folder, cfg.segment_duration - 0.5)
 
     # 4. Media List Preparation for Slideshow
     # -------------------------------------------------------------------------
-    print(f"\n--- {project_name} - Phase 3: Preparing Media List for Slideshow ---")
+    logger.info(f"\n--- {project_name} - Phase 3: Preparing Media List for Slideshow ---")
     
     current_media_for_slideshow = file_utils.find_files_by_extension(
         work_datetime_folder, 
@@ -204,14 +212,14 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     if os.path.exists(outro_video_full_path):
         actual_outro_duration = video_processor.get_video_duration(outro_video_full_path)
         if actual_outro_duration is None or actual_outro_duration <= 0:
-            print(f"Warning: Could not get valid duration for outro video {outro_video_full_path}. Using config default: {cfg.outro_duration}s")
+            logger.warning(f"Could not get valid duration for outro video {outro_video_full_path}. Using config default: {cfg.outro_duration}s")
             actual_outro_duration = cfg.outro_duration # Fallback to config if ffprobe fails
         else:
-            print(f"Actual outro video duration: {actual_outro_duration:.2f}s")
+            logger.info(f"Actual outro video duration: {actual_outro_duration:.2f}s")
             # Update cfg.outro_duration so slideshow_generator uses the actual value
             cfg.outro_duration = actual_outro_duration 
     else:
-        print(f"Warning: Outro video {outro_video_full_path} not found. Using config default for outro_duration: {cfg.outro_duration}s")
+        logger.warning(f"Outro video {outro_video_full_path} not found. Using config default for outro_duration: {cfg.outro_duration}s")
         actual_outro_duration = cfg.outro_duration # Use config default if file not found
     
     # Use cfg.slide_duration (which defaults to segment_duration - 1) for limiting media files.
@@ -219,7 +227,7 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     effective_display_time_per_item = cfg.slide_duration
     if effective_display_time_per_item <= 0: 
         effective_display_time_per_item = 1 # Avoid division by zero or negative
-        print(f"Warning: Calculated effective_display_time_per_item was <=0, defaulting to 1s. Check slide_duration and segment_duration config.")
+        logger.warning(f"Calculated effective_display_time_per_item was <=0, defaulting to 1s. Check slide_duration and segment_duration config.")
 
     # Time available for main content (before outro)
     time_for_main_content = cfg.time_limit - actual_outro_duration # Use actual_outro_duration
@@ -236,7 +244,7 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     # 5. DepthFlow Processing (Conditional)
     # -------------------------------------------------------------------------
     if cfg.depthflow.enabled:
-        print(f"\n--- {project_name} - Phase 4: DepthFlow Processing ---")
+        logger.info(f"\n--- {project_name} - Phase 4: DepthFlow Processing ---")
         # Ensure output_datetime_folder is set in cfg for depth_processor logging
         cfg.output_datetime_folder = work_datetime_folder # Pass the current working folder for logs
         
@@ -251,24 +259,24 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
             for img_path in images_to_depthflow: # Remove original images that were depthflowed
                 if os.path.exists(img_path):
                     os.remove(img_path)
-                    print(f"Removed original image after DepthFlow for {project_name}: {img_path}")
+                    logger.debug(f"Removed original image after DepthFlow for {project_name}: {img_path}")
         else:
-            print(f"No images found for DepthFlow processing in {project_name}.")
+            logger.info(f"No images found for DepthFlow processing in {project_name}.")
     
     # 6. Generate Base Slideshow
     # -------------------------------------------------------------------------
-    print(f"\n--- {project_name} - Phase 5: Generating Base Slideshow ---")
+    logger.info(f"\n--- {project_name} - Phase 5: Generating Base Slideshow ---")
     slideshow_base_path = os.path.join(work_datetime_folder, "slideshow_base.mp4")
     
     outro_template_name = 'outro_vertical.mp4' if cfg.video_orientation == 'vertical' else 'outro_horizontal.mp4'
     outro_video_full_path = os.path.join(cfg.template_folder, outro_template_name)
     
     if not os.path.exists(outro_video_full_path):
-        print(f"Error for {project_name}: Outro template video not found at {outro_video_full_path}. Cannot generate slideshow.")
+        logger.error(f"Error for {project_name}: Outro template video not found at {outro_video_full_path}. Cannot generate slideshow.")
         return # Skip this project
 
     if not current_media_for_slideshow:
-        print(f"Error for {project_name}: No media files available for slideshow after filtering/DepthFlow. Skipping.")
+        logger.error(f"Error for {project_name}: No media files available for slideshow after filtering/DepthFlow. Skipping.")
         return
 
     media_for_ffmpeg_slideshow = current_media_for_slideshow + [outro_video_full_path]
@@ -277,43 +285,47 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
         media_for_ffmpeg_slideshow, slideshow_base_path, cfg
     )
     if not slideshow_base_path:
-        print(f"Error for {project_name}: Base slideshow generation failed. Aborting project.")
+        logger.error(f"Error for {project_name}: Base slideshow generation failed. Aborting project.")
         return
 
     # Read original text for correction if available
     original_text_content = None
     # Read from the work_datetime_folder where it was copied
     original_text_file_path_in_work_dir = os.path.join(work_datetime_folder, 'original_text.txt')
-    print(f"DEBUG: Checking for original_text.txt at: {original_text_file_path_in_work_dir}")
+    logger.debug(f"Checking for original_text.txt at: {original_text_file_path_in_work_dir}")
     if os.path.exists(original_text_file_path_in_work_dir):
-        print(f"DEBUG: original_text.txt exists: {os.path.exists(original_text_file_path_in_work_dir)}")
+        logger.debug(f"original_text.txt exists: {os.path.exists(original_text_file_path_in_work_dir)}")
         try:
             with open(original_text_file_path_in_work_dir, 'r', encoding='utf-8') as f:
                 content = f.read()
-                print(f"DEBUG: Raw content read from original_text.txt (first 100 chars): '{content[:100]}...' (length: {len(content)})")
+                logger.debug(f"Raw content read from original_text.txt (first 100 chars): '{content[:100]}...' (length: {len(content)})")
                 # Clean content: replace newlines with spaces, remove extra whitespace
                 cleaned_content = ' '.join(content.split()).strip()
-                print(f"DEBUG: Cleaned content (first 100 chars): '{cleaned_content[:100]}...' (length: {len(cleaned_content)})")
+                logger.debug(f"Cleaned content (first 100 chars): '{cleaned_content[:100]}...' (length: {len(cleaned_content)})")
                 if cleaned_content:
                     original_text_content = cleaned_content
-                    print(f"Found original_text.txt for {project_name}. Content loaded and cleaned for subtitle correction.")
+                    logger.info(f"Found original_text.txt for {project_name}. Content loaded and cleaned for subtitle correction.")
                 else:
-                    print(f"original_text.txt for {project_name} is empty or contains only whitespace. Skipping subtitle correction.")
+                    logger.info(f"original_text.txt for {project_name} is empty or contains only whitespace. Skipping subtitle correction.")
         except Exception as e:
-            print(f"Error reading original_text.txt for {project_name}: {e}. Skipping subtitle correction.")
+            logger.error(f"Error reading original_text.txt for {project_name}: {e}. Skipping subtitle correction.")
     else:
-        print(f"original_text.txt not found in work directory for {project_name}. Skipping subtitle correction.")
+        logger.info(f"original_text.txt not found in work directory for {project_name}. Skipping subtitle correction.")
 
     # 7. Generate Subtitles (Conditional)
     # -------------------------------------------------------------------------
     generated_subtitle_path = None
     project_voiceover_path = os.path.join(work_datetime_folder, 'voiceover.mp3')
 
+    logger.debug(f"Subtitle check - enable_subtitles: {cfg.subtitles.enabled}, voiceover_path_exists: {os.path.exists(project_voiceover_path)}")
+    logger.debug(f"Full cfg.subtitles object: {cfg.subtitles}")
+    # Use cfg.subtitles.enabled for the condition
     if cfg.subtitles.enabled and os.path.exists(project_voiceover_path):
-        print(f"\n--- {project_name} - Phase 6: Generating Subtitles ---")
+        logger.info(f"\n--- {project_name} - Phase 6: Generating Subtitles ---")
         
         subtitle_format = cfg.subtitles.get('format', 'ass').lower() # Get format from config, default to 'ass'
-        subtitle_extension = "ass" if subtitle_format == "ass" else "srt"
+        # Since we only support ASS now, subtitle_extension is always 'ass'
+        subtitle_extension = "ass" 
         subtitle_output_target_path = os.path.join(work_datetime_folder, "subs", f"voiceover.{subtitle_extension}")
         os.makedirs(os.path.join(work_datetime_folder, "subs"), exist_ok=True)
         
@@ -323,10 +335,10 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
             # cfg.audio.vo_delay should be an int due to ConfigManager's processing
             vo_delay_for_srt = float(cfg.audio.vo_delay) 
         except (TypeError, ValueError):
-            print(f"Warning: Could not convert cfg.audio.vo_delay ('{cfg.audio.get('vo_delay')}') to float. Defaulting to 0 for subtitle offset.")
+            logger.warning(f"Could not convert cfg.audio.vo_delay ('{cfg.audio.get('vo_delay')}') to float. Defaulting to 0 for subtitle offset.")
             vo_delay_for_srt = 0.0
             
-        print(f"Debug Subtitle offset: cfg.audio.vo_delay = {cfg.audio.get('vo_delay')}, vo_delay_for_srt = {vo_delay_for_srt}")
+        logger.debug(f"Subtitle offset: cfg.audio.vo_delay = {cfg.audio.get('vo_delay')}, vo_delay_for_srt = {vo_delay_for_srt}")
         # Removed the problematic print statement here
 
         generated_subtitle_path = subtitle_generator.generate_subtitles_from_audio_file(
@@ -335,17 +347,18 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
             cfg,
             subtitle_format=subtitle_format, # Pass the format
             time_offset_seconds=vo_delay_for_srt, # Pass the delay
-            original_text=original_text_content # Pass the original text content
+            original_text=original_text_content, # Pass the original text content
+            apply_punctuation_fix_enabled=cfg.subtitles.get('punctuation_fix_enabled', False) # Pass punctuation fix setting
         )
         if generated_subtitle_path: 
-            print(f"Subtitles generated for {project_name}: {generated_subtitle_path}")
-        else: print(f"Subtitle generation failed or was skipped for {project_name}.")
-    elif cfg.subtitles.enabled:
-        print(f"Subtitle generation enabled for {project_name}, but voiceover.mp3 not found. Skipping.")
+            logger.info(f"Subtitles generated for {project_name}: {generated_subtitle_path}")
+        else: logger.warning(f"Subtitle generation failed or was skipped for {project_name}.")
+    elif cfg.subtitles.enabled: # Changed from enable_subtitles to enabled for consistency
+        logger.info(f"Subtitle generation enabled for {project_name}, but voiceover.mp3 not found. Skipping.")
 
     # 8. Audio Processing
     # -------------------------------------------------------------------------
-    print(f"\n--- {project_name} - Phase 7: Audio Processing ---")
+    logger.info(f"\n--- {project_name} - Phase 7: Audio Processing ---")
     video_with_audio_path = os.path.join(work_datetime_folder, "slideshow_with_audio.mp4")
     # Calculate num_slides for audio processing (excluding the outro video)
     num_slides_for_audio = len(media_for_ffmpeg_slideshow) - 1 
@@ -357,12 +370,12 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
         slide_duration=cfg.slide_duration # Pass the slide duration from config
     )
     if not video_with_audio_path:
-        print(f"Error for {project_name}: Audio processing failed. Aborting project.")
+        logger.error(f"Error for {project_name}: Audio processing failed. Aborting project.")
         return
 
     # 9. Final Overlay Composition
     # -------------------------------------------------------------------------
-    print(f"\n--- {project_name} - Phase 8: Final Overlay Composition ---")
+    logger.info(f"\n--- {project_name} - Phase 8: Final Overlay Composition ---")
     # Use project_name in the final output, placed inside work_datetime_folder
     final_output_video_name = f"{project_name.replace(' ', '_')}_{cfg.title.replace(' ', '_')}_{run_datetime_str}.mp4"
     final_output_video_path = os.path.join(work_datetime_folder, final_output_video_name)
@@ -373,40 +386,47 @@ def run_pipeline_for_project(project_name: str, project_input_folder: str, cfg: 
     )
 
     if not final_video_actual_path:
-        print(f"Error for {project_name}: Final overlay composition failed.")
+        logger.error(f"Error for {project_name}: Final overlay composition failed.")
         return
 
     # 10. Cleanup
     # -------------------------------------------------------------------------
-    print(f"\n--- {project_name} - Phase 9: Cleanup ---")
+    logger.info(f"\n--- {project_name} - Phase 9: Cleanup ---")
     if slideshow_base_path != final_video_actual_path and os.path.exists(slideshow_base_path):
-        os.remove(slideshow_base_path); print(f"Cleaned up for {project_name}: {slideshow_base_path}")
+        os.remove(slideshow_base_path); logger.info(f"Cleaned up for {project_name}: {slideshow_base_path}")
     if video_with_audio_path != final_video_actual_path and os.path.exists(video_with_audio_path):
-        os.remove(video_with_audio_path); print(f"Cleaned up for {project_name}: {video_with_audio_path}")
+        os.remove(video_with_audio_path); logger.info(f"Cleaned up for {project_name}: {video_with_audio_path}")
     
     # Clean up the temporary directory
     shutil.rmtree(temp_dir, ignore_errors=True)
-    print(f"Cleaned up temporary directory: {temp_dir}")
+    logger.info(f"Cleaned up temporary directory: {temp_dir}")
 
     end_time_project = datetime.now()
-    print(f"\nProject {project_name} Finished at: {end_time_project.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"Total processing time for {project_name}: {end_time_project - start_time_project}")
-    print(f"Final video output for {project_name}: {final_video_actual_path}")
+    logger.info(f"\nProject {project_name} Finished at: {end_time_project.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"Total processing time for {project_name}: {end_time_project - start_time_project}")
+    logger.info(f"Final video output for {project_name}: {final_video_actual_path}")
 
 
 def run_batch_pipeline(batch_root_folder: str, global_config_path: str = None, gui_settings: dict = None):
     """
     Runs the VideoCutter pipeline for all subfolders (projects) in a given batch root folder.
     """
-    print(f"Starting Batch Processing for directory: {batch_root_folder}")
+    # Initialize logging for batch run. If gui_settings is None, it will use default logging.
+    setup_logging(gui_settings or {})
+    logger = logging.getLogger("videocutter.main") # Get logger for this module
+    logger.debug(f"DEBUG: Main logger initialized with level: {logger.level} (should be 10 for DEBUG)")
+    # Force subtitle_generator logger to DEBUG as well
+    logging.getLogger("videocutter.processing.subtitle_generator").setLevel(logging.DEBUG)
+
+    logger.info(f"Starting Batch Processing for directory: {batch_root_folder}")
     if not os.path.isdir(batch_root_folder):
-        print(f"Error: Batch root folder '{batch_root_folder}' does not exist. Aborting.")
+        logger.error(f"Error: Batch root folder '{batch_root_folder}' does not exist. Aborting.")
         return
 
     for project_folder_name in os.listdir(batch_root_folder):
         project_folder_full_path = os.path.join(batch_root_folder, project_folder_name)
         if os.path.isdir(project_folder_full_path):
-            print(f"\n{'-'*30}\nProcessing Project Folder: {project_folder_full_path}\n{'-'*30}")
+            logger.info(f"\n{'-'*30}\nProcessing Project Folder: {project_folder_full_path}\n{'-'*30}")
             
             # Load config: global -> project-specific -> runtime (GUI)
             # The 'input_folder' in the config will be overridden to be the project_folder_full_path
@@ -433,12 +453,18 @@ def run_batch_pipeline(batch_root_folder: str, global_config_path: str = None, g
 
             run_pipeline_for_project(project_folder_name, project_folder_full_path, cfg)
         else:
-            print(f"Skipping '{project_folder_full_path}', not a directory.")
-    print(f"\nBatch Processing Finished for directory: {batch_root_folder}")
+            logger.info(f"Skipping '{project_folder_full_path}', not a directory.")
+    logger.info(f"\nBatch Processing Finished for directory: {batch_root_folder}")
 
 
 if __name__ == "__main__":
-    print("VideoCutter main orchestrator starting (direct execution)...")
+    # Initial logging setup for direct execution. This will be overridden by
+    # setup_logging calls within run_pipeline_for_project or run_batch_pipeline
+    # if they are executed.
+    setup_logging({"logging": {"root": "INFO"}}) # Default to INFO for direct execution
+    logger = logging.getLogger("videocutter.main") # Get logger for this module
+
+    logger.info("VideoCutter main orchestrator starting (direct execution)...")
     
     # Determine the global default config path relative to this file's package root
     package_root_dir = os.path.dirname(os.path.abspath(__file__)) # videocutter/
@@ -450,13 +476,13 @@ if __name__ == "__main__":
     # And config/default_config.json to exist.
     # single_project_input_folder = os.path.join(project_root_dir, "INPUT")
     # if os.path.exists(default_global_cfg_path) and os.path.isdir(single_project_input_folder):
-    #     print("\n--- TESTING SINGLE PROJECT RUN ---")
+    #     logger.info("\n--- TESTING SINGLE PROJECT RUN ---")
     #     single_run_settings = {"input_folder": single_project_input_folder, "title": "Single Run Test"}
     #     cfg_single = load_config(global_config_path=default_global_cfg_path, runtime_settings=single_run_settings)
     #     if cfg_single.title == 'Default Model Name': cfg_single.title = "SingleProjectFromMain"
     #     run_pipeline_for_project("SingleTest", single_project_input_folder, cfg_single)
     # else:
-    #     print("Skipping single project run test: Default config or INPUT folder not found.")
+    #     logger.info("Skipping single project run test: Default config or INPUT folder not found.")
 
     # --- Example: Batch Project Run ---
     # Create a dummy batch structure for testing
@@ -478,14 +504,14 @@ if __name__ == "__main__":
     with open(os.path.join(projectB_path, "photo_x.png"), "w") as f: f.write("dummy")
     
     if os.path.exists(default_global_cfg_path):
-         print("\n--- TESTING BATCH PROJECT RUN ---")
+         logger.info("\n--- TESTING BATCH PROJECT RUN ---")
          # GUI settings could provide a global override for the batch
-         batch_gui_settings = {"time_limit": 300} # Example global override for the batch
+         batch_gui_settings = {"time_limit": 300, "logging": {"root": "DEBUG", "main": "DEBUG"}} # Example global override for the batch
          run_batch_pipeline(batch_test_root, global_config_path=default_global_cfg_path, gui_settings=batch_gui_settings)
     else:
-         print("Skipping batch project run test: Default global config not found.")
+         logger.info("Skipping batch project run test: Default global config not found.")
 
     # Clean up dummy batch structure
     # shutil.rmtree(batch_test_root, ignore_errors=True)
     
-    print("\nVideoCutter main orchestrator finished (direct execution).")
+    logger.info("\nVideoCutter main orchestrator finished (direct execution).")

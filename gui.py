@@ -6,17 +6,22 @@ import glob
 import threading
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 import io
+import logging
+
+logger = logging.getLogger("gui")
 
 # Import custom modules
 from videocutter.main import run_pipeline_for_project, run_batch_pipeline
 from videocutter.utils import gui_config_manager as gcm
 from videocutter.gui.title_settings_frame import TitleSettingsFrame
 from videocutter.gui.subtitle_settings_frame import SubtitleSettingsFrame
-from videocutter.gui.overlay_effects_frame import OverlayEffectsFrame # New import for overlay effects
-from videocutter.gui.main_settings_frame import MainSettingsFrame # New import for main settings
-from videocutter.gui.depthflow_settings_frame import DepthflowSettingsFrame # New import for DepthFlow settings
+from videocutter.gui.overlay_effects_frame import OverlayEffectsFrame
+from videocutter.gui.main_settings_frame import MainSettingsFrame
+from videocutter.gui.depthflow_settings_frame import DepthflowSettingsFrame
 from videocutter.gui import gui_utils
 from videocutter import config_manager
+from videocutter.utils.logger_config import setup_logging # Import setup_logging
+from videocutter.gui.logging_settings_frame import LoggingSettingsFrame # Import new logging settings frame
 
 
 class VideoCutterGUI:
@@ -44,7 +49,11 @@ class VideoCutterGUI:
         gcm.config_files = [file for file in os.listdir(gcm.config_folder) if file.endswith(".json")]
         self.config_files = gcm.config_files
         
+        # Initial logging setup based on default GUI settings
+        setup_logging(gcm.get_default_settings_dict())
+
         if not self.config_files:
+            logger.warning("No configuration files found in the config directory. Creating default config.")
             messagebox.showwarning("Warning", "No configuration files found in the config directory. Creating default config.")
             default_config_file_name = gcm.create_default_config()
             # After creating, re-read config_files to include the new default
@@ -53,6 +62,9 @@ class VideoCutterGUI:
             
     def _initialize_variables(self):
         """Initialize all Tkinter variables"""
+        # New: Debug logging variable
+        self.gui_elements['var_debug_logging_enabled'] = tk.BooleanVar(self.root, value=gcm.debug_logging_enabled)
+
         # Core variables
         self.gui_elements['var_config'] = tk.StringVar(self.root)
         self.gui_elements['root'] = self.root
@@ -197,6 +209,8 @@ class VideoCutterGUI:
         self.gui_elements['tab_title_settings_instance'] = tab_title_settings # Store instance
         tab_depthflow_settings = DepthflowSettingsFrame(notebook, self.gui_elements) # Instantiate DepthflowSettingsFrame
         self.gui_elements['tab_depthflow_settings_instance'] = tab_depthflow_settings # Store instance
+        tab_logging_settings = LoggingSettingsFrame(notebook, self.gui_elements) # Instantiate LoggingSettingsFrame
+        self.gui_elements['tab_logging_settings_instance'] = tab_logging_settings # Store instance
         
         # Add tabs to notebook
         notebook.add(tab_main_settings, text="Main Settings")
@@ -204,6 +218,7 @@ class VideoCutterGUI:
         notebook.add(tab_subtitles_new, text="Subtitles")
         notebook.add(tab_overlay_effects, text="Overlay Effects")
         notebook.add(tab_depthflow_settings, text="DepthFlow")
+        notebook.add(tab_logging_settings, text="Logging Settings") # Add new tab
         
     # Event handlers and utility methods
     def _load_initial_config(self):
@@ -214,7 +229,15 @@ class VideoCutterGUI:
             self.gui_elements['var_config'].set("")
             
         gcm.update_config_menu(self.gui_elements['config_menu'], self.gui_elements['var_config'], self.gui_elements)
-        gcm.load_config(self.root, self.gui_elements['var_config'], self.gui_elements)
+        # Load config and get the loaded config object
+        loaded_config = gcm.load_config(self.root, self.gui_elements['var_config'], self.gui_elements)
+        
+        # Update logging based on the loaded config
+        if loaded_config:
+            setup_logging(loaded_config)
+            # Also load logging settings into the new logging settings frame
+            if self.gui_elements.get('tab_logging_settings_instance'):
+                self.gui_elements['tab_logging_settings_instance'].load_settings(loaded_config)
 
         # Initialize control states after all widgets are created and packed
         self.gui_elements['tab_title_settings_instance'].toggle_title_controls() # Call through instance
@@ -260,7 +283,7 @@ class VideoCutterGUI:
         """Helper function to run the pipeline in a separate thread"""
         try:
             if batch_folder_path and os.path.isdir(batch_folder_path):
-                print(f"Starting BATCH processing for folder: {batch_folder_path}")
+                logger.info(f"Starting BATCH processing for folder: {batch_folder_path}")
                 run_batch_pipeline(
                     batch_root_folder=batch_folder_path,
                     global_config_path=config_file_path,
@@ -269,7 +292,7 @@ class VideoCutterGUI:
                 self.root.after(0, lambda: messagebox.showinfo("Success", "Batch video processing pipeline finished!"))
                 
             elif input_folder and input_folder != "BATCH MODE ACTIVE":
-                print(f"Starting SINGLE project processing for folder: {input_folder}")
+                logger.info(f"Starting SINGLE project processing for folder: {input_folder}")
                 cfg_single_project = config_manager.load_config(
                     global_config_path=config_file_path,
                     project_folder_path=input_folder,
@@ -291,19 +314,22 @@ class VideoCutterGUI:
             import traceback
             error_detail = traceback.format_exc()
             self.root.after(0, lambda e_val=e, err_det=error_detail: messagebox.showerror("Pipeline Error", f"An error occurred: {e_val}\n\nDetails:\n{err_det}"))
-            print(f"Pipeline execution error: {e}")
-            print(f"Full traceback:\n{error_detail}")
+            logger.error(f"Pipeline execution error: {e}")
+            logger.error(f"Full traceback:\n{error_detail}")
             
     def _collect_gui_settings(self):
         """Collect all GUI settings into a dictionary"""
         # Collect all settings
         gui_settings = {
+            # New: Debug logging setting
+            'debug_logging_enabled': self.gui_elements['var_debug_logging_enabled'].get(),
+
             # Main settings (from MainSettingsFrame)
             **self.gui_elements['tab_main_settings_instance'].collect_settings(),
 
             # Subtitle settings (now nested)
             'subtitles': {
-                'enabled': self.gui_elements['var_generate_srt'].get(), # Renamed from generate_srt
+                'enabled': self.gui_elements['var_enable_subtitles'].get(), # Renamed from generate_srt
                 'max_line_width': self.gui_elements['entry_subtitle_max_width'].get(),
                 'font_name': self.gui_elements['var_subtitle_font'].get(),
                 'font_size': self.gui_elements['var_subtitle_fontsize'].get(),
@@ -315,6 +341,7 @@ class VideoCutterGUI:
                 'outline_color_hex': self.gui_elements['var_subtitle_outlinecolor'].get(), # Renamed from outlinecolor
                 'shadow_enabled': self.gui_elements['var_subtitle_shadow'].get(), # Renamed from shadow
                 'format': self.gui_elements['var_subtitle_format'].get(), # New: Subtitle format
+                'punctuation_fix_enabled': self.gui_elements['var_punctuation_fix_enabled'].get(), # Add punctuation fix enabled status
                 'secondary_color_hex': self.gui_elements['var_subtitle_secondary_color'].get(),
                 'bold': self.gui_elements['var_subtitle_bold'].get(),
                 'italic': self.gui_elements['var_subtitle_italic'].get(),
@@ -348,7 +375,10 @@ class VideoCutterGUI:
             **self.gui_elements['tab_overlay_effects_instance'].collect_settings(),
 
             # DepthFlow settings (from DepthflowSettingsFrame)
-            **self.gui_elements['tab_depthflow_settings_instance'].collect_settings()
+            **self.gui_elements['tab_depthflow_settings_instance'].collect_settings(),
+
+            # Logging settings (from LoggingSettingsFrame)
+            **self.gui_elements['tab_logging_settings_instance'].collect_settings()
         }
         
         # Get title from title settings instance
@@ -366,7 +396,8 @@ class VideoCutterGUI:
         if selected_config_file:
             config_file_path = os.path.join(self.gui_elements['config_folder'], selected_config_file)
             if not os.path.exists(config_file_path):
-                messagebox.showerror("Error", f"Selected config file not found: {config_file_path}")
+                logger.error(f"Selected config file not found: {config_file_path}")
+                self.root.after(0, lambda: messagebox.showerror("Error", f"Selected config file not found: {config_file_path}"))
                 return
                 
         # Start the pipeline in a separate thread to keep the GUI responsive

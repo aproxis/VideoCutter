@@ -3,6 +3,9 @@ from tkinter import ttk
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 import os
 import _tkinter # Import the internal module
+import logging
+
+logger = logging.getLogger("videocutter.gui.gui_utils")
 
 # Direct update for preview (removed debounce for debugging)
 def schedule_subtitle_preview_update(root, update_function):
@@ -27,7 +30,7 @@ def update_slider_value(value, entry): # Changed var to value
         # We don't print a warning here to avoid spamming.
         pass
     except Exception as e:
-        print(f"Unexpected error in update_slider_value (processing value): {e}")
+        logger.error(f"Unexpected error in update_slider_value (processing value): {e}")
         display_value = 0.0
 
     entry.insert(0, f"{display_value:.2f}") # Format to 2 decimal places for display
@@ -44,7 +47,7 @@ def update_slider_from_entry(entry, var, slider, min_val, max_val, root, update_
 
 # Function to update subtitle preview
 def update_subtitle_preview(gui_elements):
-    print("Entering update_subtitle_preview") # Debug print
+    logger.debug("Entering update_subtitle_preview") # Debug print
     # Access necessary elements from gui_elements
     root = gui_elements['root']
     var_subtitle_font = gui_elements['var_subtitle_font']
@@ -88,22 +91,22 @@ def update_subtitle_preview(gui_elements):
         # Try to load the selected font
         font = None
         font_path = os.path.join(fonts_dir, var_subtitle_font.get())
-        print(f"Attempting to load font: {font_path} with size: {scaled_font_size}") # Debug print
+        logger.debug(f"Attempting to load font: {font_path} with size: {scaled_font_size}") # Debug print
         try:
             font = ImageFont.truetype(font_path, scaled_font_size)
         except (IOError, OSError) as e:
-            print(f"Error loading font file '{font_path}': {e}. Falling back to default font.")
+            logger.warning(f"Error loading font file '{font_path}': {e}. Falling back to default font.")
             font = ImageFont.load_default()
         except ValueError as e:
-            print(f"Error with font size {scaled_font_size} for font '{font_path}': {e}. Falling back to default font.")
+            logger.warning(f"Error with font size {scaled_font_size} for font '{font_path}': {e}. Falling back to default font.")
             font = ImageFont.load_default()
         except Exception as e:
-            print(f"An unexpected error occurred while loading font '{font_path}': {e}. Falling back to default font.")
+            logger.error(f"An unexpected error occurred while loading font '{font_path}': {e}. Falling back to default font.")
             font = ImageFont.load_default()
 
         if font is None: # Fallback if all attempts fail
             font = ImageFont.load_default()
-            print("Forced fallback to default font as font object is None.")
+            logger.warning("Forced fallback to default font as font object is None.")
         
         # Draw sample text
         sample_text = "Sample Subtitle Text"
@@ -232,4 +235,4 @@ def update_subtitle_preview(gui_elements):
             preview_label.image = photo  # Keep a reference: This line should only run if preview_label is a widget
         # If preview_frame was None, preview_label might also be None, so we shouldn't try to set .image on it.
     except Exception as e:
-        print(f"Error updating preview: {e}")
+        logger.error(f"Error updating preview: {e}")

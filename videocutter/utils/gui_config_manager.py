@@ -3,9 +3,14 @@ from tkinter import messagebox, ttk
 import os
 import json
 import glob
+import logging
+from videocutter.gui.logging_settings_frame import LoggingSettingsFrame
+
+logger = logging.getLogger("videocutter.utils.gui_config_manager")
 
 # Default values for GUI elements
 # These are now the single source of truth for default settings
+debug_logging_enabled = False # New: Default for debug logging
 title = 'Model Name'
 watermark = 'Today is a\n Plus Day'
 watermark_type = 'random'
@@ -47,7 +52,7 @@ title_video_chromakey_blend = 0
 chromakey_color = '65db41'
 chromakey_similarity = 0.18
 chromakey_blend = 0
-generate_srt = False
+enable_subtitles = False # Renamed from generate_srt
 subtitle_maxwidth = 21
 subtitle_font = "Arial"
 subtitle_fontsize = 48
@@ -59,6 +64,7 @@ subtitle_outline = 1
 subtitle_outlinecolor = "000000"
 subtitle_shadow = True
 subtitle_format = 'ass' # New: Default subtitle format is now ASS
+punctuation_fix_enabled = False # New: Enable/disable punctuation fix
 
 # New ASS subtitle style parameters
 subtitle_secondary_color = "00FFFFFF" # Default to white (BBGGRR)
@@ -83,6 +89,7 @@ effect_blend = 'overlay'
 enable_effect_overlay = True # Added this line
 video_orientation = 'vertical' # Default video orientation
 blur = 0 # Default blur setting
+batch_input_folder = '' # New: Default for batch input folder
 
 # DepthFlow settings
 enable_depthflow = False
@@ -159,6 +166,7 @@ config_files = [file for file in os.listdir(config_folder) if file.endswith(".js
 
 def create_default_config():
     default_config = {
+        'debug_logging_enabled': debug_logging_enabled, # New
         'title': title,
         'watermark': watermark,
         'watermark_type': watermark_type,
@@ -203,7 +211,7 @@ def create_default_config():
         'chromakey_color': chromakey_color,
         'chromakey_similarity': chromakey_similarity,
         'chromakey_blend': chromakey_blend,
-        'generate_srt': generate_srt,
+        'enable_subtitles': enable_subtitles, # Renamed from generate_srt
         'subtitle_maxwidth': subtitle_maxwidth,
         'subtitle_font': subtitle_font,
         'subtitle_fontsize': subtitle_fontsize,
@@ -215,6 +223,7 @@ def create_default_config():
         'subtitle_outlinecolor': subtitle_outlinecolor,
         'subtitle_shadow': subtitle_shadow,
         'subtitle_format': subtitle_format, # New: Subtitle format
+        'punctuation_fix_enabled': punctuation_fix_enabled, # New: Punctuation fix enabled
         'subtitle_secondary_color': subtitle_secondary_color,
         'subtitle_bold': subtitle_bold,
         'subtitle_italic': subtitle_italic,
@@ -234,6 +243,7 @@ def create_default_config():
         'effect_opacity': effect_opacity,
         'effect_blend': effect_blend,
         'enable_effect_overlay': enable_effect_overlay,
+        'batch_input_folder': batch_input_folder, # New
         # DepthFlow settings
         'enable_depthflow': enable_depthflow,
         'depthflow_vignette_enable': depthflow_vignette_enable,
@@ -262,19 +272,178 @@ def create_default_config():
         'depthflow_center_y': depthflow_center_y,
         'depthflow_origin_x': depthflow_origin_x,
         'depthflow_origin_y': depthflow_origin_y,
-        'depthflow_zoom_probability': depthflow_zoom_probability # New
+        'depthflow_zoom_probability': depthflow_zoom_probability, # New
+        # Logging settings
+        "logging": {
+            "root": "INFO",
+            "main": "INFO",
+            "gui": "INFO",
+            "video_processor": "INFO",
+            "audio_processor": "INFO",
+            "subtitle_generator": "INFO",
+            "depth_processor": "INFO",
+            "overlay_compositor": "INFO",
+            "file_utils": "INFO",
+            "config_manager": "INFO",
+            "gui_config_manager": "INFO",
+            "font_utils": "INFO",
+            "slideshow_generator": "INFO",
+            "depthflow_settings_frame": "INFO",
+            "gui_utils": "INFO",
+            "main_settings_frame": "INFO",
+            "overlay_effects_frame": "INFO",
+            "subtitle_settings_frame": "INFO",
+            "title_settings_frame": "INFO",
+            "punctuation_utils": "INFO",
+            "subtitle_processing_utils": "INFO",
+        }
     }
     default_filename = "default_config.json"
     config_file = os.path.join(config_folder, default_filename)
     with open(config_file, 'w') as f:
         json.dump(default_config, f, indent=4)
-    messagebox.showinfo("Info", f"Default config created: {default_filename}")
+    logger.info(f"Default config created: {default_filename}")
     
     # Update the global config_files list after creating a new default config
     global config_files
     config_files = [file for file in os.listdir(config_folder) if file.endswith(".json")]
     
     return default_filename
+
+def get_default_settings_dict():
+    """
+    Returns a dictionary containing all default GUI settings.
+    """
+    return {
+        'debug_logging_enabled': debug_logging_enabled,
+        'title': title,
+        'watermark': watermark,
+        'watermark_type': watermark_type,
+        'watermark_speed': watermark_speed,
+        'title_font_size': title_font_size,
+        'segment_duration': segment_duration,
+        'input_folder': input_folder,
+        'template_folder': template_folder,
+        'depthflow': depthflow,
+        'time_limit': time_limit,
+        'video_orientation': video_orientation,
+        'blur': blur,
+        'watermark_font': watermark_font,
+        'enable_watermark': enable_watermark,
+        'watermark_font_size': watermark_font_size,
+        'watermark_opacity': watermark_opacity,
+        'watermark_fontcolor': watermark_fontcolor,
+        'watermark_speed_intuitive': watermark_speed_intuitive,
+        'transition_duration': transition_duration,
+        'fps': fps,
+        'subscribe_delay': subscribe_delay,
+        'title_fontcolor': title_fontcolor,
+        'title_font': title_font,
+        'voiceover_delay': voiceover_delay,
+        'title_appearance_delay': title_appearance_delay,
+        'title_visible_time': title_visible_time,
+        'title_x_offset': title_x_offset,
+        'title_y_offset': title_y_offset,
+        'enable_title': enable_title,
+        'title_opacity': title_opacity,
+        'enable_title_background': enable_title_background,
+        'title_background_color': title_background_color,
+        'title_background_opacity': title_background_opacity,
+        'enable_subscribe_overlay': enable_subscribe_overlay,
+        'subscribe_overlay_file': "None",
+        'title_video_overlay_file': title_video_overlay_file,
+        'enable_title_video_overlay': enable_title_video_overlay,
+        'title_video_overlay_delay': title_video_overlay_delay,
+        'title_video_chromakey_color': title_video_chromakey_color,
+        'title_video_chromakey_similarity': title_video_chromakey_similarity,
+        'title_video_chromakey_blend': title_video_chromakey_blend,
+        'chromakey_color': chromakey_color,
+        'chromakey_similarity': chromakey_similarity,
+        'chromakey_blend': chromakey_blend,
+        'enable_subtitles': enable_subtitles,
+        'subtitle_maxwidth': subtitle_maxwidth,
+        'subtitle_font': subtitle_font,
+        'subtitle_fontsize': subtitle_fontsize,
+        'subtitle_fontcolor': subtitle_fontcolor,
+        'subtitle_bgcolor': subtitle_bgcolor,
+        'subtitle_bgopacity': subtitle_bgopacity,
+        'subtitle_position': subtitle_position,
+        'subtitle_outline': subtitle_outline,
+        'subtitle_outlinecolor': subtitle_outlinecolor,
+        'subtitle_shadow': subtitle_shadow,
+        'subtitle_format': subtitle_format,
+        'punctuation_fix_enabled': punctuation_fix_enabled,
+        'subtitle_secondary_color': subtitle_secondary_color,
+        'subtitle_bold': subtitle_bold,
+        'subtitle_italic': subtitle_italic,
+        'subtitle_underline': subtitle_underline,
+        'subtitle_strikeout': subtitle_strikeout,
+        'subtitle_scale_x': subtitle_scale_x,
+        'subtitle_scale_y': subtitle_scale_y,
+        'subtitle_spacing': subtitle_spacing,
+        'subtitle_angle': subtitle_angle,
+        'subtitle_border_style': subtitle_border_style,
+        'subtitle_shadow_distance': subtitle_shadow_distance,
+        'subtitle_margin_l': subtitle_margin_l,
+        'subtitle_margin_r': subtitle_margin_r,
+        'subtitle_margin_v': subtitle_margin_v,
+        'subtitle_encoding': subtitle_encoding,
+        'effect_overlay': effect_overlay,
+        'effect_opacity': effect_opacity,
+        'effect_blend': effect_blend,
+        'enable_effect_overlay': enable_effect_overlay,
+        'batch_input_folder': batch_input_folder, # New
+        'enable_depthflow': enable_depthflow,
+        'depthflow_vignette_enable': depthflow_vignette_enable,
+        'depthflow_dof_enable': depthflow_dof_enable,
+        'depthflow_isometric_min': depthflow_isometric_min,
+        'depthflow_isometric_max': depthflow_isometric_max,
+        'depthflow_height_min': depthflow_height_min,
+        'depthflow_height_max': depthflow_height_max,
+        'depthflow_zoom_min': depthflow_zoom_min,
+        'depthflow_zoom_max': depthflow_zoom_max,
+        'depthflow_min_effects_per_image': depthflow_min_effects_per_image,
+        'depthflow_max_effects_per_image': depthflow_max_effects_per_image,
+        'depthflow_base_zoom_loops': depthflow_base_zoom_loops,
+        'depthflow_workers': depthflow_workers,
+        'depthflow_height': depthflow_height,
+        'depthflow_offset_x': depthflow_offset_x,
+        'depthflow_offset_y': depthflow_offset_y,
+        'depthflow_steady': depthflow_steady,
+        'depthflow_isometric': depthflow_isometric,
+        'depthflow_dolly': depthflow_dolly,
+        'depthflow_focus': depthflow_focus,
+        'depthflow_zoom': depthflow_zoom,
+        'depthflow_invert': depthflow_invert,
+        'depthflow_center_x': depthflow_center_x,
+        'depthflow_center_y': depthflow_center_y,
+        'depthflow_origin_x': depthflow_origin_x,
+        'depthflow_origin_y': depthflow_origin_y,
+        'depthflow_zoom_probability': depthflow_zoom_probability,
+        "logging": {
+            "root": "INFO",
+            "main": "INFO",
+            "gui": "INFO",
+            "video_processor": "INFO",
+            "audio_processor": "INFO",
+            "subtitle_generator": "INFO",
+            "depth_processor": "INFO",
+            "overlay_compositor": "INFO",
+            "file_utils": "INFO",
+            "config_manager": "INFO",
+            "gui_config_manager": "INFO",
+            "font_utils": "INFO",
+            "slideshow_generator": "INFO",
+            "depthflow_settings_frame": "INFO",
+            "gui_utils": "INFO",
+            "main_settings_frame": "INFO",
+            "overlay_effects_frame": "INFO",
+            "subtitle_settings_frame": "INFO",
+            "title_settings_frame": "INFO",
+            "punctuation_utils": "INFO",
+            "subtitle_processing_utils": "INFO",
+        }
+    }
 
 def update_config_menu(config_menu_widget, var_config_str, gui_elements): # Added gui_elements as argument
     global config_files
@@ -291,9 +460,11 @@ def load_config(root_widget, var_config_str, gui_elements):
         with open(config_file, 'r') as f:
             config = json.load(f)
     except FileNotFoundError:
+        logger.warning(f"Config file not found: {config_file}")
         messagebox.showerror("Error", f"Config file not found: {config_file}")
         return
     except json.JSONDecodeError:
+        logger.error(f"Error decoding JSON from config file: {config_file}. It might be empty or corrupted.")
         messagebox.showerror("Error", f"Error decoding JSON from config file: {config_file}. It might be empty or corrupted.")
         # Optionally, try to load default config as a fallback
         default_config_path = os.path.join(config_folder, "default_config.json")
@@ -301,8 +472,10 @@ def load_config(root_widget, var_config_str, gui_elements):
             try:
                 with open(default_config_path, 'r') as f_default:
                     config = json.load(f_default)
+                logger.info("Loaded default_config.json as a fallback.")
                 messagebox.showinfo("Info", "Loaded default_config.json as a fallback.")
             except Exception as e:
+                logger.error(f"Could not load default_config.json as fallback: {e}")
                 messagebox.showerror("Error", f"Could not load default_config.json as fallback: {e}")
                 return # Cannot recover, return
         else:
@@ -340,17 +513,27 @@ def load_config(root_widget, var_config_str, gui_elements):
                     tk_var.set(value)
             except (ValueError, tk.TclError):
                 # If conversion fails, set to a sensible default (e.g., 0.0 for DoubleVar, 0 for IntVar)
-                print(f"Warning: Could not set Tkinter variable {tk_var} with value '{value}'. Setting to default.")
+                logger.warning(f"Could not set Tkinter variable {tk_var} with value '{value}'. Setting to default.")
                 if isinstance(tk_var, tk.DoubleVar):
                     tk_var.set(0.0)
-                elif isinstance(tk_var, tk.IntVar):
+                elif isinstance(tk.IntVar):
                     tk_var.set(0)
-                elif isinstance(tk_var, tk.BooleanVar):
+                elif isinstance(tk.BooleanVar):
                     tk_var.set(False) # Sensible default for boolean
                 else:
                     tk_var.set("") # Sensible default for string
 
     # Update GUI elements based on loaded config
+    update_var(gui_elements.get('var_debug_logging_enabled'), config.get('debug_logging_enabled', debug_logging_enabled))
+    # Load logging settings into the GUI elements
+    logging_config = config.get("logging", {})
+    for section, logger_name in LoggingSettingsFrame.log_sections.items(): # Access log_sections from the class
+        var_name = f"var_logging_{logger_name}"
+        if var_name in gui_elements:
+            gui_elements[var_name].set(logging_config.get(logger_name, "INFO")) # Default to INFO if not in config
+        else:
+            logger.warning(f"Tkinter variable {var_name} not found in gui_elements during load_settings.")
+
     update_entry(gui_elements.get('entry_title'), config.get('title', title))
     update_text(gui_elements.get('text_watermark'), config.get('watermark', watermark))
     update_var(gui_elements.get('var_watermark_type'), config.get('watermark_type', watermark_type))
@@ -366,10 +549,10 @@ def load_config(root_widget, var_config_str, gui_elements):
             update_var(gui_elements['var_watermark_font'], loaded_watermark_font)
         elif available_fonts:
             update_var(gui_elements['var_watermark_font'], available_fonts[0])
-            print(f"Warning: Watermark font '{loaded_watermark_font}' not found. Defaulting to '{available_fonts[0]}'.")
+            logger.warning(f"Watermark font '{loaded_watermark_font}' not found. Defaulting to '{available_fonts[0]}'.")
         else:
             update_var(gui_elements['var_watermark_font'], watermark_font)
-            print(f"Warning: No fonts available in fonts directory. Watermark font set to '{watermark_font}'.")
+            logger.warning(f"No fonts available in fonts directory. Watermark font set to '{watermark_font}'.")
 
     update_entry(gui_elements.get('entry_title_font_size'), config.get('title_font_size', title_font_size))
     update_entry(gui_elements.get('entry_segment_duration'), config.get('segment_duration', segment_duration))
@@ -381,6 +564,7 @@ def load_config(root_widget, var_config_str, gui_elements):
     update_var(gui_elements.get('var_fps'), config.get('fps', fps)) # New
     update_var(gui_elements.get('var_video_orientation'), config.get('video_orientation', video_orientation))
     update_var(gui_elements.get('var_add_blur'), config.get('blur', blur))
+    update_var(gui_elements.get('var_batch_input_folder'), config.get('batch_input_folder', batch_input_folder)) # New
 
     update_var(gui_elements.get('var_subscribe_delay'), config.get('subscribe_delay', subscribe_delay))
     update_var(gui_elements.get('var_enable_subscribe_overlay'), config.get('enable_subscribe_overlay', enable_subscribe_overlay))
@@ -393,10 +577,10 @@ def load_config(root_widget, var_config_str, gui_elements):
             update_var(gui_elements['var_title_font'], loaded_title_font)
         elif available_fonts:
             update_var(gui_elements['var_title_font'], available_fonts[0])
-            print(f"Warning: Title font '{loaded_title_font}' not found. Defaulting to '{available_fonts[0]}'.")
+            logger.warning(f"Title font '{loaded_title_font}' not found. Defaulting to '{available_fonts[0]}'.")
         else:
             update_var(gui_elements['var_title_font'], title_font)
-            print(f"Warning: No fonts available in fonts directory. Title font set to '{title_font}'.")
+            logger.warning(f"No fonts available in fonts directory. Title font set to '{title_font}'.")
 
     update_entry(gui_elements.get('entry_voiceover_delay'), config.get('voiceover_delay', voiceover_delay))
     update_entry(gui_elements.get('entry_title_appearance_delay'), config.get('title_appearance_delay', title_appearance_delay))
@@ -442,7 +626,7 @@ def load_config(root_widget, var_config_str, gui_elements):
     if gui_elements.get('update_effect_opacity_value'): # This function is in gui.py, not here
         gui_elements['update_effect_opacity_value']()
 
-    update_var(gui_elements.get('var_generate_srt'), config.get('generate_srt', generate_srt))
+    update_var(gui_elements.get('var_enable_subtitles'), config.get('enable_subtitles', enable_subtitles))
     update_entry(gui_elements.get('entry_subtitle_max_width'), config.get('subtitle_maxwidth', subtitle_maxwidth))
 
     update_var(gui_elements.get('var_subtitle_font'), config.get('subtitle_font', subtitle_font))
@@ -455,6 +639,7 @@ def load_config(root_widget, var_config_str, gui_elements):
     update_var(gui_elements.get('var_subtitle_outlinecolor'), config.get('subtitle_outlinecolor', subtitle_outlinecolor))
     update_var(gui_elements.get('var_subtitle_shadow'), config.get('subtitle_shadow', subtitle_shadow))
     update_var(gui_elements.get('var_subtitle_format'), config.get('subtitle_format', subtitle_format)) # New: Update subtitle format
+    update_var(gui_elements.get('var_punctuation_fix_enabled'), config.get('punctuation_fix_enabled', punctuation_fix_enabled)) # New: Update punctuation fix enabled
 
     # Load new ASS subtitle style parameters
     update_var(gui_elements.get('var_subtitle_secondary_color'), config.get('subtitle_secondary_color', subtitle_secondary_color))
@@ -511,6 +696,7 @@ def save_config(gui_elements):
     config_file = os.path.join(config_folder, gui_elements['var_config'].get())
     with open(config_file, 'w') as f:
         json.dump({
+            'debug_logging_enabled': gui_elements['var_debug_logging_enabled'].get(), # New
             'title': gui_elements['entry_title'].get(),
             'watermark': gui_elements['text_watermark'].get("1.0", tk.END).rstrip('\n'),
             'watermark_type': gui_elements['var_watermark_type'].get(),
@@ -554,7 +740,7 @@ def save_config(gui_elements):
             'chromakey_color': gui_elements['var_chromakey_color'].get(),
             'chromakey_similarity': _get_numeric_value(gui_elements['entry_chromakey_similarity'], chromakey_similarity),
             'chromakey_blend': _get_numeric_value(gui_elements['entry_chromakey_blend'], chromakey_blend),
-            'generate_srt': gui_elements['var_generate_srt'].get(),
+            'enable_subtitles': gui_elements['var_enable_subtitles'].get(), # Renamed from generate_srt
             'subtitle_maxwidth': _get_numeric_value(gui_elements['entry_subtitle_max_width'], subtitle_maxwidth, int),
             'subtitle_font': gui_elements['var_subtitle_font'].get(),
             'subtitle_fontsize': _get_numeric_value(gui_elements['var_subtitle_fontsize'], subtitle_fontsize, int),
@@ -566,6 +752,7 @@ def save_config(gui_elements):
             'subtitle_outlinecolor': gui_elements['var_subtitle_outlinecolor'].get(),
             'subtitle_shadow': gui_elements['var_subtitle_shadow'].get(),
             'subtitle_format': gui_elements['var_subtitle_format'].get(),
+            'punctuation_fix_enabled': gui_elements['var_punctuation_fix_enabled'].get(), # New: Punctuation fix enabled
             'subtitle_secondary_color': gui_elements['var_subtitle_secondary_color'].get(),
             'subtitle_bold': _get_numeric_value(gui_elements['var_subtitle_bold'], subtitle_bold, int),
             'subtitle_italic': _get_numeric_value(gui_elements['var_subtitle_italic'], subtitle_italic, int),
@@ -599,7 +786,13 @@ def save_config(gui_elements):
             'depthflow_max_effects_per_image': _get_numeric_value(gui_elements['var_depthflow_max_effects_per_image'], depthflow_max_effects_per_image, int),
             'depthflow_base_zoom_loops': gui_elements['var_depthflow_base_zoom_loops'].get(),
             'depthflow_workers': _get_numeric_value(gui_elements['var_depthflow_workers'], depthflow_workers, int),
-            'depthflow_zoom_probability': _get_numeric_value(gui_elements['var_depthflow_zoom_probability'], depthflow_zoom_probability)
+            'depthflow_zoom_probability': _get_numeric_value(gui_elements['var_depthflow_zoom_probability'], depthflow_zoom_probability),
+            'batch_input_folder': gui_elements['var_batch_input_folder'].get(), # New
+            # Logging settings
+            "logging": {
+                logger_name: gui_elements[f"var_logging_{logger_name}"].get()
+                for logger_name in LoggingSettingsFrame.log_sections.values()
+            }
         }, f, indent=4)
     messagebox.showinfo("Success", "Config saved successfully!")
 
@@ -635,6 +828,7 @@ def save_new_config(gui_elements):
 
     with open(config_file, 'w') as f:
         json.dump({
+            'debug_logging_enabled': gui_elements['var_debug_logging_enabled'].get(), # New
             'title': gui_elements['entry_title'].get(),
             'watermark': gui_elements['text_watermark'].get("1.0", tk.END).rstrip('\n'),
             'watermark_type': gui_elements['var_watermark_type'].get(),
@@ -678,7 +872,7 @@ def save_new_config(gui_elements):
             'chromakey_color': gui_elements['var_chromakey_color'].get(),
             'chromakey_similarity': _get_numeric_value(gui_elements['entry_chromakey_similarity'], chromakey_similarity),
             'chromakey_blend': _get_numeric_value(gui_elements['entry_chromakey_blend'], chromakey_blend),
-            'generate_srt': gui_elements['var_generate_srt'].get(),
+            'enable_subtitles': gui_elements['var_enable_subtitles'].get(), # Renamed from generate_srt
             'subtitle_maxwidth': _get_numeric_value(gui_elements['entry_subtitle_max_width'], subtitle_maxwidth, int),
             'subtitle_font': gui_elements['var_subtitle_font'].get(),
             'subtitle_fontsize': _get_numeric_value(gui_elements['var_subtitle_fontsize'], subtitle_fontsize, int),
@@ -690,6 +884,7 @@ def save_new_config(gui_elements):
             'subtitle_outlinecolor': gui_elements['var_subtitle_outlinecolor'].get(),
             'subtitle_shadow': gui_elements['var_subtitle_shadow'].get(),
             'subtitle_format': gui_elements['var_subtitle_format'].get(),
+            'punctuation_fix_enabled': gui_elements['var_punctuation_fix_enabled'].get(), # New: Punctuation fix enabled
             'subtitle_secondary_color': gui_elements['var_subtitle_secondary_color'].get(),
             'subtitle_bold': _get_numeric_value(gui_elements['var_subtitle_bold'], subtitle_bold, int),
             'subtitle_italic': _get_numeric_value(gui_elements['var_subtitle_italic'], subtitle_italic, int),
@@ -722,8 +917,15 @@ def save_new_config(gui_elements):
             'depthflow_min_effects_per_image': _get_numeric_value(gui_elements['var_depthflow_min_effects_per_image'], depthflow_min_effects_per_image, int),
             'depthflow_max_effects_per_image': _get_numeric_value(gui_elements['var_depthflow_max_effects_per_image'], depthflow_max_effects_per_image, int),
             'depthflow_base_zoom_loops': gui_elements['var_depthflow_base_zoom_loops'].get(),
-            'depthflow_workers': _get_numeric_value(gui_elements['var_depthflow_workers'], depthflow_workers, int)
+            'depthflow_workers': _get_numeric_value(gui_elements['var_depthflow_workers'], depthflow_workers, int),
+            'batch_input_folder': gui_elements['var_batch_input_folder'].get(), # New
+            # Logging settings
+            "logging": {
+                logger_name: gui_elements[f"var_logging_{logger_name}"].get()
+                for logger_name in LoggingSettingsFrame.log_sections.values()
+            }
         }, f, indent=4)
+    logger.info(f"New config saved to: {config_file}")
     messagebox.showinfo("Success", f"New config saved as '{new_filename}'!")
 
     global config_files
@@ -736,6 +938,7 @@ def delete_config(gui_elements):
     config_file = os.path.join(config_folder, gui_elements['var_config'].get())
     if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this config?"):
         os.remove(config_file)
+        logger.info("Config deleted successfully!")
         messagebox.showinfo("Success", "Config deleted successfully!")
         global config_files
         config_files = [file for file in os.listdir(config_folder) if file.endswith(".json")]
@@ -743,6 +946,7 @@ def delete_config(gui_elements):
             gui_elements['var_config'].set(config_files[0])
         else:
             gui_elements['var_config'].set("")
+            logger.warning("No configuration files found in the config directory.")
             messagebox.showwarning("Warning", "No configuration files found in the config directory.")
         update_config_menu(gui_elements['config_menu'], gui_elements['var_config'], gui_elements)
         load_config(gui_elements['root'], gui_elements['var_config'], gui_elements)

@@ -1,10 +1,13 @@
 # videocutter/processing/slideshow_generator.py
 # Handles creating the base video slideshow from media items with transitions.
 
+import logging
 import subprocess
 import os
 import random
 from dotmap import DotMap
+
+logger = logging.getLogger(__name__)
 
 # PIL Image is imported in the original slideshow.py but not directly used for manipulation
 # in the core slideshow generation part. Keeping it commented for now.
@@ -48,7 +51,9 @@ def generate_base_slideshow(
             - outro_duration (int): Duration of the outro video.
             - (Other params like fps, target_width, target_height will be derived or set to defaults)
     """
-    print(f"Generating base slideshow: {output_path}")
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Generating base slideshow: {output_path}")
     
     # Use slide_duration from config (which defaults to segment_duration - 1)
     # This is the effective display time for each item before transition.
@@ -67,7 +72,7 @@ def generate_base_slideshow(
     watermark_opacity = config.get('watermark_opacity', 0.7)
     watermark_fontcolor = config.get('watermark_fontcolor', 'random')
 
-    ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'verbose']
+    ffmpeg_cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error']
     filter_complex_parts = []
     inputs = []
 
@@ -140,7 +145,7 @@ def generate_base_slideshow(
                     f"[{idx}:v]setpts=PTS-STARTPTS,fps={fps},{scale_filter},format=yuv420p[v{idx}]"
                 )
         else:
-            print(f"Skipping unsupported file type: {media_path}")
+            logger.warning(f"Skipping unsupported file type: {media_path}")
             return [], "" # Return empty if unsupported
 
         return input_args, filter_part
@@ -214,7 +219,7 @@ def generate_base_slideshow(
     # The total_video_duration is the final cumulative_duration after all transitions
     total_video_duration = cumulative_duration
     
-    print(f"Slideshow Generator: num_main_segments={len(media_file_paths) - 1}, slide_duration={slide_duration}, actual_outro_duration={actual_outro_duration}, total_video_duration={total_video_duration}")
+    logger.info(f"Slideshow Generator: num_main_segments={len(media_file_paths) - 1}, slide_duration={slide_duration}, actual_outro_duration={actual_outro_duration}, total_video_duration={total_video_duration}")
 
 
     ffmpeg_cmd.extend(inputs)
@@ -230,14 +235,14 @@ def generate_base_slideshow(
         output_path
     ])
 
-    print(f"Executing slideshow generation: {' '.join(ffmpeg_cmd)}")
+    logger.info(f"Executing slideshow generation: {' '.join(ffmpeg_cmd)}")
     try:
         subprocess.run(ffmpeg_cmd, check=True)
-        print(f"Base slideshow saved: {output_path}")
+        logger.info(f"Base slideshow saved: {output_path}")
         return output_path
     except subprocess.CalledProcessError as e:
-        print(f"Error generating base slideshow: {e}")
-        print(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
+        logger.error(f"Error generating base slideshow: {e}")
+        logger.error(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
         return None
 
 def _apply_watermark_filter(
@@ -279,7 +284,7 @@ def _apply_watermark_filter(
     return stream_label, "" # No watermark applied
 
 if __name__ == "__main__":
-    print("slideshow_generator.py executed directly (for testing).")
+    logger.info("slideshow_generator.py executed directly (for testing).")
     # Example usage (requires actual media files and a config dict)
     # mock_media_files = ["path/to/image1.jpg", "path/to/video1.mp4", "path/to/outro.mp4"]
     # mock_config = {

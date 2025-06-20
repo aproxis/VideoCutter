@@ -67,6 +67,7 @@ Alongside this, ongoing work includes documentation updates and potential furthe
 - Fixed the drawing order to ensure shadows appear behind text with outlines
 - Enhanced preview rendering to match the final video output
 - **Implemented full ASS style parameter support in `videocutter/processing/subtitle_generator.py`.**
+- Resolved Pylance warnings in `videocutter/processing/subtitle_generator.py` related to undefined `time_offset` variable.
 
 ### GUI Enhancements
 
@@ -106,6 +107,10 @@ Alongside this, ongoing work includes documentation updates and potential furthe
 - Fixed opacity handling in the ASS style string
 - Implemented proper color ordering for ASS format
 - Enhanced font path resolution for custom fonts
+
+### Bug Fixes
+
+- **Fixed `AttributeError: 'dict' object has no attribute 'text'` in `content/youtube_handler.py`**: Modified `search_videos` and `get_channel_videos` methods to directly extract the 'text' from the transcript dictionaries returned by `YouTubeTranscriptApi.get_transcript`, instead of relying on `youtube_transcript_api.formatters.TextFormatter`. Removed the unused `TextFormatter` import and instantiation.
 
 ## Next Steps
 
@@ -157,6 +162,7 @@ Alongside this, ongoing work includes documentation updates and potential furthe
 
 2.  **Performance Optimization**
     - Optimize subtitle rendering for speed
+    - Reduce memory usage during processing
     - Reduce memory usage during processing
     - Implement more efficient preview rendering
     - Optimize font loading and caching

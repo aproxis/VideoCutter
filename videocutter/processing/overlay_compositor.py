@@ -10,11 +10,13 @@ import tempfile # For creating temporary files
 from typing import Optional # For Optional type hint
 from dotmap import DotMap # Import DotMap
 import shutil # Import shutil for file copying
+import logging # Import logging
 
 # Assuming font_utils is in videocutter.utils
 from videocutter.utils.font_utils import get_font_name
 from .video_processor import get_video_duration, get_video_metadata
 
+logger = logging.getLogger(__name__) # Initialize logger at module level
 
 def _get_overlay_video_duration(overlay_video_path: str) -> float:
     """Gets overlay video duration using ffprobe."""
@@ -24,7 +26,7 @@ def _get_overlay_video_duration(overlay_video_path: str) -> float:
         json_data = json.loads(result.stdout)
         return float(json_data['format']['duration'])
     except Exception as e:
-        print(f"Error getting overlay video duration for {overlay_video_path}: {e}. Defaulting to 23s.")
+        logger.warning(f"Error getting overlay video duration for {overlay_video_path}: {e}. Defaulting to 23s.")
         return 23.0 # Fallback from original script
 
 def apply_final_overlays(
@@ -57,7 +59,7 @@ def apply_final_overlays(
     Returns:
         str | None: Path to the final video, or None on failure.
     """
-    print(f"Applying final overlays to {input_video_path}...")
+    logger.info(f"Applying final overlays to {input_video_path}...")
 
     title_cfg = config.get('title_overlay', {})
     sub_ov_cfg = config.get('subscribe_overlay', {})
@@ -74,7 +76,7 @@ def apply_final_overlays(
     if not os.path.exists(title_font_path):
         title_font_path = title_cfg.get('system_font_fallback_path', '/Users/a/Library/Fonts/Montserrat-SemiBold.otf') # Example fallback
         if not os.path.exists(title_font_path):
-             print(f"Warning: Title font {title_font_filename} not found in fonts/ or as fallback. FFmpeg might fail or use default.")
+             logger.warning(f"Title font {title_font_filename} not found in fonts/ or as fallback. FFmpeg might fail or use default.")
              title_font_path = title_font_filename # Let ffmpeg try to find it
 
     title_font_size = title_cfg.get('font_size', 90)
@@ -93,9 +95,9 @@ def apply_final_overlays(
     title_background_color = title_cfg.get('background_color', '000000') # New: Get background color
     title_background_opacity = title_cfg.get('background_opacity', 0.5) # New: Get background opacity
 
-    print(f"DEBUG: enable_title_background: {enable_title_background}")
-    print(f"DEBUG: title_background_color: {title_background_color}")
-    print(f"DEBUG: title_background_opacity: {title_background_opacity}")
+    logger.info(f"DEBUG: enable_title_background: {enable_title_background}")
+    logger.info(f"DEBUG: title_background_color: {title_background_color}")
+    logger.info(f"DEBUG: title_background_opacity: {title_background_opacity}")
 
     # Subscribe overlay properties
     enable_subscribe_overlay = sub_ov_cfg.get('enabled', True) # New: Get enable status
@@ -115,7 +117,7 @@ def apply_final_overlays(
 
     main_video_metadata = get_video_metadata(input_video_path)
     if not main_video_metadata or main_video_metadata.get("duration") is None:
-        print(f"Could not get metadata for main video {input_video_path}. Aborting.")
+        logger.error(f"Could not get metadata for main video {input_video_path}. Aborting.")
         return None
     
     main_video_duration = main_video_metadata["duration"]
@@ -130,13 +132,13 @@ def apply_final_overlays(
 
     # Conditionally add subscribe overlay input and filters
     subscribe_overlay_file = sub_ov_cfg.get('overlay_file')
-    print(f"DEBUG: enable_subscribe_overlay: {enable_subscribe_overlay}")
-    print(f"DEBUG: subscribe_overlay_file: {subscribe_overlay_file}")
+    logger.info(f"DEBUG: enable_subscribe_overlay: {enable_subscribe_overlay}")
+    logger.info(f"DEBUG: subscribe_overlay_file: {subscribe_overlay_file}")
 
     if enable_subscribe_overlay and subscribe_overlay_file:
         subscribe_video_full_path = os.path.join(config.get('subscribe_folder', 'effects/subscribe'), subscribe_overlay_file)
-        print(f"DEBUG: subscribe_video_full_path: {subscribe_video_full_path}")
-        print(f"DEBUG: os.path.exists(subscribe_video_full_path): {os.path.exists(subscribe_video_full_path)}")
+        logger.info(f"DEBUG: subscribe_video_full_path: {subscribe_video_full_path}")
+        logger.info(f"DEBUG: os.path.exists(subscribe_video_full_path): {os.path.exists(subscribe_video_full_path)}")
 
         if os.path.exists(subscribe_video_full_path):
             ffmpeg_inputs.extend(['-i', subscribe_video_full_path])
@@ -164,12 +166,12 @@ def apply_final_overlays(
             filter_complex_parts.append(video_base)
             current_video_stream = "v_with_sub"
         else:
-            print(f"Warning: Subscribe overlay file '{subscribe_video_full_path}' not found. Skipping subscribe overlay.")
+            logger.warning(f"Warning: Subscribe overlay file '{subscribe_video_full_path}' not found. Skipping subscribe overlay.")
             filter_complex_parts.append(f"[{input_stream_indices['main_video']}:a]volume=1.0[aout]")
             filter_complex_parts.append(f"[{input_stream_indices['main_video']}:v]setpts=PTS-STARTPTS[v_main]")
             current_video_stream = "v_main"
     else:
-        print(f"Info: Subscribe overlay disabled or no file selected. Skipping subscribe overlay.")
+        logger.info(f"Info: Subscribe overlay disabled or no file selected. Skipping subscribe overlay.")
         # If subscribe overlay is disabled, audio is just main video's audio, and video stream is just main video
         filter_complex_parts.append(f"[{input_stream_indices['main_video']}:a]volume=1.0[aout]")
         filter_complex_parts.append(f"[{input_stream_indices['main_video']}:v]setpts=PTS-STARTPTS[v_main]")
@@ -208,9 +210,9 @@ def apply_final_overlays(
                 )
             current_video_stream = effect_stream_label
         else:
-            print(f"Warning: Effect overlay file '{effect_path}' not found. Skipping effect overlay.")
+            logger.warning(f"Warning: Effect overlay file '{effect_path}' not found. Skipping effect overlay.")
     else:
-        print(f"Info: Effect overlay disabled or no file selected. Skipping effect overlay.")
+        logger.info(f"Info: Effect overlay disabled or no file selected. Skipping effect overlay.")
 
     # 4. Title Video Overlay (Conditional)
     temp_title_video_overlay_file: Optional[str] = None
@@ -233,7 +235,7 @@ def apply_final_overlays(
                 filter_complex_parts.append(title_video_base)
                 current_video_stream = "v_with_title_video_ov"
             else:
-                print(f"Warning: Title video overlay file '{title_video_overlay_full_path}' not found.")
+                logger.warning(f"Warning: Title video overlay file '{title_video_overlay_full_path}' not found.")
         
         # 5. Title Text Overlay (Conditional)
         temp_title_file: Optional[str] = None
@@ -280,7 +282,7 @@ def apply_final_overlays(
 
         # 6. Subtitle Rendering
         if subtitle_cfg.get('enabled', False) and subtitle_file_path and os.path.exists(subtitle_file_path):
-            print(f"Preparing subtitle styling for {subtitle_file_path}...")
+            logger.info(f"Preparing subtitle styling for {subtitle_file_path}...")
             
             # Define temp_dir for overlay_compositor
             package_root_dir = os.path.dirname(os.path.abspath(__file__)) # videocutter/processing/
@@ -293,7 +295,7 @@ def apply_final_overlays(
             subtitle_extension = os.path.splitext(subtitle_file_path)[1].lstrip('.')
             temp_subtitle_path_in_temp_dir = os.path.join(temp_dir, f"voiceover.{subtitle_extension}")
             shutil.copy(subtitle_file_path, temp_subtitle_path_in_temp_dir)
-            print(f"Copied subtitle to temp directory for overlay_compositor: {temp_subtitle_path_in_temp_dir}")
+            logger.info(f"Copied subtitle to temp directory for overlay_compositor: {temp_subtitle_path_in_temp_dir}")
 
             # Resolve subtitle font name (using font_utils if available, or simple name)
             sub_font_name_arg = subtitle_cfg.get('font_name', 'Arial')
@@ -356,22 +358,22 @@ def apply_final_overlays(
             output_video_path
         ])
 
-        print(f"Executing final overlay composition: {' '.join(ffmpeg_cmd)}")
+        logger.debug(f"Executing final overlay composition: {' '.join(ffmpeg_cmd)}")
         try:
             subprocess.run(ffmpeg_cmd, check=True)
-            print(f"Final video saved: {output_video_path}")
+            logger.info(f"Final video saved: {output_video_path}")
             return output_video_path
         except subprocess.CalledProcessError as e:
-            print(f"Error during final overlay composition: {e}")
-            print(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
+            logger.error(f"Error during final overlay composition: {e}")
+            logger.error(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
             return None
     finally:
         if temp_title_file and os.path.exists(temp_title_file):
             os.remove(temp_title_file)
-            print(f"Cleaned up temporary title file: {temp_title_file}")
+            logger.info(f"Cleaned up temporary title file: {temp_title_file}")
 
 if __name__ == "__main__":
-    print("overlay_compositor.py executed directly (for testing).")
+    logger.info("overlay_compositor.py executed directly (for testing).")
     # Example usage (requires a video with audio, templates, fonts, and a config dict)
     # mock_config_overlay = {
     #     'title_overlay': { 'text': 'Awesome Title', 'font_file': 'Montserrat-SemiBold.otf', 
@@ -398,5 +400,5 @@ if __name__ == "__main__":
     # if os.path.exists(test_input_video) and (not subtitle_cfg.get('enabled') or os.path.exists(test_srt)):
     #     apply_final_overlays(test_input_video, test_output_final, mock_config_overlay, test_working_dir, test_srt if subtitle_cfg.get('enabled') else None)
     # else:
-    #     print("Test files not found for overlay_compositor.")
-    print("Overlay compositor test placeholder finished.")
+    #     logger.warning("Test files not found for overlay_compositor.")
+    logger.info("Overlay compositor test placeholder finished.")
